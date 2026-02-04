@@ -101,7 +101,7 @@ export const Careers: React.FC = () => {
         </div>
       </section>
 
-      {/* Open Roles */}
+      {/* Open Roles - commented out
       <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <motion.div
@@ -143,6 +143,7 @@ export const Careers: React.FC = () => {
           </div>
         </div>
       </section>
+      */}
 
       {/* Application Form */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">

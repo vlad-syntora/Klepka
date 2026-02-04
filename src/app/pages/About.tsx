@@ -21,7 +21,7 @@ export const About: React.FC = () => {
   return (
     <div className="min-h-screen pt-24 lg:pt-32">
       {/* Hero Section */}
-      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -39,7 +39,7 @@ export const About: React.FC = () => {
       </section>
 
       {/* Stats */}
-      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, index) => (
@@ -62,7 +62,7 @@ export const About: React.FC = () => {
       </section>
 
       {/* Mission */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -79,7 +79,7 @@ export const About: React.FC = () => {
 
       
       {/* Values */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

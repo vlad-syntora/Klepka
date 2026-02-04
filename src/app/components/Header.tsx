@@ -57,7 +57,9 @@ export const Header: React.FC = () => {
                 className={`px-4 py-2 rounded-lg transition-colors ${
                   location.pathname === item.path
                     ? 'bg-white text-violet'
-                    : 'text-black hover:bg-white hover:text-violet'
+                    : scrolled
+                      ? 'text-[#F9EDBD] hover:bg-white hover:text-violet'
+                      : 'text-black hover:bg-white hover:text-violet'
                 }`}
               >
                 {item.name}
@@ -98,7 +100,7 @@ export const Header: React.FC = () => {
                 className={`block px-4 py-3 rounded-lg transition-colors ${
                   location.pathname === item.path
                     ? 'bg-white text-violet'
-                    : 'text-black hover:bg-white'
+                    : 'text-black hover:bg-white hover:text-violet'
                 }`}
               >
                 {item.name}

@@ -142,7 +142,7 @@ export const Home: React.FC = () => {
             className="text-center mb-12"
           ></motion.div>
 
-          <div className="certification-slider">
+          <div className="certification-slider mb-24">
             <Slider {...settings}>
               <div className="px-4">
                 <div className="flex items-center justify-center h-32">
@@ -223,7 +223,7 @@ export const Home: React.FC = () => {
 
       {/* Tech Stack Section */}
       
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto mb-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -253,7 +253,7 @@ export const Home: React.FC = () => {
         </div>
       {/* Services Overview */}
      
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto mb-24">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -275,7 +275,7 @@ export const Home: React.FC = () => {
                 className="hover:border-violet"
               >
                 <div className="mb-4">{service.icon}</div>
-                <h3 className="text-xl mb-3 text-violet">
+                <h3 className="text-xl mb-3 text-violet font-bold">
                   {service.title}
                 </h3>
                 <p className="text-text-secondary leading-relaxed">
@@ -306,7 +306,7 @@ export const Home: React.FC = () => {
       </section>*/}
 
       {/* Contact Teaser */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
+      <section className="py-20 pb-24 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
         <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

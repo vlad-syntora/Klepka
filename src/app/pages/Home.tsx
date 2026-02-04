@@ -16,19 +16,19 @@ import { CrmChallengesForm } from "../components/CrmChallengesForm";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import cert1 from "figma:asset/e2a3731ce5c28b0aaeabca19fd7e3c14965d21ca.png";
-import cert2 from "figma:asset/7366f5a4c28ad07c8d9e9f7ffadee0e142693189.png";
-import cert3 from "figma:asset/82604211df267665aa3c66c85446c94b2ee6cd46.png";
-import cert4 from "figma:asset/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png";
-import cert5 from "figma:asset/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
-import cert6 from "figma:asset/aed582af24f5014b836a133be5f05bf36a841cd1.png";
-import cert7 from "figma:asset/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
-import cert8 from "figma:asset/aed582af24f5014b836a133be5f05bf36a841cd1.png";
-import salesforceLogo from "figma:asset/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
-import docusignLogo from "figma:asset/25155f2a11a011d3b70848d424b874c0c621c32b.png";
-import slackLogo from "figma:asset/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
-import formTitanLogo from "figma:asset/492d9bc4032f73ffbe046c5c7e9cb125b5d3ef6b.png";
-import tableauLogo from "figma:asset/4380d03553cab5a60c1283a76c56f2d79493987a.png";
+import cert1 from "../../assets/e2a3731ce5c28b0aaeabca19fd7e3c14965d21ca.png";
+import cert2 from "../../assets/7366f5a4c28ad07c8d9e9f7ffadee0e142693189.png";
+import cert3 from "../../assets/82604211df267665aa3c66c85446c94b2ee6cd46.png";
+import cert4 from "../../assets/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png";
+import cert5 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
+import cert6 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
+import cert7 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
+import cert8 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
+import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
+import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.png";
+import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
+import formTitanLogo from "../../assets/492d9bc4032f73ffbe046c5c7e9cb125b5d3ef6b.png";
+import tableauLogo from "../../assets/4380d03553cab5a60c1283a76c56f2d79493987a.png";
 
 export const Home: React.FC = () => {
   const services = [

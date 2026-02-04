@@ -6,10 +6,26 @@ import { Check, Info } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { CrmChallengesForm } from '../components/CrmChallengesForm';
 
+type PricingCategory = {
+  id: string;
+  label: string;
+};
+
+type PricingPackage = {
+  name: string;
+  category: string;
+  description: string;
+  estimate: string;
+  subtitle: string;
+  price: string;
+  features: string[];
+  popular?: boolean;
+};
+
 export const Pricing: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = React.useState('Implementation');
 
-  const categories = [
+  const categories: PricingCategory[] = [
     { id: 'Implementation', label: 'Implementation'},
     { id: 'Support', label: 'Support' },
     { id: 'CRM Audit', label: 'CRM Audit' },
@@ -19,7 +35,7 @@ export const Pricing: React.FC = () => {
     { id: 'Custom Configuration', label: 'Custom Configuration' },
   ];
 
-  const packages = [
+  const packages: PricingPackage[] = [
     {
       name: 'Support Starter',
       category: 'Support',
@@ -442,9 +458,6 @@ export const Pricing: React.FC = () => {
                       : 'bg-white text-violet border-border-color hover:border-violet hover:bg-white/10'
                   }`}
                 >
-                  <span className={selectedCategory === cat.id ? 'text-violet' : 'text-violet'}>
-                    {cat.icon}
-                  </span>
                   <span className="font-semibold">{cat.label}</span>
                 </button>
               ))}

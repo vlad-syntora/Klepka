@@ -1,11 +1,11 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, type HTMLMotionProps } from 'motion/react';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = HTMLMotionProps<"button"> & {
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   children: React.ReactNode;
-}
+};
 
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Linkedin, Twitter, Youtube, Instagram } from 'lucide-react';
-import logo from "figma:asset/d1e97a210363d7653bba220190650a54a2d2ee58.png";
+import logo from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
 
 export const Footer: React.FC = () => {
   const footerLinks = {

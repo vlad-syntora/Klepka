@@ -3,8 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Button } from './Button';
 import { Menu, X } from 'lucide-react';
-import logoPurple from "figma:asset/85bd7ec43f69e1c0fc0ed1f1121c7466d87fd6c5.png";
-import logoLight from "figma:asset/d1e97a210363d7653bba220190650a54a2d2ee58.png";
+import logoPurple from "../../assets/85bd7ec43f69e1c0fc0ed1f1121c7466d87fd6c5.png";
+import logoLight from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
 
 export const Header: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);

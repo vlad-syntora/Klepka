@@ -4,8 +4,35 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input, TextArea } from "../components/Input";
 import { MapPin, Briefcase, Award } from "lucide-react";
+import { toast } from "sonner";
+import { sendEmailJsForm } from "../lib/emailjs";
 
 export const Careers: React.FC = () => {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isSubmitted, setIsSubmitted] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    setIsSubmitting(true);
+
+    try {
+      await sendEmailJsForm(formEl);
+      setIsSubmitted(true);
+      toast.success("Application submitted!", {
+        description: "Thanks! We’ll review it and get back to you.",
+      });
+      formEl.reset();
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't submit application", {
+        description: "Please try again in a moment.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const openRoles = [
     {
       title: "Salesforce Consultant",
@@ -34,14 +61,12 @@ export const Careers: React.FC = () => {
     {
       icon: <MapPin className="w-6 h-6 text-black" />,
       title: "Remote-first Work",
-      description:
-        "Work from anywhere in the US or EU with flexible hours",
+      description: "Work from anywhere in the US or EU with flexible hours",
     },
     {
       icon: <Award className="w-6 h-6 text-black" />,
       title: "Professional Certifications",
-      description:
-        "We cover all Salesforce certifications and training",
+      description: "We cover all Salesforce certifications and training",
     },
     {
       icon: <Briefcase className="w-6 h-6 text-black" />,
@@ -65,8 +90,8 @@ export const Careers: React.FC = () => {
               Build CRM Systems Used by Real Businesses
             </h1>
             <p className="text-lg text-text-secondary leading-relaxed">
-              Join a team of technical experts who love solving
-              complex business problems
+              Join a team of technical experts who love solving complex business
+              problems
             </p>
           </motion.div>
         </div>
@@ -85,15 +110,9 @@ export const Careers: React.FC = () => {
                 transition={{ delay: index * 0.1 }}
               >
                 <Card className="text-center">
-                  <div className="flex justify-center mb-4">
-                    {benefit.icon}
-                  </div>
-                  <h3 className="text-xl text-violet mb-3">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-text-secondary">
-                    {benefit.description}
-                  </p>
+                  <div className="flex justify-center mb-4">{benefit.icon}</div>
+                  <h3 className="text-xl text-violet mb-3">{benefit.title}</h3>
+                  <p className="text-text-secondary">{benefit.description}</p>
                 </Card>
               </motion.div>
             ))}
@@ -163,34 +182,58 @@ export const Careers: React.FC = () => {
           </motion.div>
 
           <Card>
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <input
+                type="hidden"
+                name="form_name"
+                value="New Candidate Form"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Input label="Name" placeholder="Your name" />
                 <Input
+                  required
+                  name="full_name"
+                  label="Name"
+                  placeholder="Your name"
+                />
+                <Input
+                  required
                   label="Email"
                   type="email"
+                  name="reply_to"
                   placeholder="your@email.com"
                 />
               </div>
               <Input
+                required
                 label="Role"
+                name="role"
                 placeholder="Position you're applying for"
               />
               <Input
+                required
                 label="LinkedIn"
+                name="linkedin"
                 placeholder="linkedin.com/in/yourprofile"
               />
               <TextArea
+                required
                 label="Message"
+                name="message"
                 placeholder="Tell us about yourself and why you'd be a great fit..."
                 rows={6}
               />
+              {isSubmitted && (
+                <p className="text-sm text-violet">
+                  Success — we received your application.
+                </p>
+              )}
               <Button
                 variant="primary"
                 size="lg"
                 className="w-full"
+                disabled={isSubmitting}
               >
-                Submit Application
+                {isSubmitting ? "Sending..." : "Submit Application"}
               </Button>
             </form>
           </Card>

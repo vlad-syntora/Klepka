@@ -22,8 +22,8 @@ import cert3 from "../../assets/82604211df267665aa3c66c85446c94b2ee6cd46.png";
 import cert4 from "../../assets/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png";
 import cert5 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
 import cert6 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
-import cert7 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
-import cert8 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
+import cert7 from "../../assets/platform-app-builder.png";
+import cert8 from "../../assets/pardot-specialist.png";
 import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
 import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.png";
 import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
@@ -323,7 +323,7 @@ export const Home: React.FC = () => {
             </p>
           </motion.div>
 
-          <CrmChallengesForm />
+          <CrmChallengesForm formName="CRM Challenges Inquiry" />
         </div>
       </section>
     </div>

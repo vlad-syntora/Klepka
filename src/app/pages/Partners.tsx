@@ -5,24 +5,30 @@ import { Card } from "../components/Card";
 import { Input, TextArea } from "../components/Input";
 import { TrendingUp, Users, Award } from "lucide-react";
 import { toast } from "sonner";
+import { sendEmailJsForm } from "../lib/emailjs";
 
 export const Partners: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formEl = e.currentTarget;
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    toast.success("Partnership inquiry submitted!", {
-      description:
-        "An email with your details has been sent to dme85928@gmail.com. We will review your application and reach out soon.",
-    });
-
-    setIsSubmitting(false);
-    (e.target as HTMLFormElement).reset();
+    try {
+      await sendEmailJsForm(formEl);
+      toast.success("Partnership inquiry submitted!", {
+        description: "We will review your application and reach out soon.",
+      });
+      formEl.reset();
+    } catch (err) {
+      console.error(err);
+      toast.error("Couldn't submit inquiry", {
+        description: "Please try again in a moment.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const clients = [
@@ -186,34 +192,41 @@ export const Partners: React.FC = () => {
           </motion.div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
+            <input type="hidden" name="form_name" value="New Partner Request" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Input
                 required
+                name="company_name"
                 placeholder="Your company name"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
               <Input
                 required
+                name="role"
                 placeholder="Your role"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
               <Input
                 required
+                name="company_site"
                 placeholder="Company Site"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
               <Input
+                name="company_linkedin"
                 placeholder="Company LinkedIn"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
             </div>
             <Input
               required
+              name="partner_type"
               placeholder="Partner Type (Technology, Delivery, or Referral)"
               className="bg-card-foreground/10 text-off-white border-border-color/30"
             />
             <TextArea
               required
+              name="message"
               placeholder="Tell us about your partnership interest..."
               rows={4}
               className="bg-card-foreground/10 text-off-white border-border-color/30"

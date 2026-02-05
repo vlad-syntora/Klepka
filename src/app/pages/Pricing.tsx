@@ -2,9 +2,11 @@ import React from "react";
 import { motion } from "motion/react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import { Input } from "../components/Input";
 import { Check, Info } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { CrmChallengesForm } from "../components/CrmChallengesForm";
+import { sendEmailJsForm } from "../lib/emailjs";
 
 type PricingCategory = {
   id: string;
@@ -20,6 +22,272 @@ type PricingPackage = {
   price: string;
   features: string[];
   popular?: boolean;
+};
+
+const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
+  const [isFlipped, setIsFlipped] = React.useState(false);
+  const [status, setStatus] = React.useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
+  const [error, setError] = React.useState<string | null>(null);
+  const formRef = React.useRef<HTMLFormElement | null>(null);
+  const timerRef = React.useRef<number | null>(null);
+
+  const getEmailJsErrorInfo = (err: unknown) => {
+    const anyErr = err as
+      | { status?: number; text?: string; message?: string }
+      | undefined;
+
+    const statusCode = anyErr?.status;
+    const text = anyErr?.text;
+    const message = anyErr?.message;
+
+    const combined = [message, text].filter(Boolean).join(" | ");
+
+    // If the request was sent but the response was blocked (extensions / strict privacy),
+    // fetch can reject even though EmailJS processed the email.
+    const isUnconfirmedNetworkError =
+      typeof combined === "string" &&
+      /failed to fetch|networkerror|load failed|fetch/i.test(combined);
+
+    const uiMessage =
+      statusCode || combined
+        ? `EmailJS error${statusCode ? ` (${statusCode})` : ""}: ${
+            combined || "Unknown error"
+          }`
+        : "Couldn't submit. Please try again.";
+
+    return { isUnconfirmedNetworkError, uiMessage };
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const flipToFront = () => {
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setIsFlipped(false);
+    setStatus("idle");
+    setError(null);
+    formRef.current?.reset();
+  };
+
+  const handleStart = () => {
+    setIsFlipped(true);
+    setStatus("idle");
+    setError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formEl = e.currentTarget;
+    setStatus("submitting");
+    setError(null);
+
+    try {
+      await sendEmailJsForm(formEl);
+      setStatus("success");
+      formEl.reset();
+
+      timerRef.current = window.setTimeout(() => {
+        flipToFront();
+      }, 1600);
+    } catch (err) {
+      console.error(err);
+      const info = getEmailJsErrorInfo(err);
+
+      if (info.isUnconfirmedNetworkError) {
+        setStatus("success");
+        formEl.reset();
+        timerRef.current = window.setTimeout(() => {
+          flipToFront();
+        }, 1600);
+        return;
+      }
+
+      setStatus("error");
+      setError(info.uiMessage);
+    }
+  };
+
+  const frontCardClasses = `bg-card border border-border-color rounded-lg p-6 shadow-sm transition-shadow h-full flex flex-col ${
+    pkg.popular ? "border-violet border-2 shadow-lg" : ""
+  }`;
+
+  const backCardClasses = `bg-violet border border-violet/40 rounded-lg p-6 shadow-sm h-full flex flex-col text-off-white ${
+    pkg.popular ? "ring-2 ring-white/30" : ""
+  }`;
+
+  const darkInputClasses =
+    "bg-card-foreground/10 text-off-white border-border-color/30";
+
+  return (
+    <div className="h-full" style={{ perspective: "1200px" }}>
+      <motion.div
+        className="relative h-full [transform-style:preserve-3d]"
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.55, ease: [0.2, 0.8, 0.2, 1] }}
+      >
+        {/* Front */}
+        <div className="h-full [backface-visibility:hidden]">
+          <div className={frontCardClasses}>
+            <div data-align="title">
+              {pkg.popular && (
+                <div className="bg-violet text-white text-sm font-medium px-4 py-1 rounded-full inline-block mb-4 w-fit">
+                  Most Popular
+                </div>
+              )}
+              <h3 className="text-2xl mb-2 text-violet font-bold">
+                {pkg.name}
+              </h3>
+            </div>
+
+            <p data-align="subtitle" className="text-grey mb-4">
+              {pkg.subtitle}
+            </p>
+
+            <p
+              data-align="price"
+              className="text-lg font-normal text-violet mb-4"
+            >
+              {pkg.price}
+            </p>
+
+            <div className="border-t border-border-color pt-4 mb-3 text-sm" />
+
+            <p
+              data-align="description"
+              className="text-grey leading-relaxed mb-2 text-sm"
+            >
+              {pkg.description}
+            </p>
+
+            <p className="text-violet font-medium mb-6 text-sm">
+              {pkg.estimate}
+            </p>
+
+            <ul className="space-y-3 mb-8 flex-grow">
+              {pkg.features.map((feature, idx) => (
+                <li key={idx} className="flex items-start space-x-3">
+                  <Check className="w-5 h-5 text-violet flex-shrink-0 mt-0.5" />
+                  <span className="text-black">{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              type="button"
+              onClick={handleStart}
+              variant={pkg.popular ? "primary" : "ghost"}
+              className="w-full mt-auto"
+            >
+              Get Started
+            </Button>
+          </div>
+        </div>
+
+        {/* Back */}
+        <div className="absolute inset-0 h-full [transform:rotateY(180deg)] [backface-visibility:hidden]">
+          <div className={backCardClasses}>
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-xl font-bold">Get Started</h3>
+                <p className="text-white/80 text-sm">{pkg.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={flipToFront}
+                className="text-white/80 hover:text-white text-sm underline underline-offset-4"
+              >
+                Back
+              </button>
+            </div>
+
+            {status === "success" ? (
+              <div className="flex-1 flex items-center justify-center text-center">
+                <div>
+                  <p className="text-2xl font-semibold">Success</p>
+                  <p className="text-white/80 mt-2 text-sm">
+                    We received your request and will reach out shortly.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <form
+                ref={formRef}
+                className="space-y-4 flex-1 flex flex-col"
+                onSubmit={handleSubmit}
+              >
+                <input
+                  type="hidden"
+                  name="form_name"
+                  value={`New Client Request '${pkg.name}'`}
+                />
+                <input type="hidden" name="package_name" value={pkg.name} />
+                <input
+                  type="hidden"
+                  name="package_category"
+                  value={pkg.category}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    required
+                    name="first_name"
+                    placeholder="First Name"
+                    className={darkInputClasses}
+                  />
+                  <Input
+                    required
+                    name="last_name"
+                    placeholder="Last Name"
+                    className={darkInputClasses}
+                  />
+                  <Input
+                    required
+                    name="company"
+                    placeholder="Company"
+                    className={darkInputClasses}
+                  />
+                  <Input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone"
+                    className={darkInputClasses}
+                  />
+                </div>
+
+                <Input
+                  required
+                  type="email"
+                  name="reply_to"
+                  placeholder="Email"
+                  className={darkInputClasses}
+                />
+
+                {status === "error" && (
+                  <p className="text-sm text-accent-yellow">{error}</p>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full mt-auto !bg-white !text-violet hover:!bg-accent-yellow hover:!text-violet ring-2 ring-white/40 ring-offset-2 ring-offset-violet"
+                  disabled={status === "submitting"}
+                >
+                  {status === "submitting" ? "Sending..." : "Submit"}
+                </Button>
+              </form>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
 };
 
 export const Pricing: React.FC = () => {
@@ -590,7 +858,7 @@ export const Pricing: React.FC = () => {
                 ref={packagesGridRef}
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-center"
               >
-                {filteredPackages.map((pkg, index) => (
+                {filteredPackages.map((pkg) => (
                   <motion.div
                     key={`${pkg.category}-${pkg.name}`}
                     layout
@@ -600,54 +868,7 @@ export const Pricing: React.FC = () => {
                     transition={{ duration: 0.3 }}
                   >
                     <div data-package-card="true" className="h-full">
-                      <Card
-                        className={`h-full flex flex-col ${pkg.popular ? "border-violet border-2 shadow-lg" : ""}`}
-                      >
-                        <div data-align="title">
-                          {pkg.popular && (
-                            <div className="bg-violet text-white text-sm font-medium px-4 py-1 rounded-full inline-block mb-4 w-fit">
-                              Most Popular
-                            </div>
-                          )}
-                          <h3 className="text-2xl mb-2 text-violet font-bold">
-                            {pkg.name}
-                          </h3>
-                        </div>
-
-                        <p data-align="subtitle" className="text-grey mb-4">
-                          {pkg.subtitle}
-                        </p>
-
-                        <p data-align="price" className="text-lg font-normal text-violet mb-4">
-                          {pkg.price}
-                        </p>
-
-                        <div className="border-t border-border-color pt-4 mb-3 text-sm" />
-
-                        <p data-align="description" className="text-grey leading-relaxed mb-2 text-sm">
-                          {pkg.description}
-                        </p>
-
-                        <p className="text-violet font-medium mb-6 text-sm">
-                          {pkg.estimate}
-                        </p>
-
-                        <ul className="space-y-3 mb-8 flex-grow">
-                          {pkg.features.map((feature, idx) => (
-                            <li key={idx} className="flex items-start space-x-3">
-                              <Check className="w-5 h-5 text-violet flex-shrink-0 mt-0.5" />
-                              <span className="text-black">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        <Button
-                          variant={pkg.popular ? "primary" : "ghost"}
-                          className="w-full mt-auto"
-                        >
-                          Get Started
-                        </Button>
-                      </Card>
+                      <PackageGetStartedCard pkg={pkg} />
                     </div>
                   </motion.div>
                 ))}

@@ -146,14 +146,14 @@ export const Partners: React.FC = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                  className="bg-card border border-violet rounded-lg p-4 md:p-3 flex flex-col items-center justify-center gap-2 md:gap-4 hover:shadow-lg transition-shadow"
                 >
                   <img
                     src={client.icon}
                     alt={client.title}
-                    className="w-20 h-20 object-contain"
+                    className="w-14 h-14 md:w-20 md:h-20 object-contain"
                   />
-                  <span className="text-black font-medium text-center text-sm">
+                  <span className="text-black font-medium text-center text-xs md:text-sm">
                     {client.title}
                   </span>
                 </motion.div>

@@ -120,7 +120,7 @@ const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
     }
   };
 
-  const frontCardClasses = `bg-card border border-border-color rounded-lg p-6 shadow-sm transition-shadow h-full flex flex-col ${
+  const frontCardClasses = `bg-card border border-border-color rounded-lg p-6 shadow-sm transition-shadow h-full flex flex-col hover:shadow-lg ${
     pkg.popular ? "border-violet border-2 shadow-lg" : ""
   }`;
 

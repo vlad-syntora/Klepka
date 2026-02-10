@@ -4,12 +4,6 @@ import { Card } from '../components/Card';
 import { Award, Users, Globe, TrendingUp } from 'lucide-react';
 
 export const About: React.FC = () => {
-  const stats = [
-    { icon: <Users className="w-8 h-8 text-black" />, value: '50+', label: 'CRM Projects Delivered' },
-    { icon: <Award className="w-8 h-8 text-black" />, value: '30+', label: 'Salesforce Certifications' },
-    { icon: <Globe className="w-8 h-8 text-black" />, value: 'US & EU', label: 'Clients Across Regions' },
-    { icon: <TrendingUp className="w-8 h-8 text-black" />, value: '98%', label: 'Client Satisfaction' },
-  ];
 
   const timeline = [
     { year: '2023', title: 'Platform Partnerships', description: 'Became official Salesforce and HubSpot partners' },
@@ -36,29 +30,6 @@ export const About: React.FC = () => {
               We bring that experience into every project, focusing on practical, structured solutions that make clients’ work easier over time.
             </p>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card className="text-center" hover={false}>
-                  <div className="flex justify-center mb-4">{stat.icon}</div>
-                  <div className="text-3xl font-semibold text-violet mb-2">{stat.value}</div>
-                  <div className="text-text-secondary">{stat.label}</div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -91,19 +62,29 @@ export const About: React.FC = () => {
             
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div 
+            className="gap-8"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+              gap: '32px'
+            }}
+          >
             {[
               {
                 title: 'About Us',
-                description: 'We build Salesforce CRM systems designed to scale with real business requirements. Our focus is full-cycle Salesforce delivery, from initial architecture and implementation to integrations and long-term system support.',
+                description: 'We build Salesforce CRM systems designed to scale with real business requirements.\nOur focus is full-cycle Salesforce delivery, from initial architecture and implementation to integrations and long-term system support.',
+                isList: false,
               },
               {
                 title: 'How we work',
-                description: 'Structured delivery with clear responsibility. Technical decisions based on long-term system behavior. Focus on scalability rather than short-term fixes.',
+                description: 'Structured delivery with clear responsibility.\nTechnical decisions based on long-term system behavior.\nFocus on scalability rather than short-term fixes.',
+                isList: false,
               },
               {
                 title: 'What we actually do',
-                description: 'System architecture and design Custom CRM implementation Integrations with external systems Automation and ongoing support',
+                description: 'System architecture and design\nCustom CRM implementation\nIntegrations with external systems\nAutomation and ongoing support',
+                isList: true,
               },
             ].map((value, index) => (
               <motion.div
@@ -115,7 +96,15 @@ export const About: React.FC = () => {
                 className="text-center"
               >
                 <h3 className="text-xl mb-3">{value.title}</h3>
-                <p className="text-accent-yellow leading-relaxed">{value.description}</p>
+                {value.isList ? (
+                  <ul className="space-y-2 leading-relaxed">
+                    {value.description.split('\n').map((item, i) => (
+                      <li key={i}>• {item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="leading-relaxed whitespace-pre-line">{value.description}</p>
+                )}
               </motion.div>
             ))}
           </div>

@@ -387,7 +387,7 @@ export const Pricing: React.FC = () => {
       estimate: "Starting from 10 hours per month",
       subtitle:
         "For companies that need day-to-day Salesforce assistance without a full-time admin.",
-      price: "Starting from $1400 per month",
+      price: "From $1400",
       features: [
         "1 Certified Salesforce Specialist",
         "Break/fix support",
@@ -803,7 +803,7 @@ export const Pricing: React.FC = () => {
                 Transparent Pricing. Predictable Scope.
               </h1>
               <p className="text-lg text-text-secondary leading-relaxed">
-                Starting prices based on proven delivery frameworks.
+                Pricing shaped by years of real delivery experience.
               </p>
             </motion.div>
           </div>

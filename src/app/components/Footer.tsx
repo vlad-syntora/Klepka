@@ -31,7 +31,7 @@ export const Footer: React.FC = () => {
               <a href="#" className="text-white hover:text-accent-yellow transition-colors">
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a href="#" className="text-white hover:text-accent-yellow transition-colors">
+              {/*<a href="#" className="text-white hover:text-accent-yellow transition-colors">
                 <Twitter className="w-5 h-5" />
               </a>
               <a href="#" className="text-white hover:text-accent-yellow transition-colors">
@@ -39,7 +39,7 @@ export const Footer: React.FC = () => {
               </a>
               <a href="#" className="text-white hover:text-accent-yellow transition-colors">
                 <Instagram className="w-5 h-5" />
-              </a>
+              </a>*/}
             </div>
           </div>
 
@@ -84,13 +84,13 @@ export const Footer: React.FC = () => {
               <li className="flex items-start space-x-3">
                 <Mail className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" />
                 <a href="mailto:contact@klepka.com" className="text-sm text-white hover:text-accent-yellow transition-colors">
-                  contact@klepka.com
+                  klepkasolutions@gmail.com
                 </a>
               </li>
               <li className="flex items-start space-x-3">
                 <Phone className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" />
-                <a href="tel:+1234567890" className="text-sm text-white hover:text-accent-yellow transition-colors">
-                  +1 (XXX) XXX-XXXX
+                <a href="tel:+380936453613" className="text-sm text-white hover:text-accent-yellow transition-colors">
+                  +38 (093) 645-36-13
                 </a>
               </li>
               <li className="flex items-start space-x-3">

@@ -29,10 +29,11 @@ export const About: React.FC = () => {
             className="text-center max-w-3xl mx-auto"
           >
             <h1 className="text-4xl sm:text-5xl mb-6 text-violet">
-              Built by Engineers <br></br> Trusted by Business Teams
+             Our Team
             </h1>
             <p className="text-xl text-text-secondary leading-relaxed mb-8">
-              We design CRM systems that scale with your revenue, not against it.
+              Founded by two Salesforce experts with experience working on systems at different stages, from early implementations to complex, evolving environments.
+              We bring that experience into every project, focusing on practical, structured solutions that make clients’ work easier over time.
             </p>
           </motion.div>
         </div>
@@ -61,7 +62,7 @@ export const About: React.FC = () => {
         </div>
       </section>
 
-      {/* Mission */}
+      {/* Mission 
       <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
@@ -75,7 +76,7 @@ export const About: React.FC = () => {
             </p>
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       
       {/* Values */}
@@ -87,22 +88,22 @@ export const About: React.FC = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl sm:text-4xl mb-4">Our Values</h2>
+            
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                title: 'Technical Excellence',
-                description: 'We stay ahead of platform updates and best practices to deliver cutting-edge solutions.',
+                title: 'About Us',
+                description: 'We build Salesforce CRM systems designed to scale with real business requirements. Our focus is full-cycle Salesforce delivery, from initial architecture and implementation to integrations and long-term system support.',
               },
               {
-                title: 'Business Focus',
-                description: 'Technology serves the business, not the other way around. We prioritize outcomes over features.',
+                title: 'How we work',
+                description: 'Structured delivery with clear responsibility. Technical decisions based on long-term system behavior. Focus on scalability rather than short-term fixes.',
               },
               {
-                title: 'Long-term Partnership',
-                description: 'We build relationships, not just systems. Your success is our success.',
+                title: 'What we actually do',
+                description: 'System architecture and design Custom CRM implementation Integrations with external systems Automation and ongoing support',
               },
             ].map((value, index) => (
               <motion.div

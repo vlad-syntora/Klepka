@@ -32,14 +32,12 @@ export const Partners: React.FC = () => {
   };
 
   const clients = [
-    "TechCorp Inc",
-    "Global SaaS",
-    "Enterprise Solutions",
-    "Revenue Systems",
-    "Cloud Dynamics",
-    "Data Innovations",
-    "Scale Partners",
-    "Growth Ventures",
+    "SaaS and Product Companies",
+    "B2B Sales and Revenue Teams",
+    "Service and Support Teams",
+    "Data-Driven and Analytics-Focused Teams",
+    "Companies Scaling Internal Processes",
+    "Migration and Optimization Projects",
   ];
 
   const caseStudies = [
@@ -89,18 +87,17 @@ export const Partners: React.FC = () => {
             className="text-center max-w-3xl mx-auto"
           >
             <h1 className="text-4xl sm:text-5xl mb-6 text-violet">
-              Trusted by Growing and Enterprise Teams
+              Alignment Across Clients and Technology
             </h1>
             <p className="text-lg text-text-secondary leading-relaxed">
-              We partner with ambitious companies to build CRM systems that
-              drive real business outcomes
+              Our experience spans collaboration with growing companies and established organizations using Salesforce as a core business system.
             </p>
           </motion.div>
         </div>
       </section>
 
       {/* Logo Grid */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-3 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -109,11 +106,11 @@ export const Partners: React.FC = () => {
             className="text-center mb-12"
           >
             <h2 className="text-2xl sm:text-3xl mb-4 text-violet">
-              Clients & Technology Partners
+              Our Areas of Experience
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             {clients.map((client, index) => (
               <motion.div
                 key={index}
@@ -121,7 +118,7 @@ export const Partners: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-card border border-border-color rounded-lg p-6 flex items-center justify-center hover:border-violet transition-colors"
+                className="bg-card border border-violet rounded-lg p-6 flex items-center justify-center "
               >
                 <span className="text-black font-medium">{client}</span>
               </motion.div>

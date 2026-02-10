@@ -115,13 +115,11 @@ export const Home: React.FC = () => {
             className="text-center max-w-4xl mx-auto"
           >
             <h1 className="text-4xl sm:text-5xl lg:text-6xl mb-6 text-violet">
-              Designing Scalable Salesforce CRM Systems for
-              Revenue Teams
+              Scalable Salesforce CRM Solutions
             </h1>
             <p className="text-lg sm:text-xl text-text-secondary mb-8 leading-relaxed">
-              We help growing companies implement, integrate,
-              and optimize Salesforce to increase visibility,
-              efficiency, and revenue.
+              Implementations, integrations, and ongoing support. <br></br>
+              Full-cycle Salesforce delivery built to drive revenue.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/pricing">

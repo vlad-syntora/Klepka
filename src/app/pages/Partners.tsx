@@ -182,8 +182,8 @@ export const Partners: React.FC = () => {
           <div className="space-y-8">
             {caseStudies.map((study, index) => (
               <Card key={index}>
-          <div className="flex flex-col  lg:flex-row lg:items-center gap-6">
-              <div className="flex flex-col gap-4 flex-shrink-0">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+              <div className="flex flex-row gap-4 items-center justify-center flex-shrink-0 w-full lg:w-auto">
               <img
                 src={study.icon}
                 className="w-24 h-24 object-contain"

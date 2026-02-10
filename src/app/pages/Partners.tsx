@@ -6,6 +6,14 @@ import { Input, TextArea } from "../components/Input";
 import { TrendingUp, Users, Award } from "lucide-react";
 import { toast } from "sonner";
 import { sendEmailJsForm } from "../lib/emailjs";
+import saasProductIcon from "../../assets/SaaS_Product.png";
+import b2bSalesIcon from "../../assets/B2B_Sales.png";
+import dataDrivenIcon from "../../assets/Data_Driven.png";
+import dataMigrationIcon from "../../assets/Data_Migration.png";
+import optimisationIcon from "../../assets/Optimisation.png";
+import supportIcon from "../../assets/Support.png";
+import logoPrytulaIcon from "../../assets/logoPrytulaFund.svg";
+import logoKlepkavioletIcon from "../../assets/logo_violet_1.png";
 
 export const Partners: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,49 +38,69 @@ export const Partners: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
   const clients = [
-    "SaaS and Product Companies",
-    "B2B Sales and Revenue Teams",
-    "Service and Support Teams",
-    "Data-Driven and Analytics-Focused Teams",
-    "Companies Scaling Internal Processes",
-    "Migration and Optimization Projects",
+    {
+      title: "SaaS and Product Companies",
+      icon: saasProductIcon,
+    },
+    {
+      title: "B2B Sales and Revenue Teams",
+      icon: b2bSalesIcon,
+    },
+    {
+      title: "Service and Support Teams",
+      icon: supportIcon,
+    },
+    {
+      title: "Data-Driven and Analytics-Focused Teams",
+      icon: dataDrivenIcon,
+    },
+    {
+      title: "Companies Scaling Internal Processes",
+      icon: optimisationIcon,
+    },
+    {
+      title: "Migration and Optimization Projects",
+      icon: dataMigrationIcon,
+    },
   ];
 
   const caseStudies = [
     {
-      title: "Salesforce Revamp for Global SaaS",
-      description:
-        "Redesigned CRM architecture, reduced manual operations by 42%, improved forecasting accuracy.",
-      metrics: [
-        "42% reduction in manual work",
-        "30% faster forecasting",
-        "15+ integrations",
-      ],
-      icon: <TrendingUp className="w-8 h-8 text-black" />,
-    },
-    {
-      title: "Enterprise CRM Consolidation",
-      description:
-        "Unified 3 disparate CRM systems into one Salesforce instance for a Fortune 500 company.",
-      metrics: [
-        "3 systems → 1 platform",
-        "60% cost savings",
-        "1000+ users migrated",
-      ],
-      icon: <Users className="w-8 h-8 text-black" />,
-    },
-    {
-      title: "Revenue Operations Transformation",
-      description:
-        "Built end-to-end revenue operations platform with advanced analytics and automation.",
-      metrics: [
-        "25% revenue growth",
-        "50% faster deal cycles",
-        "Real-time reporting",
-      ],
-      icon: <Award className="w-8 h-8 text-black" />,
+      description: (
+        <div>
+          <h3 className="text-2xl mb-3 text-violet">Empowering Impact with Salesforce: Prytula Foundation USA</h3>
+          <p className="text-2xl mb-3 text-text-secondary">Salesforce Nonprofit Cloud Implementation</p>
+          <p className="text-text-secondary mb-4 leading-relaxed">
+            We partnered with Prytula Foundation USA to build a robust Salesforce-based CRM that strengthens the foundation’s ability to operate, scale, and deliver impact with confidence.
+          </p>
+
+          <p className="text-text-secondary mb-4 leading-relaxed">
+            The solution was designed as a <strong>single Salesforce Nonprofit org with two strategically independent functional areas</strong>, aligned to the foundation’s mission and growth trajectory.
+          </p>
+
+          <ul className="list-disc pl-5 text-text-secondary mb-4">
+            <li className="mb-2">
+              <strong>Fundraising &amp; Operations</strong>
+              <div className="mt-1">A unified system supporting donations, request management, procurement workflows, and asset distribution—providing full transparency and operational control from intake to delivery.</div>
+            </li>
+            <li>
+              <strong>Training &amp; Educational Programs</strong>
+              <div className="mt-1">A separate, purpose-built subsystem for training initiatives, architected with clear boundaries to enable independent scaling and future expansion.</div>
+            </li>
+          </ul>
+
+          <p className="text-text-secondary mb-4 leading-relaxed">
+            By intentionally designing these areas as <strong>independent systems within one Salesforce org</strong>, we ensured flexibility, clean data separation, and long-term maintainability.
+          </p>
+
+          <p className="text-text-secondary leading-relaxed">
+            The result is a future-proof platform that empowers the foundation to focus on what matters most—maximizing humanitarian impact through efficient, well-structured operations.
+          </p>
+        </div>
+      ),
+      icon: logoPrytulaIcon,
+      icon2: logoKlepkavioletIcon,
     },
   ];
 
@@ -110,20 +138,27 @@ export const Partners: React.FC = () => {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {clients.map((client, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-6 flex items-center justify-center "
-              >
-                <span className="text-black font-medium">{client}</span>
-              </motion.div>
-            ))}
-          </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {clients.map((client, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                >
+                  <img
+                    src={client.icon}
+                    alt={client.title}
+                    className="w-20 h-20 object-contain"
+                  />
+                  <span className="text-black font-medium text-center text-sm">
+                    {client.title}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
         </div>
       </section>
 
@@ -147,24 +182,20 @@ export const Partners: React.FC = () => {
           <div className="space-y-8">
             {caseStudies.map((study, index) => (
               <Card key={index}>
-                <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                  <div className="flex-shrink-0">{study.icon}</div>
-                  <div className="flex-1">
-                    <h3 className="text-2xl mb-3 text-violet">{study.title}</h3>
-                    <p className="text-text-secondary mb-6 leading-relaxed">
-                      {study.description}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {study.metrics.map((metric, idx) => (
-                        <div key={idx} className="bg-white/30 rounded-lg p-4">
-                          <p className="text-sm text-violet font-medium">
-                            {metric}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+          <div className="flex flex-col  lg:flex-row lg:items-center gap-6">
+              <div className="flex flex-col gap-4 flex-shrink-0">
+              <img
+                src={study.icon}
+                className="w-24 h-24 object-contain"
+              />
+              <img
+                src={study.icon2}
+                alt="Klepka"
+                className="w-24 h-24 object-contain"
+              />
+              </div>
+            <div className="flex-1">{study.description}</div>
+          </div>
               </Card>
             ))}
           </div>

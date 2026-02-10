@@ -7,6 +7,14 @@ import { Check, Info } from "lucide-react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { CrmChallengesForm } from "../components/CrmChallengesForm";
 import { sendEmailJsForm } from "../lib/emailjs";
+import initialDiscoveryPlanningIcon from "../../assets/Initial_discovery_planning.png";
+import documentationIcon from "../../assets/Documentation.png";
+import deliveryRoadmapIcon from "../../assets/Delivery_roadmap.png";
+import dataAccuracyAndIntegrityCheckIcon from "../../assets/Data_accuracy_and_integrity_check.png";
+import transparentDeliveryProgressIcon from "../../assets/Transparent_delivery_progress.png";
+import qualityCheckIcon from "../../assets/Quality_check.png";
+import userTrainingSessionsIcon from "../../assets/User_training_sessions.png";
+import postLaunchSupportIcon from "../../assets/Post_launch_support.png";
 
 type PricingCategory = {
   id: string;
@@ -17,7 +25,6 @@ type PricingPackage = {
   name: string;
   category: string;
   description: string;
-  estimate: string;
   subtitle: string;
   price: string;
   features: string[];
@@ -165,9 +172,7 @@ const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
               {pkg.description}
             </p>
 
-            <p className="text-violet font-medium mb-6 text-sm">
-              {pkg.estimate}
-            </p>
+           
 
             <ul className="space-y-3 mb-8 flex-grow">
               {pkg.features.map((feature, idx) => (
@@ -380,406 +385,362 @@ export const Pricing: React.FC = () => {
 
   const packages: PricingPackage[] = [
     {
-      name: "Support Starter",
-      category: "Support",
-      description:
-        "Reliable Salesforce support for small teams and stable orgs",
-      estimate: "Starting from 10 hours per month",
-      subtitle:
-        "For companies that need day-to-day Salesforce assistance without a full-time admin.",
-      price: "From $1400",
+      name: 'Support Starter',
+      category: 'Support',
+      description: 'Reliable Salesforce support for small teams and stable orgs',
+      subtitle: 'For companies that need day-to-day Salesforce assistance without a full-time admin.',
+      price: 'From $1400 · 10 hrs',
       features: [
-        "1 Certified Salesforce Specialist",
-        "Break/fix support",
-        "Minor configuration changes (fields, layouts, permissions)",
-        "Small Flow updates",
-        "Basic release assistance",
-        "Reports & dashboards",
-        "Monthly activity summary",
+        '1 Certified Salesforce Specialist',
+'Break/fix support',
+'Minor configuration changes (fields, layouts, permissions)',
+'Small Flow updates',
+'Basic release assistance',
+'Reports & dashboards',
+'Monthly activity summary',
       ],
     },
-    {
-      name: "Support Grow",
-      category: "Support",
-      description:
-        "Ongoing Salesforce support with proactive improvements and predictable capacity.",
-      estimate: "Starting from 25 hours per month",
-      subtitle:
-        "For growing teams that want continuous system improvements, not just fixes.",
-      price: "Starting from $3500 per month",
+{
+      name: 'Support Grow',
+      category: 'Support',
+      description: 'Ongoing Salesforce support with proactive improvements and predictable capacity.',
+      subtitle: 'For growing teams that want continuous system improvements, not just fixes.',
+      price: 'From $3500 · 25 hrs',
       features: [
-        "Up to 3 Certified Salesforce Specialist",
-        "Break/fix support",
-        "Minor configuration changes (fields, layouts, permissions)",
-        "Basic release assistance",
-        "Monthly activity summary",
-        "Proactive backlog grooming",
-        "Flow automation improvements",
-        "Reports & dashboards",
-        "Monthly review and improvement plan",
+        'Up to 3 Certified Salesforce Specialist',
+'Break/fix support',
+'Minor configuration changes (fields, layouts, permissions)',
+'Basic release assistance',
+'Monthly activity summary',
+'Proactive backlog grooming',
+'Flow automation improvements',
+'Reports & dashboards',
+'Monthly review and improvement plan',
       ],
     },
-    {
-      name: "Support Enterprise",
-      category: "Support",
-      description: "Managed Salesforce operations with SLAs and governance.",
-      estimate: "Starting from 60 hours per month",
-      subtitle:
-        "For complex orgs that require reliability, control, and architectural oversight.",
-      price: "Starting from $8400 per month",
+{
+      name: 'Support Enterprise',
+      category: 'Support',
+      description: 'Managed Salesforce operations with SLAs and governance.',
+      subtitle: 'For complex orgs that require reliability, control, and architectural oversight.',
+      price: 'From $8400 · 60 hrs',
       features: [
-        "Up to 3 Certified Salesforce Specialist",
-        "Break/fix support",
-        "Minor configuration changes (fields, layouts, permissions)",
-        "Monthly activity summary",
-        "Proactive backlog grooming",
-        "Flow automation improvements",
-        "Reports & dashboards",
-        "Monthly review and improvement plan",
-        "SLA-based incident handling",
-        "Release and deployment support",
-        "Governance & best-practice controls",
-        "Architecture advisory",
+        'Up to 3 Certified Salesforce Specialist',
+'Break/fix support',
+'Minor configuration changes (fields, layouts, permissions)',
+'Monthly activity summary',
+'Proactive backlog grooming',
+'Flow automation improvements',
+'Reports & dashboards',
+'Monthly review and improvement plan',
+'SLA-based incident handling',
+'Release and deployment support',
+'Governance & best-practice controls',
+'Architecture advisory',
       ],
     },
-    {
-      name: "CRM Audit",
-      category: "CRM Audit",
-      description: "A fast, structured health check of your Salesforce org.",
-      estimate: "Starting from 50 hours per month",
-      subtitle: "To identify risks, technical debt, and quick wins.",
-      price: "Starting from $3500 per month",
+{
+      name: 'CRM Audit',
+      category: 'CRM Audit',
+      description: 'A fast, structured health check of your Salesforce org.',
+      subtitle: 'To identify risks, technical debt, and quick wins.',
+      price: 'From $3500 · 50 hrs',
       features: [
-        "Stakeholder discovery",
-        "Org health assessment",
-        "Security, data, and automation review",
-        "Prioritized recommendations",
+        'Stakeholder discovery',
+'Org health assessment',
+'Security, data, and automation review',
+'Prioritized recommendations',
       ],
     },
-    {
-      name: "CRM Audit & Documentation",
-      category: "CRM Audit",
-      description:
-        "Audit plus clear system documentation for long-term stability.",
-      estimate: "Starting from 80 hours per month",
-      subtitle:
-        "For teams lacking transparency and internal Salesforce knowledge.",
-      price: "Starting from $5600 per month",
+{
+      name: 'CRM Audit & Documentation',
+      category: 'CRM Audit',
+      description: 'Audit plus clear system documentation for long-term stability.',
+      subtitle: 'For teams lacking transparency and internal Salesforce knowledge.',
+      price: 'From $5600 · 80 hrs',
       features: [
-        "Stakeholder discovery",
-        "Org health assessment",
-        "Security, data, and automation review",
-        "Prioritized recommendations",
-        "Process and data model overview",
-        "Automation inventory",
-        "Admin operating documentation",
-        "Identified quick wins and long-term optimizations",
+        'Stakeholder discovery',
+'Org health assessment',
+'Security, data, and automation review',
+'Prioritized recommendations',
+'Process and data model overview',
+'Automation inventory',
+'Admin operating documentation',
+'Identified quick wins and long-term optimizations',
       ],
     },
-    {
-      name: "CRM Audit & Optimisation",
-      category: "CRM Audit",
-      description:
-        "Audit combined with implementation of high-impact improvements.",
-      estimate: "Starting from 120 hours per month",
-      subtitle:
-        "To stabilize Salesforce and immediately improve performance and usability.",
-      price: "Starting from $8400 per month",
+{
+      name: 'CRM Audit & Optimisation',
+      category: 'CRM Audit',
+      description: 'Audit combined with implementation of high-impact improvements.',
+      subtitle: 'To stabilize Salesforce and immediately improve performance and usability.',
+      price: 'From $8400 · 120 hrs',
       features: [
-        "Stakeholder discovery",
-        "Org health assessment",
-        "Security, data, and automation review",
-        "Prioritized recommendations",
-        "Process and data model overview",
-        "Automation inventory",
-        "Admin operating documentation",
-        "Identified quick wins and long-term optimizations",
-        "Performance and UX improvements",
-        "Post-implementation validation",
+        'Stakeholder discovery',
+'Org health assessment',
+'Security, data, and automation review',
+'Prioritized recommendations',
+'Process and data model overview',
+'Automation inventory',
+'Admin operating documentation',
+'Identified quick wins and long-term optimizations',
+'Performance and UX improvements',
+'Post-implementation validation',
       ],
     },
-    {
-      name: "User Training Starter",
-      category: "Trainings",
-      description: "Essential Salesforce onboarding for end users.",
-      estimate: "Starting from 12 hours per month",
-      subtitle: "To ensure users adopt Salesforce correctly from day one.",
-      price: "Starting from $1680 per month",
+{
+      name: 'User Training Starter',
+      category: 'Trainings',
+      description: 'Essential Salesforce onboarding for end users.',
+      subtitle: 'To ensure users adopt Salesforce correctly from day one.',
+      price: 'From $1680 · 12 hrs',
       features: [
-        "Training for 1 user role",
-        "One live session (up to 2 hours)",
-        "Quick reference guide",
-        "Q&A session",
+        'Training for 1 user role',
+'One live session (up to 2 hours)',
+'Quick reference guide',
+'Q&A session',
       ],
     },
-    {
-      name: "User Training Grow",
-      category: "Trainings",
-      description: "Structured Salesforce training across multiple roles.",
-      estimate: "Starting from 24 hours per month",
-      subtitle: "To reduce support load and increase productivity.",
-      price: "Starting from $3360 per month",
+{
+      name: 'User Training Grow',
+      category: 'Trainings',
+      description: 'Structured Salesforce training across multiple roles.',
+      subtitle: 'To reduce support load and increase productivity.',
+      price: 'From $3360 · 24 hrs',
       features: [
-        "Training for up to 3 roles",
-        "Multiple live sessions",
-        "Playbooks and SOPs",
-        "Adoption feedback and recommendations",
+        'Training for up to 3 roles',
+'Multiple live sessions',
+'Playbooks and SOPs',
+'Adoption feedback and recommendations',
       ],
     },
-    {
-      name: "User Training Enterprise",
-      category: "Trainings",
-      description: "Enterprise-grade enablement and onboarding framework.",
-      estimate: "Starting from 50 hours per month",
-      subtitle: "For large teams with frequent onboarding and complex roles.",
-      price: "Starting from $7000 per month",
+{
+      name: 'User Training Enterprise',
+      category: 'Trainings',
+      description: 'Enterprise-grade enablement and onboarding framework.',
+      subtitle: 'For large teams with frequent onboarding and complex roles.',
+      price: 'From $7000 · 50 hrs',
       features: [
-        "Training tracks for up to 6 roles",
-        "Train-the-trainer session",
-        "Full enablement materials",
-        "Office hours and adoption reporting",
+        'Training tracks for up to 6 roles',
+'Train-the-trainer session',
+'Full enablement materials',
+'Office hours and adoption reporting',
       ],
     },
-    {
-      name: "Sales Cloud Setup",
-      category: "Implementation",
-      description: "A clean and scalable Sales Cloud foundation.",
-      estimate: "Starting from 80 hours per month",
-      subtitle:
-        "To launch or reset Salesforce sales processes quickly and correctly.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Sales Cloud Setup',
+      category: 'Implementation',
+      description: 'A clean and scalable Sales Cloud foundation.',
+      subtitle: 'To launch or reset Salesforce sales processes quickly and correctly.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Core object configuration",
-        "Sales stages and validation rules",
-        "Page layouts and record types",
-        "Reports and dashboards",
-        "Security baseline",
-        "Custom Automations Setup",
+        'Core object configuration',
+'Sales stages and validation rules',
+'Page layouts and record types',
+'Reports and dashboards',
+'Security baseline',
+'Custom Automations Setup',
       ],
     },
-    {
-      name: "Service Cloud Setup",
-      category: "Implementation",
-      description:
-        "A production-ready Service Cloud setup for case management.",
-      estimate: "Starting from 90 hours per month",
-      subtitle: "To enable support teams to work efficiently in Salesforce.",
-      price: "Starting from $5400 per month",
+{
+      name: 'Service Cloud Setup',
+      category: 'Implementation',
+      description: 'A production-ready Service Cloud setup for case management.',
+      subtitle: 'To enable support teams to work efficiently in Salesforce.',
+      price: 'From $5400 · 90 hrs',
       features: [
-        "Case lifecycle and queues",
-        "Channel setup (email or web)",
-        "Macros and quick actions",
-        "Reports and dashboards",
-        "Knowledge base basics",
-        "Custom Automations Setup",
+        'Case lifecycle and queues',
+'Channel setup (email or web)',
+'Macros and quick actions',
+'Reports and dashboards',
+'Knowledge base basics',
+'Custom Automations Setup',
       ],
     },
-    {
-      name: "Experience Cloud Setup",
-      category: "Implementation",
-      description: "A secure customer or partner portal built on Salesforce.",
-      estimate: "Starting from 80 hours per month",
-      subtitle: "To enable self-service and collaboration with external users.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Experience Cloud Setup',
+      category: 'Implementation',
+      description: 'A secure customer or partner portal built on Salesforce.',
+      subtitle: 'To enable self-service and collaboration with external users.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Portal setup and branding",
-        "Access and sharing model",
-        "Core pages and navigation",
-        "Forms and basic automation",
-        "Production deployment",
+        'Portal setup and branding',
+'Access and sharing model',
+'Core pages and navigation',
+'Forms and basic automation',
+'Production deployment',
       ],
     },
-    {
-      name: "Advanced Sales Cloud Setup",
-      category: "Implementation",
-      description: "Sales Cloud built for scale, automation, and data quality.",
-      estimate: "Starting from 140 hours per month",
-      subtitle: "For teams with complex sales processes and reporting needs.",
-      price: "Starting from $8400 per month",
+{
+      name: 'Advanced Sales Cloud Setup',
+      category: 'Implementation',
+      description: 'Sales Cloud built for scale, automation, and data quality.',
+      subtitle: 'For teams with complex sales processes and reporting needs.',
+      price: 'From $8400 · 140 hrs',
       features: [
-        "Core object configuration",
-        "Sales stages and validation rules",
-        "Page layouts and record types",
-        "Reports and dashboards",
-        "Security baseline",
-        "Custom Automations Setup",
-        "Lead routing and approvals",
-        "Data quality and dedup rules",
-        "Advanced dashboards",
+        'Core object configuration',
+'Sales stages and validation rules',
+'Page layouts and record types',
+'Reports and dashboards',
+'Security baseline',
+'Custom Automations Setup',
+'Lead routing and approvals',
+'Data quality and dedup rules',
+'Advanced dashboards',
       ],
     },
-    {
-      name: "Advanced Service Cloud Setup",
-      category: "Implementation",
-      description: "Service operations optimized for scale and efficiency.",
-      estimate: "Starting from 160 hours per month",
-      subtitle: "For high-volume or multi-team support environments.",
-      price: "Starting from $9600 per month",
+{
+      name: 'Advanced Service Cloud Setup',
+      category: 'Implementation',
+      description: 'Service operations optimized for scale and efficiency.',
+      subtitle: 'For high-volume or multi-team support environments.',
+      price: 'From $9600 · 160 hrs',
       features: [
-        "Case lifecycle and queues",
-        "Channel setup (email or web)",
-        "Macros and quick actions",
-        "Reports and dashboards",
-        "Knowledge base basics",
-        "Custom Automations Setup",
-        "Omni-Channel routing",
-        "SLA and entitlement model",
+        'Case lifecycle and queues',
+'Channel setup (email or web)',
+'Macros and quick actions',
+'Reports and dashboards',
+'Knowledge base basics',
+'Custom Automations Setup',
+'Omni-Channel routing',
+'SLA and entitlement model',
       ],
     },
-    {
-      name: "Advanced Experience Cloud Setup",
-      category: "Implementation",
-      description:
-        "A scalable Experience Cloud portal with enterprise-grade governance.",
-      estimate: "Starting from 140 hours per month",
-      subtitle: "For complex external user scenarios and integrations.",
-      price: "Starting from $8400 per month",
+{
+      name: 'Advanced Experience Cloud Setup',
+      category: 'Implementation',
+      description: 'A scalable Experience Cloud portal with enterprise-grade governance.',
+      subtitle: 'For complex external user scenarios and integrations.',
+      price: 'From $8400 · 140 hrs',
       features: [
-        "Access and sharing model",
-        "Core pages and navigation",
-        "Forms and basic automation",
-        "Production deployment",
-        "Advanced sharing and security",
-        "Custom pages and guided flows",
-        "SSO configuration support",
-        "Performance optimization",
+        'Access and sharing model',
+'Core pages and navigation',
+'Forms and basic automation',
+'Production deployment',
+'Advanced sharing and security',
+'Custom pages and guided flows',
+'SSO configuration support',
+'Performance optimization',
       ],
     },
-    {
-      name: "AgentForce Setup",
-      category: "Implementation",
-      description:
-        "Deploy Salesforce Agentforce with clear use cases and guardrails.",
-      estimate: "Starting from 80 hours per month",
-      subtitle:
-        "To safely introduce AI-driven assistance into service or sales workflows.",
-      price: "Starting from $4800 per month",
+{
+      name: 'AgentForce Setup',
+      category: 'Implementation',
+      description: 'Deploy Salesforce Agentforce with clear use cases and guardrails.',
+      subtitle: 'To safely introduce AI-driven assistance into service or sales workflows.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Use-case definition",
-        "Knowledge and data readiness",
-        "Agent configuration (1 use case)",
-        "Guardrails and testing",
-        "Enablement session",
+        'Use-case definition',
+'Knowledge and data readiness',
+'Agent configuration (1 use case)',
+'Guardrails and testing',
+'Enablement session',
       ],
     },
-    {
-      name: "Analytic Cloud Setup",
-      category: "Implementation",
-      description:
-        "Launch Salesforce Analytics (CRM Analytics / Tableau CRM) with clear KPIs and decision-ready dashboards.",
-      estimate: "Starting from 80 hours per month",
-      subtitle:
-        "For leadership and operations teams that need reliable, actionable insights from Salesforce data instead of static reports.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Analytic Cloud Setup',
+      category: 'Implementation',
+      description: 'Launch Salesforce Analytics (CRM Analytics / Tableau CRM) with clear KPIs and decision-ready dashboards.',
+      subtitle: 'For leadership and operations teams that need reliable, actionable insights from Salesforce data instead of static reports.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "KPI definition workshop (business & operational metrics)",
-        "Data source analysis (Salesforce objects, relationships, data quality check)",
-        "Dataset configuration and preparation (basic transformations)",
-        "Up to 3 interactive dashboards (executive / operational level)",
-        "Security and access model setup",
-        "Enablement session for users and admins",
+        'KPI definition workshop (business & operational metrics)',
+'Data source analysis (Salesforce objects, relationships, data quality check)',
+'Dataset configuration and preparation (basic transformations)',
+'Up to 3 interactive dashboards (executive / operational level)',
+'Security and access model setup',
+'Enablement session for users and admins',
       ],
     },
-    {
-      name: "Setup Docusign Integration",
-      category: "Implementation",
-      description:
-        "Reliable DocuSign and Salesforce integration for e-signatures.",
-      estimate: "Starting from 40 hours per month",
-      subtitle: "To automate document signing and status tracking.",
-      price: "Starting from $1800 per month",
+{
+      name: 'Setup Docusign Integration',
+      category: 'Implementation',
+      description: 'Reliable DocuSign and Salesforce integration for e-signatures.',
+      subtitle: 'To automate document signing and status tracking.',
+      price: 'From $1800 · 40 hrs',
       features: [
-        "Integration configuration",
-        "Object and template mapping",
-        "1–2 DocuSign workflows",
-        "User guidance",
+        'Integration configuration',
+'Object and template mapping',
+'1–2 DocuSign workflows',
+'User guidance',
       ],
     },
-    {
-      name: "Migration to Salesforce",
-      category: "Migration",
-      description:
-        "Move your data and processes into Salesforce with confidence.",
-      estimate: "Starting from 80 hours per month",
-      subtitle: "For companies adopting Salesforce or replacing legacy CRMs.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Migration to Salesforce',
+      category: 'Migration',
+      description: 'Move your data and processes into Salesforce with confidence.',
+      subtitle: 'For companies adopting Salesforce or replacing legacy CRMs.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Migration strategy",
-        "Data mapping and cleansing rules",
-        "Test and production migration",
-        "Reconciliation and release",
+        'Migration strategy',
+'Data mapping and cleansing rules',
+'Test and production migration',
+'Reconciliation and release',
       ],
     },
-    {
-      name: "Merger Salesforce Orgs",
-      category: "Migration",
-      description: "Safely merge multiple Salesforce orgs into one.",
-      estimate: "Starting from 220 hours per month",
-      subtitle: "After mergers, acquisitions, or multi-org growth.",
-      price: "Starting from $13200 per month",
+{
+      name: 'Merger Salesforce Orgs',
+      category: 'Migration',
+      description: 'Safely merge multiple Salesforce orgs into one.',
+      subtitle: 'After mergers, acquisitions, or multi-org growth.',
+      price: 'From $13200 · 220 hrs',
       features: [
-        "Org comparison and target design",
-        "Data and security alignment",
-        "Phased migration",
-        "Cutover planning",
+        'Org comparison and target design',
+'Data and security alignment',
+'Phased migration',
+'Cutover planning',
       ],
     },
-    {
-      name: "Flow Refactoring",
-      category: "Optimizations",
-      description:
-        "Make Salesforce automation faster, safer, and easier to maintain.",
-      estimate: "Starting from 80 hours per month",
-      subtitle: "To reduce automation failures and future change costs.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Flow Refactoring',
+      category: 'Optimizations',
+      description: 'Make Salesforce automation faster, safer, and easier to maintain.',
+      subtitle: 'To reduce automation failures and future change costs.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Flow inventory and assessment",
-        "Flow Refactoring",
-        "Error handling and standards",
-        "Testing and deployment",
+        'Flow inventory and assessment',
+'Flow Refactoring',
+'Error handling and standards',
+'Testing and deployment',
       ],
     },
-    {
-      name: "WFR & PB Refactoring",
-      category: "Optimizations",
-      description:
-        "Modernize legacy automation by moving it to Salesforce Flow.",
-      estimate: "Starting from 80 hours per month",
-      subtitle: "To reduce risk and prepare for long-term platform stability.",
-      price: "Starting from $4800 per month",
+{
+      name: 'WFR & PB Refactoring',
+      category: 'Optimizations',
+      description: 'Modernize legacy automation by moving it to Salesforce Flow.',
+      subtitle: 'To reduce risk and prepare for long-term platform stability.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Inventory of Workflow Rules and Process Builder",
-        "Conversion to Flow ",
-        "Logic consolidation",
-        "Testing and deployment",
+        'Inventory of Workflow Rules and Process Builder',
+'Conversion to Flow ',
+'Logic consolidation',
+'Testing and deployment',
       ],
     },
-    {
-      name: "Apex Refactoring",
-      category: "Optimizations",
-      description: "Improve code quality, performance, and maintainability.",
-      estimate: "Starting from 80 hours per month",
-      subtitle: "To reduce defects and technical debt in custom development.",
-      price: "Starting from $4800 per month",
+{
+      name: 'Apex Refactoring',
+      category: 'Optimizations',
+      description: 'Improve code quality, performance, and maintainability.',
+      subtitle: 'To reduce defects and technical debt in custom development.',
+      price: 'From $4800 · 80 hrs',
       features: [
-        "Code review",
-        "Refactoring classes/triggers",
-        "Unit test improvements",
-        "Deployment support",
+        'Code review',
+'Refactoring classes/triggers',
+'Unit test improvements',
+'Deployment support',
       ],
     },
-    {
-      name: "Classic to Lightning Migration",
-      category: "Migration",
-      description: "Move from Salesforce Classic to Lightning Experience.",
-      estimate: "Starting from 100 hours per month",
-      subtitle: "To unlock modern UX, automation, and new Salesforce features.",
-      price: "Starting from $4000 per month",
+{
+      name: 'Classic to Lightning Migration',
+      category: 'Migration',
+      description: 'Move from Salesforce Classic to Lightning Experience.',
+      subtitle: 'To unlock modern UX, automation, and new Salesforce features.',
+      price: 'From $4000 · 100 hrs',
       features: [
-        "Readiness assessment",
-        "Lightning apps and pages",
-        "User enablement",
-        "Pilot and production rollout",
+        'Readiness assessment',
+'Lightning apps and pages',
+'User enablement',
+'Pilot and production rollout',
       ],
     },
   ];
@@ -792,14 +753,14 @@ export const Pricing: React.FC = () => {
     <Tooltip.Provider>
       <div className="min-h-screen pt-24 lg:pt-32">
         {/* Hero Section */}
-        <section className="pb-12 px-4 sm:px-6 lg:px-8">
+        <section className="pb-0 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-center max-w-3xl mx-auto"
             >
-              <h1 className="text-4xl sm:text-10xl mb-6 text-violet">
+              <h1 className="text-4xl sm:text-10xl mb-3 text-violet">
                 Transparent Pricing. Predictable Scope.
               </h1>
               <p className="text-lg text-text-secondary leading-relaxed">
@@ -809,8 +770,59 @@ export const Pricing: React.FC = () => {
           </div>
         </section>
 
+{/* Additional Info */}
+        <section className="py-10 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto">
+            <Card>
+              <h3 className="text-2xl mb-4 text-violet text-center">All Packages Include:</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-grey">
+                <div>
+                  <ul className="space-y-2 ">
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Initial discovery & planning</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Delivery roadmap</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Data accuracy and integrity check</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Transparent delivery progress</span>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <ul className="space-y-2">
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Quality check</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Documentation</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>User training sessions</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                      <span>Post-launch support</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </section>
+
         {/* Category Filter */}
-        <section className="pb-12 px-4 sm:px-6 lg:px-8">
+        <section className="pb-0 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-wrap justify-center gap-4">
               {categories.map((cat) => (
@@ -830,8 +842,10 @@ export const Pricing: React.FC = () => {
           </div>
         </section>
 
+
+
         {/* Service Packages */}
-        <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
+        <section className="py-6 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
             {selectedCategory === "Custom Configuration" ? (
               <motion.div
@@ -877,50 +891,7 @@ export const Pricing: React.FC = () => {
           </div>
         </section>
 
-        {/* Additional Info */}
-        <section className="py-12 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
-            <Card>
-              <h3 className="text-2xl mb-4 text-violet">What's Included</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-grey">
-                <div>
-                  <h4 className="text-violet font-medium mb-2">
-                    All Packages Include:
-                  </h4>
-                  <ul className="space-y-2">
-                    <li className="flex items-start space-x-2">
-                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
-                      <span>Initial discovery & planning</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
-                      <span>Data migration support</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
-                      <span>User training sessions</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
-                      <span>30 days post-launch support</span>
-                    </li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-violet font-medium mb-2">
-                    Payment Terms:
-                  </h4>
-                  <ul className="space-y-2">
-                    <li>• 50% upfront deposit</li>
-                    <li>• 50% upon completion</li>
-                    <li>• Monthly payment plans available</li>
-                    <li>• Money-back guarantee</li>
-                  </ul>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </section>
+        
       </div>
     </Tooltip.Provider>
   );

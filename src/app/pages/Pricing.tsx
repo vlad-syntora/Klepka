@@ -957,17 +957,17 @@ export const Pricing: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="max-w-2xl mx-auto"
               >
-                <Card className="p-8">
+                <Card className="p-8 !bg-violet !border-violet/40 text-off-white">
                   <div className="text-center mb-8">
-                    <h3 className="text-2xl text-violet mb-2">
+                    <h3 className="text-2xl text-white mb-2">
                       Request Custom Configuration
                     </h3>
-                    <p className="text-grey">
+                    <p className="text-white/80">
                       Tell us about your specific CRM requirements and we'll
                       build a tailored proposal for you.
                     </p>
                   </div>
-                  <CrmChallengesForm lightMode />
+                  <CrmChallengesForm />
                 </Card>
               </motion.div>
             ) : (

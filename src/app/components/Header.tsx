@@ -73,9 +73,9 @@ export const Header: React.FC = () => {
             className="lg:hidden p-2 rounded-lg hover:bg-white transition-colors"
           >
             {mobileMenuOpen ? (
-              <X className="w-6 h-6 text-violet" />
+              <X className={`w-6 h-6 ${scrolled ? 'text-[#F9EDBD]' : 'text-violet'}`} />
             ) : (
-              <Menu className="w-6 h-6 text-violet" />
+              <Menu className={`w-6 h-6 ${scrolled ? 'text-[#F9EDBD]' : 'text-violet'}`} />
             )}
           </button>
         </div>

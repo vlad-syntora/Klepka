@@ -28,7 +28,7 @@ export const About: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center max-w-3xl mx-auto"
           >
-            <h1 className="text-4xl sm:text-5xl mb-6 text-violet">
+            <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
              Our Team
             </h1>
             <p className="text-xl text-text-secondary leading-relaxed mb-8">

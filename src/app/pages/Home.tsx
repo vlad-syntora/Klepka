@@ -114,7 +114,7 @@ export const Home: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="text-center max-w-4xl mx-auto"
           >
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl mb-6 text-violet">
+            <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
               Scalable Salesforce CRM Solutions
             </h1>
             <p className="text-lg sm:text-xl text-text-secondary mb-8 leading-relaxed">

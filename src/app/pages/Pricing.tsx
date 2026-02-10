@@ -760,7 +760,7 @@ export const Pricing: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="text-center max-w-3xl mx-auto"
             >
-              <h1 className="text-4xl sm:text-10xl mb-3 text-violet">
+              <h1 className="text-3xl sm:text-4xl mb-3 text-violet">
                 Transparent Pricing. Predictable Scope.
               </h1>
               <p className="text-lg text-text-secondary leading-relaxed">
@@ -779,7 +779,7 @@ export const Pricing: React.FC = () => {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-2xl sm:text-3xl mb-4 text-violet">
+              <h2 className="text-3xl sm:text-4xl mb-4 text-violet">
                 All Packages Include
               </h2>
             </motion.div>

@@ -114,7 +114,7 @@ export const Partners: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center max-w-3xl mx-auto"
           >
-            <h1 className="text-4xl sm:text-5xl mb-6 text-violet">
+            <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
               Alignment Across Clients and Technology
             </h1>
             <p className="text-lg text-text-secondary leading-relaxed">
@@ -133,7 +133,7 @@ export const Partners: React.FC = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-2xl sm:text-3xl mb-4 text-violet">
+            <h2 className="text-3xl sm:text-4xl mb-4 text-violet">
               Our Areas of Experience
             </h2>
           </motion.div>

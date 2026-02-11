@@ -50,7 +50,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
       {status === "success" && (
         <div
           role="status"
-          className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-green-800"
+          className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-violet"
         >
           Request submitted. We will get back to you shortly.
         </div>

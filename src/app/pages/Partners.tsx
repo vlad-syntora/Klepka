@@ -226,7 +226,7 @@ export const Partners: React.FC = () => {
             {submitSuccess && (
               <div
                 role="status"
-                className="rounded-md border border-green-200 bg-green-50 p-3 text-green-800"
+                className="rounded-md border border-green-200 bg-green-50 p-3 text-violet"
               >
                 Partnership inquiry submitted. We will review your application and reach out soon.
               </div>

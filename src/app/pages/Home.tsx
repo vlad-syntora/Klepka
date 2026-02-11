@@ -31,6 +31,7 @@ import formTitanLogo from "../../assets/492d9bc4032f73ffbe046c5c7e9cb125b5d3ef6b
 import tableauLogo from "../../assets/4380d03553cab5a60c1283a76c56f2d79493987a.png";
 
 export const Home: React.FC = () => {
+  const sliderRef = React.useRef<any>(null);
   const services = [
     {
       title: "Salesforce Implementation",
@@ -68,40 +69,49 @@ export const Home: React.FC = () => {
     { name: "Tableau", logo: tableauLogo },
   ];
 
-  const settings = {
+  const computeSlidesToShow = (w: number) => {
+    if (w <= 480) return 2;
+    if (w <= 768) return 2;
+    if (w <= 1024) return 3;
+    return 5;
+  };
+
+  const baseSettings = {
     dots: false,
     infinite: true,
     speed: 600,
-    slidesToShow: 5,
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 3000,
     cssEase: "cubic-bezier(0.4, 0, 0.2, 1)",
     pauseOnHover: true,
-    responsive: [
-      {
-        breakpoint: 1024,
-        settings: {
-          slidesToShow: 3,
-          slidesToScroll: 1,
-        },
-      },
-      {
-        breakpoint: 768,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-      {
-        breakpoint: 480,
-        settings: {
-          slidesToShow: 2,
-          slidesToScroll: 1,
-        },
-      },
-    ],
   };
+
+  const [sliderSettings, setSliderSettings] = React.useState(() => ({
+    ...baseSettings,
+    slidesToShow:
+      typeof window !== "undefined"
+        ? computeSlidesToShow(window.innerWidth)
+        : 5,
+  }));
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      const next = computeSlidesToShow(window.innerWidth);
+      setSliderSettings((prev) =>
+        prev.slidesToShow === next ? prev : { ...prev, slidesToShow: next }
+      );
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => window.dispatchEvent(new Event("resize")), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -141,7 +151,7 @@ export const Home: React.FC = () => {
           ></motion.div>
 
           <div className="certification-slider mb-24">
-            <Slider {...settings}>
+            <Slider ref={sliderRef} {...sliderSettings}>
               <div className="px-4">
                 <div className="flex items-center justify-center h-32">
                   <img
@@ -234,7 +244,7 @@ export const Home: React.FC = () => {
           </motion.div>
 
           <div className="tech-stack-slider max-w-4xl mx-auto">
-            <Slider {...settings}>
+            <Slider ref={sliderRef} {...sliderSettings}>
               {techStack.map((tech, index) => (
                 <div key={index} className="px-4">
                   <div className="flex items-center justify-center h-16">

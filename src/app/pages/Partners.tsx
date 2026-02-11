@@ -17,6 +17,7 @@ import logoKlepkavioletIcon from "../../assets/logo_violet_1.png";
 
 export const Partners: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,6 +30,7 @@ export const Partners: React.FC = () => {
         description: "We will review your application and reach out soon.",
       });
       formEl.reset();
+      setSubmitSuccess(true);
     } catch (err) {
       console.error(err);
       toast.error("Couldn't submit inquiry", {
@@ -221,6 +223,14 @@ export const Partners: React.FC = () => {
           </motion.div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {submitSuccess && (
+              <div
+                role="status"
+                className="rounded-md border border-green-200 bg-green-50 p-3 text-green-800"
+              >
+                Partnership inquiry submitted. We will review your application and reach out soon.
+              </div>
+            )}
             <input type="hidden" name="form_name" value="New Partner Request" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Input

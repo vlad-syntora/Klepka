@@ -260,7 +260,7 @@ const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
                   <Input
                     type="tel"
                     name="phone"
-                    placeholder="Phone"
+                    placeholder="+X(XXX)XXX-XXXX"
                     className={darkInputClasses}
                   />
                 </div>
@@ -269,7 +269,7 @@ const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
                   required
                   type="email"
                   name="reply_to"
-                  placeholder="Email"
+                  placeholder="your@email.com"
                   className={darkInputClasses}
                 />
 

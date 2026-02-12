@@ -66,7 +66,7 @@ export const Careers: React.FC = () => {
     {
       icon: <Award className="w-6 h-6 text-black" />,
       title: "Professional Certifications",
-      description: "We cover all Salesforce certifications and training",
+      description: "We cover all Salesforce certifications and trainings",
     },
     {
       icon: <Briefcase className="w-6 h-6 text-black" />,
@@ -79,7 +79,7 @@ export const Careers: React.FC = () => {
   return (
     <div className="min-h-screen pt-24 lg:pt-32">
       {/* Hero Section */}
-      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -98,7 +98,7 @@ export const Careers: React.FC = () => {
       </section>
 
       {/* Benefits */}
-      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+      <section className="pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {benefits.map((benefit, index) => (
@@ -165,7 +165,7 @@ export const Careers: React.FC = () => {
       */}
 
       {/* Application Form */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-0 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

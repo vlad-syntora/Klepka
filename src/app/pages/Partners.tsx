@@ -69,7 +69,7 @@ export const Partners: React.FC = () => {
     {
       description: (
         <div>
-          <h3 className="text-2xl mb-3 text-violet">Empowering Impact with Salesforce: Prytula Foundation USA</h3>
+          <h3 className="text-2xl mb-3 text-violet">Prytula Foundation USA</h3>
           <p className="text-2xl mb-3 text-text-secondary">Salesforce Nonprofit Cloud Implementation</p>
           <p className="text-text-secondary mb-4 leading-relaxed">
             We partnered with Prytula Foundation USA to build a robust Salesforce-based CRM that strengthens the foundation’s ability to operate, scale, and deliver impact with confidence.
@@ -100,7 +100,6 @@ export const Partners: React.FC = () => {
         </div>
       ),
       icon: logoPrytulaIcon,
-      icon2: logoKlepkavioletIcon,
     },
   ];
 
@@ -188,11 +187,7 @@ export const Partners: React.FC = () => {
                 src={study.icon}
                 className="w-24 h-24 object-contain"
               />
-              <img
-                src={study.icon2}
-                alt="Klepka"
-                className="w-24 h-24 object-contain"
-              />
+             
               </div>
             <div className="flex-1">{study.description}</div>
           </div>

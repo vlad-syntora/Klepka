@@ -13,9 +13,9 @@ export const About: React.FC = () => {
   ];
 
   return (
-    <div className="pt-24 lg:pt-32">
+    <div className="pt-14 lg:pt-32">
       {/* Hero Section */}
-      <section className="pb-12 px-4 sm:px-6 lg:px-8">
+      <section className="pb-0 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -51,13 +51,13 @@ export const About: React.FC = () => {
 
       
       {/* Values */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
+      <section className="py-6 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-12"
+            className="text-center mb-6"
           >
             
           </motion.div>
@@ -77,14 +77,14 @@ export const About: React.FC = () => {
                 isList: false,
               },
               {
-                title: 'How we work',
-                description: 'Structured delivery with clear responsibility.\nTechnical decisions based on long-term system behavior.\nFocus on scalability rather than short-term fixes.',
-                isList: false,
-              },
-              {
                 title: 'What we actually do',
                 description: 'System architecture and design\nCustom CRM implementation\nIntegrations with external systems\nAutomation and ongoing support',
                 isList: true,
+              },
+              {
+                title: 'How we work',
+                description: 'Structured delivery with clear responsibility.\nTechnical decisions based on long-term system behavior.\nFocus on scalability rather than short-term fixes.',
+                isList: false,
               },
             ].map((value, index) => (
               <motion.div
@@ -97,13 +97,13 @@ export const About: React.FC = () => {
               >
                 <h3 className="text-xl mb-3">{value.title}</h3>
                 {value.isList ? (
-                  <ul className="space-y-2 leading-relaxed">
+                  <ul className="space-y-2 ml-15 leading-relaxed text-left">
                     {value.description.split('\n').map((item, i) => (
                       <li key={i}>• {item}</li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="leading-relaxed whitespace-pre-line">{value.description}</p>
+                  <p className="leading-relaxed whitespace-pre-line text-left">{value.description}</p>
                 )}
               </motion.div>
             ))}

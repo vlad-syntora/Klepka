@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Linkedin, Twitter, Youtube, Instagram } from 'lucide-react';
+import { Mail, Phone, MapPin, Linkedin} from 'lucide-react';
 import logo from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
+import UaIcon from "../../assets/ua.svg";
 
 export const Footer: React.FC = () => {
   const footerLinks = {
@@ -83,7 +84,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-3">
               <li className="flex items-start space-x-3">
                 <Mail className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" />
-                <a href="mailto:contact@klepka.com" className="text-sm text-white hover:text-accent-yellow transition-colors">
+                <a href="mailto:klepkasolutions@gmail.com" className="text-sm text-white hover:text-accent-yellow transition-colors">
                   klepkasolutions@gmail.com
                 </a>
               </li>
@@ -93,8 +94,9 @@ export const Footer: React.FC = () => {
                   +38 (093) 645-36-13
                 </a>
               </li>
-              <li className="flex items-start space-x-3">
-                <MapPin className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" />
+              <li className="flex items-center space-x-3">
+                {/* <MapPin className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" /> */}
+                <img src={UaIcon} alt="Ukraine" className="w-5 h-4 mr-2" />
                 <span className="text-sm text-white">
                   Odesa, Ukraine
                 </span>

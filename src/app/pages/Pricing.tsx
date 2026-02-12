@@ -784,14 +784,14 @@ export const Pricing: React.FC = () => {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               <motion.div
                 key={0}
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={initialDiscoveryPlanningIcon}
@@ -808,7 +808,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 1 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={deliveryRoadmapIcon}
@@ -825,7 +825,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 2 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={dataAccuracyAndIntegrityCheckIcon}
@@ -842,7 +842,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 3 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={transparentDeliveryProgressIcon}
@@ -859,7 +859,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 4 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={qualityCheckIcon}
@@ -876,7 +876,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 5 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={documentationIcon}
@@ -893,7 +893,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 6 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={userTrainingSessionsIcon}
@@ -910,7 +910,7 @@ export const Pricing: React.FC = () => {
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 7 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 flex items-center justify-center gap-4 hover:shadow-lg transition-shadow"
+                className="bg-card border border-violet rounded-lg p-3 flex flex-col sm:flex-row items-center justify-center gap-4 hover:shadow-lg transition-shadow"
               >
                 <img
                   src={postLaunchSupportIcon}

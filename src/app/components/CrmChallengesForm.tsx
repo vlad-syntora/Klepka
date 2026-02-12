@@ -14,6 +14,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
   formName = "New Client Request",
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -28,11 +29,13 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
           "Your request has been sent. We will get back to you shortly.",
       });
       formEl.reset();
+      setStatus("success");
     } catch (err) {
       console.error(err);
       toast.error("Couldn't submit the request", {
         description: "Please try again in a moment.",
       });
+      setStatus("error");
     } finally {
       setIsSubmitting(false);
     }
@@ -43,7 +46,17 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
     : "bg-card-foreground/10 text-off-white border-border-color/30";
 
   return (
-    <form ref={formRef} className="space-y-6" onSubmit={handleSubmit}>
+    <div>
+      {status === "success" && (
+        <div
+          role="status"
+          className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-violet"
+        >
+          Request submitted. We will get back to you shortly.
+        </div>
+      )}
+
+      <form ref={formRef} className="space-y-6" onSubmit={handleSubmit}>
       <input type="hidden" name="form_name" value={formName} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <Input
@@ -104,6 +117,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
       >
         {isSubmitting ? "Sending..." : "Submit Request"}
       </Button>
-    </form>
+      </form>
+    </div>
   );
 };

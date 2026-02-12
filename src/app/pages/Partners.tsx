@@ -17,6 +17,7 @@ import logoKlepkavioletIcon from "../../assets/logo_violet_1.png";
 
 export const Partners: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,6 +30,7 @@ export const Partners: React.FC = () => {
         description: "We will review your application and reach out soon.",
       });
       formEl.reset();
+      setSubmitSuccess(true);
     } catch (err) {
       console.error(err);
       toast.error("Couldn't submit inquiry", {
@@ -145,14 +147,14 @@ export const Partners: React.FC = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-card border border-violet rounded-lg p-4 md:p-3 flex flex-col items-center justify-center gap-2 md:gap-4 hover:shadow-lg transition-shadow"
+                  className="bg-card border border-violet rounded-lg p-4 md:p-3 flex flex-col md:flex-row items-center md:items-center justify-center gap-2 md:gap-4 hover:shadow-lg transition-shadow"
                 >
                   <img
                     src={client.icon}
                     alt={client.title}
-                    className="w-14 h-14 md:w-20 md:h-20 object-contain"
+                    className="w-14 h-14 md:w-20 md:h-20 object-contain mb-2 md:mb-0 md:mr-4"
                   />
-                  <span className="text-black font-medium text-center text-xs md:text-sm">
+                  <span className="text-black font-medium text-center md:text-left text-xs md:text-sm">
                     {client.title}
                   </span>
                 </motion.div>
@@ -182,9 +184,10 @@ export const Partners: React.FC = () => {
             {caseStudies.map((study, index) => (
               <Card key={index}>
           <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-              <div className="flex flex-row gap-4 items-center justify-center flex-shrink-0 w-full lg:w-auto">
+              <div className="flex flex-row lg:flex-col gap-4 items-center justify-center flex-shrink-0 w-full lg:w-auto">
               <img
                 src={study.icon}
+                alt="Partner logo"
                 className="w-24 h-24 object-contain"
               />
              
@@ -215,6 +218,14 @@ export const Partners: React.FC = () => {
           </motion.div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
+            {submitSuccess && (
+              <div
+                role="status"
+                className="rounded-md border border-green-200 bg-green-50 p-3 text-violet"
+              >
+                Partnership inquiry submitted. We will review your application and reach out soon.
+              </div>
+            )}
             <input type="hidden" name="form_name" value="New Partner Request" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Input

@@ -147,7 +147,7 @@ export const Partners: React.FC = () => {
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-card border border-violet rounded-lg p-4 md:p-3 flex flex-col md:flex-row items-center md:items-center justify-center gap-2 md:gap-4 hover:shadow-lg transition-shadow"
+                  className="bg-card border border-violet rounded-lg p-6 md:p-3 md:pl-9 flex flex-col md:flex-row items-center md:items-center justify-start gap-2 md:gap-4 hover:shadow-lg transition-shadow"
                 >
                   <img
                     src={client.icon}

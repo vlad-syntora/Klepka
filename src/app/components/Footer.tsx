@@ -29,7 +29,7 @@ export const Footer: React.FC = () => {
               Designing scalable Salesforce CRM systems for revenue teams.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-white hover:text-accent-yellow transition-colors">
+              <a href="https://www.linkedin.com/company/klepka-solutions" className="text-white hover:text-accent-yellow transition-colors">
                 <Linkedin className="w-5 h-5" />
               </a>
               {/*<a href="#" className="text-white hover:text-accent-yellow transition-colors">
@@ -84,8 +84,8 @@ export const Footer: React.FC = () => {
             <ul className="space-y-3">
               <li className="flex items-start space-x-3">
                 <Mail className="w-5 h-5 text-accent-yellow mt-0.5 flex-shrink-0" />
-                <a href="mailto:klepkasolutions@gmail.com" className="text-sm text-white hover:text-accent-yellow transition-colors">
-                  klepkasolutions@gmail.com
+                <a href="mailto:contact@klepka.solutions" className="text-sm text-white hover:text-accent-yellow transition-colors">
+                  contact@klepka.solutions
                 </a>
               </li>
               <li className="flex items-start space-x-3">

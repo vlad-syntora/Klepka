@@ -5,8 +5,10 @@ import marinaAvatar from '../assets/team/marina-penkova.png';
 
 export interface Founder {
   name: string;
+  slug: string;
   title: string;
   description: string;
+  shortBio: string;
   startDate: string;
   company: string;
   certs: CertKey[];
@@ -34,8 +36,10 @@ export interface Team {
 export const foundersConfig: Founder[] = [
   {
     name: 'Sergii Romashov',
+    slug: 'sergii-romashov',
     title: 'CEO',
     company: 'Klepka',
+    shortBio: 'Salesforce architect with 7+ years building scalable CRM solutions for enterprise clients.',
     description: 'Having 7+ years of overall extensive experience in Salesforce analysis and implementation, with strong technical and functional aspects, and expertise in managing a team and leading it.\n\nProven track record in designing and delivering scalable end-to-end solutions as well as integrations with third-party systems.\n\nComprehensive background in designing highly efficient end-to-end solutions for Sales, Service, and Experience Cloud.\n\nStrong leadership background with experience building and leading Salesforce Administrator teams, mentoring professionals, and conducting educational programs.\n\nExcellent analytical and communication skills with a focus on driving efficiency, adoption, and cross-functional collaboration.',
     startDate: '2017-01-01',
     certs: ['platformAdmin', 'salesCloud', 'pardotSpecialist'],
@@ -48,8 +52,10 @@ export const foundersConfig: Founder[] = [
   },
   {
     name: 'Daria Ezerovych',
+    slug: 'daria-ezerovych',
     title: 'CTO',
     company: 'Klepka',
+    shortBio: 'Senior Salesforce Consultant delivering multi-cloud solutions across Sales, Service, Experience & CRMA.',
     description: 'Senior Salesforce Consultant with 6+ years of experience delivering complex multi-cloud solutions (Sales, Service, Experience, CRMA).\n\nStrong background in solution design, technical discovery, and effort estimation within enterprise sales cycles.\n\nActively supports pre-sales engagements by leading workshops, defining architecture, preparing estimates, and presenting solutions to stakeholders.\n\nProven ability to translate business requirements into scalable Salesforce ecosystems that drive measurable outcomes.\n\nCombines technical depth with strong communication skills to build client trust and accelerate deal closure.',
     startDate: '2018-01-01',
     certs: ['platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud', 'sharingVisibilityArchitect', 'platformDataArchitect'],

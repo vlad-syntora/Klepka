@@ -64,7 +64,7 @@ export const teamsConfig: Team[] = [
         name: 'Kateryna S.',
         description: 'Experienced Salesforce Administrator specializing in:\n• User management\n• Data quality\n• Process automation',
         startDate: '2020-03-15',
-        certs: ['platformAdmin'],
+        certs: ['platformAdmin', ],
         avatar: '/assets/avatar-placeholder.png'
       },
       {

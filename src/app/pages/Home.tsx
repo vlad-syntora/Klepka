@@ -16,14 +16,7 @@ import { CrmChallengesForm } from "../components/CrmChallengesForm";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import cert1 from "../../assets/e2a3731ce5c28b0aaeabca19fd7e3c14965d21ca.png";
-import cert2 from "../../assets/7366f5a4c28ad07c8d9e9f7ffadee0e142693189.png";
-import cert3 from "../../assets/82604211df267665aa3c66c85446c94b2ee6cd46.png";
-import cert4 from "../../assets/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png";
-import cert5 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
-import cert6 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
-import cert7 from "../../assets/platform-app-builder.png";
-import cert8 from "../../assets/pardot-specialist.png";
+import { certificatesConfig } from "../../config/certificatesConfig";
 import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
 import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.png";
 import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
@@ -152,78 +145,18 @@ export const Home: React.FC = () => {
 
           <div className="certification-slider mb-24">
             <Slider ref={sliderRef} {...sliderSettings}>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert3}
-                    alt="Platform Administrator Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
+              {Object.values(certificatesConfig).map((cert) => (
+                <div key={cert.id} className="px-4">
+                  <div className="flex items-center justify-center h-32">
+                    <img
+                      src={cert.image}
+                      alt={cert.name}
+                      title={cert.name}
+                      className="max-h-full w-auto object-contain"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert7}
-                    alt="Platform App Builder"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert2}
-                    alt="Experience Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-             <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert6}
-                    alt="Sales Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert8}
-                    alt="Pardot Specialist Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert1}
-                    alt="Data Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert4}
-                    alt="Platform Data Architect Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert5}
-                    alt="Platform Sharing and Visibility Architect Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
+              ))}
             </Slider>
           </div>
         </div>

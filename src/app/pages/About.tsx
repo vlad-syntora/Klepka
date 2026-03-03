@@ -207,6 +207,8 @@ export const About: React.FC = () => {
                         startDate={ member.startDate }
                         avatar={ member.avatar }
                         certs={ member.certs }
+                        sliderSettings={ sliderSettings }
+                        sliderRef={ sliderRef }
                       />
                     )) }
                   </div>
@@ -378,12 +380,14 @@ function AccordionTeam({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function SimpleMemberCard({ name, description, startDate, avatar, certs }: {
+function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderSettings, sliderRef }: {
   name: string;
   description: string;
   startDate: string;
   avatar?: string;
-  certs?: CertKey[]
+  certs?: CertKey[];
+  sliderSettings: any;
+  sliderRef: any;
 }) {
   const calculateYears = (start: string) => {
     const startDateObj = new Date(start);
@@ -410,17 +414,20 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs }: {
           experience
         </div>
         { certs && certs.length > 0 && (
-          <div className="w-full flex flex-wrap justify-center gap-2 mt-1">
-            { certs.map((certKey) => {
-              const cert = certificatesConfig[certKey];
-              return (
-                <div key={ certKey }
-                     className="flex items-center justify-center h-12 w-12 bg-white rounded p-1 border border-border-color">
-                  <img src={ cert.image } alt={ cert.name } title={ cert.name }
-                       className="max-h-full w-auto object-contain"/>
-                </div>
-              );
-            }) }
+          <div className="certification-slider w-full mt-1">
+            <Slider ref={ sliderRef } { ...sliderSettings }>
+              { certs.map((certKey) => {
+                const cert = certificatesConfig[certKey];
+                return (
+                  <div key={ certKey } className="px-2">
+                    <div className="flex items-center justify-center h-20">
+                      <img src={ cert.image } alt={ cert.name } title={ cert.name }
+                           className="max-h-full w-auto object-contain"/>
+                    </div>
+                  </div>
+                );
+              }) }
+            </Slider>
           </div>
         ) }
       </div>

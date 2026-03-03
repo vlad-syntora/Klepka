@@ -234,7 +234,8 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
     startDate: string;
     certs: CertKey[];
     avatar?: string;
-    contactInfo: { phone: string; email: string; linkedin: string }
+    contactInfo: { phone: string; email: string; linkedin: string };
+    company: string;
   };
   sliderSettings: any;
   sliderRef: any
@@ -255,16 +256,42 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
 
   const years = calculateYears(person.startDate);
 
-  const downloadVCard = () => {
-    const vcard = [
+  const downloadVCard = async () => {
+    const nameParts = person.name.trim().split(/\s+/);
+    const firstName = nameParts.slice(0, -1).join(' ');
+    const lastName = nameParts[nameParts.length - 1];
+
+    const lines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
+      `N:${ lastName };${ firstName };;;`,
       `FN:${ person.name }`,
       `TITLE:${ person.title }`,
+      `ORG:${ person.company }`,
       `TEL;TYPE=WORK,VOICE:${ person.contactInfo.phone }`,
       `EMAIL;TYPE=INTERNET:${ person.contactInfo.email }`,
-      'END:VCARD'
-    ].join('\r\n');
+      `URL;TYPE=LinkedIn:${ person.contactInfo.linkedin }`,
+    ];
+
+    if (person.avatar) {
+      try {
+        const res = await fetch(person.avatar);
+        const buf = await res.arrayBuffer();
+        const ext = person.avatar.toLowerCase().endsWith('.png') ? 'PNG' : 'JPEG';
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        const b64 = btoa(binary);
+        lines.push(`PHOTO;ENCODING=b;TYPE=${ ext }:${ b64 }`);
+      } catch {
+      }
+    }
+
+    lines.push('END:VCARD');
+    const vcard = lines.join('\r\n');
 
     const blob = new Blob([vcard], { type: 'text/vcard' });
     const url = URL.createObjectURL(blob);
@@ -377,9 +404,9 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
               </div>
             </div>
 
-            <div className="mt-auto">
+            <div className="mt-auto flex justify-center">
               <button onClick={ downloadVCard }
-                      className="bg-white text-violet px-3 py-2 rounded-md">Add Contact
+                      className="bg-white text-violet px-4 py-2 rounded-md cursor-pointer">Add Contact
               </button>
             </div>
           </div>

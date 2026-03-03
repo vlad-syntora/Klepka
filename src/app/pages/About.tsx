@@ -72,30 +72,19 @@ export const About: React.FC = () => {
         ]
       }
     },
-    {
+    ...foundersConfig.map((founder) => ({
       "@context": "https://schema.org",
       "@type": "Person",
-      "@id": "https://klepka.solutions/card/sergii-romashov#person",
-      "name": "Sergii Romashov",
-      "jobTitle": "CEO",
+      "@id": `https://klepka.solutions/card/${founder.slug}#person`,
+      "name": founder.name,
+      "jobTitle": founder.title,
       "worksFor": { "@id": "https://klepka.solutions/#organization" },
-      "description": "Salesforce architect with 7+ years building scalable CRM solutions. Expertise in Sales, Service, and Experience Cloud implementations, team leadership, and cross-functional collaboration.",
-      "knowsAbout": ["Salesforce", "CRM Implementation", "Sales Cloud", "Service Cloud", "Experience Cloud", "Salesforce Administration"],
-      "url": "https://klepka.solutions/card/sergii-romashov",
-      "sameAs": ["https://linkedin.com/in/sergii-romashov"]
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "Person",
-      "@id": "https://klepka.solutions/card/daria-ezerovych#person",
-      "name": "Daria Ezerovych",
-      "jobTitle": "CTO",
-      "worksFor": { "@id": "https://klepka.solutions/#organization" },
-      "description": "Senior Salesforce Consultant with 6+ years delivering complex multi-cloud solutions across Sales, Service, Experience, and CRM Analytics. Expert in solution design and enterprise pre-sales.",
-      "knowsAbout": ["Salesforce", "Sales Cloud", "Service Cloud", "Experience Cloud", "CRM Analytics", "Salesforce Architecture"],
-      "url": "https://klepka.solutions/card/daria-ezerovych",
-      "sameAs": ["https://linkedin.com/in/daria-ezerovych"]
-    }
+      "description": founder.shortBio,
+      "url": `https://klepka.solutions/card/${founder.slug}`,
+      "email": founder.contactInfo.email,
+      "telephone": founder.contactInfo.phone,
+      "sameAs": [founder.contactInfo.linkedin],
+    })),
   ];
 
   return (

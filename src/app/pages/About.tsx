@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { SEOHead } from '../components/SEOHead';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -54,8 +55,57 @@ export const About: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const aboutJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/about#webpage",
+      "url": "https://klepka.solutions/about",
+      "name": "Our Team — Klepka Salesforce Consulting",
+      "description": "Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://klepka.solutions/" },
+          { "@type": "ListItem", "position": 2, "name": "About", "item": "https://klepka.solutions/about" }
+        ]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://klepka.solutions/card/sergii-romashov#person",
+      "name": "Sergii Romashov",
+      "jobTitle": "CEO",
+      "worksFor": { "@id": "https://klepka.solutions/#organization" },
+      "description": "Salesforce architect with 7+ years building scalable CRM solutions. Expertise in Sales, Service, and Experience Cloud implementations, team leadership, and cross-functional collaboration.",
+      "knowsAbout": ["Salesforce", "CRM Implementation", "Sales Cloud", "Service Cloud", "Experience Cloud", "Salesforce Administration"],
+      "url": "https://klepka.solutions/card/sergii-romashov",
+      "sameAs": ["https://linkedin.com/in/sergii-romashov"]
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://klepka.solutions/card/daria-ezerovych#person",
+      "name": "Daria Ezerovych",
+      "jobTitle": "CTO",
+      "worksFor": { "@id": "https://klepka.solutions/#organization" },
+      "description": "Senior Salesforce Consultant with 6+ years delivering complex multi-cloud solutions across Sales, Service, Experience, and CRM Analytics. Expert in solution design and enterprise pre-sales.",
+      "knowsAbout": ["Salesforce", "Sales Cloud", "Service Cloud", "Experience Cloud", "CRM Analytics", "Salesforce Architecture"],
+      "url": "https://klepka.solutions/card/daria-ezerovych",
+      "sameAs": ["https://linkedin.com/in/daria-ezerovych"]
+    }
+  ];
+
   return (
     <div className="pt-14 lg:pt-32">
+      <SEOHead
+        title="Our Team — Klepka Salesforce Consulting"
+        description="Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
+        canonicalPath="/about"
+        jsonLd={aboutJsonLd}
+      />
       {/* Hero Section */ }
       <section className="pb-0 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">

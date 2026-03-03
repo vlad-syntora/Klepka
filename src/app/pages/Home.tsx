@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { SEOHead } from "../components/SEOHead";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Input, TextArea } from "../components/Input";
@@ -108,8 +109,99 @@ export const Home: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const homeJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://klepka.solutions/#organization",
+      "name": "Klepka",
+      "url": "https://klepka.solutions",
+      "logo": "https://klepka.solutions/favicon.png",
+      "description": "Klepka delivers end-to-end Salesforce CRM implementations, integrations, automation, and ongoing support for SaaS, B2B, and enterprise teams.",
+      "knowsAbout": [
+        "Salesforce CRM Implementation",
+        "Salesforce Integration",
+        "Sales Cloud",
+        "Service Cloud",
+        "Experience Cloud",
+        "CRM Audit",
+        "Salesforce Automation",
+        "CRM Training"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "areaServed": ["US", "EU"],
+        "availableLanguage": "English"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://klepka.solutions/#website",
+      "name": "Klepka",
+      "url": "https://klepka.solutions",
+      "description": "Salesforce CRM consulting, implementation, and integration services",
+      "publisher": { "@id": "https://klepka.solutions/#organization" }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Klepka Salesforce Services",
+      "description": "Full-cycle Salesforce delivery services offered by Klepka",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "item": {
+            "@type": "Service",
+            "name": "Salesforce Implementation",
+            "description": "End-to-end Salesforce setup tailored to your business processes.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "item": {
+            "@type": "Service",
+            "name": "CRM Audit & Optimization",
+            "description": "Identify bottlenecks, technical debt, and growth blockers in your Salesforce org.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "item": {
+            "@type": "Service",
+            "name": "Integrations & Automation",
+            "description": "Connect Salesforce with ERP, billing, marketing, and data tools.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "item": {
+            "@type": "Service",
+            "name": "Training & Enablement",
+            "description": "Empower teams to fully adopt and scale CRM usage.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        }
+      ]
+    }
+  ];
+
   return (
     <div className="min-h-screen">
+      <SEOHead
+        title="Klepka — Salesforce CRM Implementation & Integration Services"
+        description="Klepka delivers end-to-end Salesforce CRM implementations, integrations, and ongoing support. Scalable solutions built to drive revenue for SaaS, B2B, and enterprise teams."
+        canonicalPath="/"
+        jsonLd={homeJsonLd}
+      />
       {/* Hero Section */}
       <section className="pt-25 pb-2 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white/30 to-background">
         <div className="max-w-7xl mx-auto">

@@ -80,6 +80,8 @@ export const Home: React.FC = () => {
     pauseOnHover: true,
   };
 
+  const [showAllCerts, setShowAllCerts] = React.useState(false);
+
   const [sliderSettings, setSliderSettings] = React.useState(() => ({
     ...baseSettings,
     slidesToShow:
@@ -143,11 +145,11 @@ export const Home: React.FC = () => {
             className="text-center mb-12"
           ></motion.div>
 
-          <div className="certification-slider mb-24">
-            <Slider ref={sliderRef} {...sliderSettings}>
-              {Object.values(certificatesConfig).map((cert) => (
-                <div key={cert.id} className="px-4">
-                  <div className="flex items-center justify-center h-32">
+          <div className="mb-24">
+            {showAllCerts ? (
+              <div className="flex flex-wrap justify-center gap-4 py-2">
+                {Object.values(certificatesConfig).map((cert) => (
+                  <div key={cert.id} className="flex items-center justify-center h-32 w-32">
                     <img
                       src={cert.image}
                       alt={cert.name}
@@ -155,9 +157,32 @@ export const Home: React.FC = () => {
                       className="max-h-full w-auto object-contain"
                     />
                   </div>
-                </div>
-              ))}
-            </Slider>
+                ))}
+              </div>
+            ) : (
+              <div className="certification-slider">
+                <Slider ref={sliderRef} {...sliderSettings}>
+                  {Object.values(certificatesConfig).map((cert) => (
+                    <div key={cert.id} className="px-4">
+                      <div className="flex items-center justify-center h-32">
+                        <img
+                          src={cert.image}
+                          alt={cert.name}
+                          title={cert.name}
+                          className="max-h-full w-auto object-contain"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </Slider>
+              </div>
+            )}
+            <button
+              onClick={() => setShowAllCerts((s) => !s)}
+              className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-2"
+            >
+              {showAllCerts ? 'Show slider' : 'View all certificates'}
+            </button>
           </div>
         </div>
       

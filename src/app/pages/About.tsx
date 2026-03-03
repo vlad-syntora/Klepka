@@ -240,6 +240,7 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
   sliderRef: any
 }) {
   const [isFlipped, setIsFlipped] = React.useState(false);
+  const [showAllCerts, setShowAllCerts] = React.useState(false);
 
   const frontCardClasses = `bg-card border border-border-color rounded-lg p-6 shadow-sm transition-shadow h-full flex flex-col hover:shadow-lg`;
   const backCardClasses = `bg-violet border border-violet/40 rounded-lg p-6 shadow-sm h-full flex flex-col text-off-white`;
@@ -300,20 +301,42 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
                 className="text-sm text-violet font-medium mb-3">{ years } { years === 1 ? 'year' : 'years' } of
                 experience</p>
 
-              <div className="certification-slider w-full mb-4">
-                <Slider ref={ sliderRef } { ...sliderSettings }>
-                  { person.certs.map((certKey) => {
-                    const cert = certificatesConfig[certKey];
-                    return (
-                      <div key={ certKey } className="px-2">
-                        <div className="flex items-center justify-center h-20">
+              <div className="w-full mb-2">
+                { showAllCerts ? (
+                  <div className="flex flex-wrap justify-center gap-2 py-1">
+                    { person.certs.map((certKey) => {
+                      const cert = certificatesConfig[certKey];
+                      return (
+                        <div key={ certKey } className="flex items-center justify-center h-20 w-20">
                           <img src={ cert.image } alt={ cert.name } title={ cert.name }
                                className="max-h-full w-auto object-contain"/>
                         </div>
-                      </div>
-                    );
-                  }) }
-                </Slider>
+                      );
+                    }) }
+                  </div>
+                ) : (
+                  <div className="certification-slider">
+                    <Slider ref={ sliderRef } { ...sliderSettings }>
+                      { person.certs.map((certKey) => {
+                        const cert = certificatesConfig[certKey];
+                        return (
+                          <div key={ certKey } className="px-2">
+                            <div className="flex items-center justify-center h-20">
+                              <img src={ cert.image } alt={ cert.name } title={ cert.name }
+                                   className="max-h-full w-auto object-contain"/>
+                            </div>
+                          </div>
+                        );
+                      }) }
+                    </Slider>
+                  </div>
+                ) }
+                <button
+                  onClick={ () => setShowAllCerts((s) => !s) }
+                  className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-1"
+                >
+                  { showAllCerts ? 'Show slider' : 'View all certificates' }
+                </button>
               </div>
 
               <button onClick={ () => setIsFlipped(true) }
@@ -389,6 +412,8 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderS
   sliderSettings: any;
   sliderRef: any;
 }) {
+  const [showAllCerts, setShowAllCerts] = React.useState(false);
+
   const calculateYears = (start: string) => {
     const startDateObj = new Date(start);
     const now = new Date();
@@ -414,20 +439,42 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderS
           experience
         </div>
         { certs && certs.length > 0 && (
-          <div className="certification-slider w-full mt-1">
-            <Slider ref={ sliderRef } { ...sliderSettings }>
-              { certs.map((certKey) => {
-                const cert = certificatesConfig[certKey];
-                return (
-                  <div key={ certKey } className="px-2">
-                    <div className="flex items-center justify-center h-20">
+          <div className="w-full mt-1">
+            { showAllCerts ? (
+              <div className="flex flex-wrap justify-center gap-2 py-1">
+                { certs.map((certKey) => {
+                  const cert = certificatesConfig[certKey];
+                  return (
+                    <div key={ certKey } className="flex items-center justify-center h-20 w-20">
                       <img src={ cert.image } alt={ cert.name } title={ cert.name }
                            className="max-h-full w-auto object-contain"/>
                     </div>
-                  </div>
-                );
-              }) }
-            </Slider>
+                  );
+                }) }
+              </div>
+            ) : (
+              <div className="certification-slider">
+                <Slider ref={ sliderRef } { ...sliderSettings }>
+                  { certs.map((certKey) => {
+                    const cert = certificatesConfig[certKey];
+                    return (
+                      <div key={ certKey } className="px-2">
+                        <div className="flex items-center justify-center h-20">
+                          <img src={ cert.image } alt={ cert.name } title={ cert.name }
+                               className="max-h-full w-auto object-contain"/>
+                        </div>
+                      </div>
+                    );
+                  }) }
+                </Slider>
+              </div>
+            ) }
+            <button
+              onClick={ () => setShowAllCerts((s) => !s) }
+              className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-1"
+            >
+              { showAllCerts ? 'Show slider' : 'View all certificates' }
+            </button>
           </div>
         ) }
       </div>

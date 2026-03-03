@@ -46,7 +46,7 @@ export const foundersConfig: Founder[] = [
     title: 'CTO',
     description: 'Senior Salesforce Consultant with 6+ years of experience delivering complex multi-cloud solutions (Sales, Service, Experience, CRMA).\n\nStrong background in solution design, technical discovery, and effort estimation within enterprise sales cycles.\n\nActively supports pre-sales engagements by leading workshops, defining architecture, preparing estimates, and presenting solutions to stakeholders.\n\nProven ability to translate business requirements into scalable Salesforce ecosystems that drive measurable outcomes.\n\nCombines technical depth with strong communication skills to build client trust and accelerate deal closure.',
     startDate: '2018-01-01',
-    certs: ['platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud', 'sharingVisibilityArchitect', 'platformDataArchitect'],
+    certs: ['platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud','platformAdmin', 'salesCloud', 'experienceCloud', 'dataCloud', 'sharingVisibilityArchitect', 'platformDataArchitect'],
     avatar: '/assets/avatar-placeholder.png',
     contactInfo: {
       phone: '+380 00 000 0001',

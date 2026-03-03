@@ -252,12 +252,21 @@ export const Partners: React.FC = () => {
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
             </div>
-            <Input
-              required
-              name="partner_type"
-              placeholder="Partner Type (Technology, Delivery, or Referral)"
-              className="bg-card-foreground/10 text-off-white border-border-color/30"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <Input
+                required
+                type="email"
+                name="reply_to"
+                placeholder="your@email.com"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+              <Input
+                required
+                name="partner_type"
+                placeholder="Partner Type (Technology, Delivery, or Referral)"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+            </div>
             <TextArea
               required
               name="message"

@@ -289,7 +289,7 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
           <div className={ frontCardClasses } data-package-card="true">
             <div className="flex flex-col items-center">
               <div
-                className="w-28 h-28 rounded-full bg-card-foreground/10 mb-4 flex items-center justify-center overflow-hidden">
+                className="w-28 h-28 mb-4 flex items-center justify-center overflow-hidden rounded-lg">
                 <img src={ person.avatar || '/assets/avatar-placeholder.png' } alt={ person.name }
                      className="w-full h-full object-cover"/>
               </div>
@@ -428,7 +428,7 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderS
     <div className="bg-card border border-border-color rounded-lg p-4">
       <div className="flex flex-col items-center text-center">
         <div
-          className="w-20 h-20 rounded-full bg-card-foreground/10 mb-3 flex items-center justify-center overflow-hidden">
+          className="w-20 h-20 mb-3 flex items-center justify-center overflow-hidden rounded-lg">
           <img src={ avatar || '/assets/avatar-placeholder.png' } alt={ name }
                className="w-full h-full object-cover"/>
         </div>

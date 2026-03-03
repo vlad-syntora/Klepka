@@ -371,7 +371,7 @@ function AccordionTeam({ title, children }: { title: string; children: React.Rea
   return (
     <div className="border border-border-color rounded-lg p-4">
       <button onClick={ () => setOpen((s) => !s) }
-              className="w-full text-left flex items-center justify-between">
+              className="w-full text-left flex items-center justify-between cursor-pointer">
         <span className="font-medium">{ title }</span>
         <span className="text-sm text-text-secondary">{ open ? 'Hide' : 'Show' }</span>
       </button>

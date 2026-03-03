@@ -281,7 +281,7 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: { person: { name:
               </div>
               <h3 className="text-xl font-semibold mb-1">{person.name}</h3>
               <p className="text-sm text-grey mb-3">{person.title}</p>
-              <p className="text-sm text-text-secondary mb-3">{person.description}</p>
+              <p className="text-sm text-text-secondary mb-3 whitespace-pre-line">{person.description}</p>
               <p className="text-sm text-violet font-medium mb-3">{years} {years === 1 ? 'year' : 'years'} of experience</p>
 
               <div className="certification-slider w-full mb-4">
@@ -368,7 +368,7 @@ function SimpleMemberCard({ name, description, startDate, avatar }: { name: stri
           <img src={avatar || '/assets/avatar-placeholder.png'} alt={name} className="w-full h-full object-cover" />
         </div>
         <div className="font-medium text-lg mb-2">{name}</div>
-        <div className="text-sm text-text-secondary mb-2">{description}</div>
+        <div className="text-sm text-text-secondary mb-2 whitespace-pre-line">{description}</div>
         <div className="text-sm text-violet font-medium">{years} {years === 1 ? 'year' : 'years'} of experience</div>
       </div>
     </div>

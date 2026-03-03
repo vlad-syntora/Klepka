@@ -2,8 +2,57 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../components/Card';
 import { Award, Users, Globe, TrendingUp } from 'lucide-react';
+import Slider from 'react-slick';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
+import { foundersConfig, teamsConfig } from '../../config/teamConfig';
 
 export const About: React.FC = () => {
+  const sliderRef = React.useRef<any>(null);
+
+  const computeSlidesToShow = (w: number) => {
+    if (w <= 480) return 2;
+    if (w <= 768) return 2;
+    if (w <= 1024) return 3;
+    return 5;
+  };
+
+  const baseSettings = {
+    dots: false,
+    infinite: true,
+    speed: 600,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
+    cssEase: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    pauseOnHover: true,
+  };
+
+  const [sliderSettings, setSliderSettings] = React.useState(() => ({
+    ...baseSettings,
+    slidesToShow:
+      typeof window !== 'undefined'
+        ? computeSlidesToShow(window.innerWidth)
+        : 5,
+  }));
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      const next = computeSlidesToShow(window.innerWidth);
+      setSliderSettings((prev) =>
+        prev.slidesToShow === next ? prev : { ...prev, slidesToShow: next }
+      );
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   const timeline = [
     { year: '2023', title: 'Platform Partnerships', description: 'Became official Salesforce and HubSpot partners' },
@@ -131,23 +180,8 @@ export const About: React.FC = () => {
               className="grid gap-6"
               style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}
             >
-              {[
-                {
-                  name: 'Sergii Romashov',
-                  title: 'CEO',
-                  description: 'Having 7+ years of overall extensive experience in Salesforce analysis and implementation, with strong technical and functional aspects, and expertise in managing a team and leading it. Proven track record in designing and delivering scalable end-to-end solutions as well as integrations with third-party systems. Comprehensive background in designing highly efficient end-to-end solutions for Sales, Service, and Experience Cloud. Strong leadership background with experience building and leading Salesforce Administrator teams, mentoring professionals, and conducting educational programs. Excellent analytical and communication skills with a focus on driving efficiency, adoption, and cross-functional collaboration.',
-                  years: 7,
-                  logos: ['/assets/82604211df267665aa3c66c85446c94b2ee6cd46.png','/assets/aed582af24f5014b836a133be5f05bf36a841cd1.png','/assets/pardot-specialist.png']
-                },
-                {
-                  name: 'Daria Ezerovych',
-                  title: 'CTO',
-                  description: 'Senior Salesforce Consultant with 6+ years of experience delivering complex multi-cloud solutions (Sales, Service, Experience, CRMA). Strong background in solution design, technical discovery, and effort estimation within enterprise sales cycles. Actively supports pre-sales engagements by leading workshops, defining architecture, preparing estimates, and presenting solutions to stakeholders. Proven ability to translate business requirements into scalable Salesforce ecosystems that drive measurable outcomes. Combines technical depth with strong communication skills to build client trust and accelerate deal closure.',
-                  years: 6,
-                  logos: ['/assets/82604211df267665aa3c66c85446c94b2ee6cd46.png','/assets/aed582af24f5014b836a133be5f05bf36a841cd1.png','/assets/7366f5a4c28ad07c8d9e9f7ffadee0e142693189.png','/assets/e2a3731ce5c28b0aaeabca19fd7e3c14965d21ca.png','/assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png','/assets/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png']
-                }
-              ].map((person, idx) => (
-                <TeamPersonCard key={idx} person={person} />
+              {foundersConfig.map((person, idx) => (
+                <TeamPersonCard key={idx} person={person} sliderSettings={sliderSettings} sliderRef={sliderRef} />
               ))}
             </div>
           </div>
@@ -165,18 +199,21 @@ export const About: React.FC = () => {
             </motion.div>
 
             <div className="space-y-4">
-              <AccordionTeam title="Salesforce Admin Team">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <SimpleMemberCard name="Kateryna S." role="Salesforce Admin" phone="+380501234567" email="kateryna@example.com" />
-                  <SimpleMemberCard name="Ivan K." role="Salesforce Admin" phone="+380671234567" email="ivan@example.com" />
-                </div>
-              </AccordionTeam>
-
-              <AccordionTeam title="Engineering Team">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <SimpleMemberCard name="Dmytro P." role="Engineer" phone="+380631234567" email="dmytro@example.com" />
-                </div>
-              </AccordionTeam>
+              {teamsConfig.map((team, idx) => (
+                <AccordionTeam key={idx} title={team.title}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {team.members.map((member, memberIdx) => (
+                      <SimpleMemberCard
+                        key={memberIdx}
+                        name={member.name}
+                        description={member.description}
+                        startDate={member.startDate}
+                        avatar={member.avatar}
+                      />
+                    ))}
+                  </div>
+                </AccordionTeam>
+              ))}
             </div>
           </div>
         </div>
@@ -190,11 +227,21 @@ export const About: React.FC = () => {
 
 /* Helper components used only in this file */
 
-function TeamPersonCard({ person }: { person: { name: string; title: string; description: string; years: number; logos: string[] } }) {
+function TeamPersonCard({ person, sliderSettings, sliderRef }: { person: { name: string; title: string; description: string; startDate: string; logos: string[]; avatar?: string; contactInfo: { phone: string; email: string; linkedin: string } }; sliderSettings: any; sliderRef: any }) {
   const [isFlipped, setIsFlipped] = React.useState(false);
 
   const frontCardClasses = `bg-card border border-border-color rounded-lg p-6 shadow-sm transition-shadow h-full flex flex-col hover:shadow-lg`;
   const backCardClasses = `bg-violet border border-violet/40 rounded-lg p-6 shadow-sm h-full flex flex-col text-off-white`;
+
+  const calculateYears = (start: string) => {
+    const startDateObj = new Date(start);
+    const now = new Date();
+    const diffMs = now.getTime() - startDateObj.getTime();
+    const years = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+    return years;
+  };
+
+  const years = calculateYears(person.startDate);
 
   const downloadVCard = () => {
     const vcard = [
@@ -202,8 +249,8 @@ function TeamPersonCard({ person }: { person: { name: string; title: string; des
       'VERSION:3.0',
       `FN:${person.name}`,
       `TITLE:${person.title}`,
-      `TEL;TYPE=WORK,VOICE:${'+380000000000'}`,
-      `EMAIL;TYPE=INTERNET:${person.name.replace(/\s+/g, '.').toLowerCase()}@example.com`,
+      `TEL;TYPE=WORK,VOICE:${person.contactInfo.phone}`,
+      `EMAIL;TYPE=INTERNET:${person.contactInfo.email}`,
       'END:VCARD'
     ].join('\r\n');
 
@@ -230,25 +277,23 @@ function TeamPersonCard({ person }: { person: { name: string; title: string; des
           <div className={frontCardClasses} data-package-card="true">
             <div className="flex flex-col items-center">
               <div className="w-28 h-28 rounded-full bg-card-foreground/10 mb-4 flex items-center justify-center overflow-hidden">
-                <img src="/assets/avatar-placeholder.png" alt={person.name} className="w-full h-full object-cover" />
+                <img src={person.avatar || '/assets/avatar-placeholder.png'} alt={person.name} className="w-full h-full object-cover" />
               </div>
               <h3 className="text-xl font-semibold mb-1">{person.name}</h3>
               <p className="text-sm text-grey mb-3">{person.title}</p>
               <p className="text-sm text-text-secondary mb-3">{person.description}</p>
-              <p className="text-sm text-violet font-medium mb-3">{person.years} years of experience</p>
+              <p className="text-sm text-violet font-medium mb-3">{years} {years === 1 ? 'year' : 'years'} of experience</p>
 
-              <div className="w-full overflow-hidden mb-4">
-                <motion.div
-                  className="flex items-center gap-4"
-                  animate={{ x: [0, -120, 0] }}
-                  transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-                >
-                  {person.logos.map((l, i) => (
-                    <div key={i} className="w-20 h-12 bg-white rounded flex items-center justify-center p-2">
-                      <img src={l} alt={`cert-${i}`} className="max-h-8 object-contain" />
+              <div className="certification-slider w-full mb-4">
+                <Slider ref={sliderRef} {...sliderSettings}>
+                  {person.logos.map((logo, i) => (
+                    <div key={i} className="px-2">
+                      <div className="flex items-center justify-center h-20">
+                        <img src={logo} alt={`cert-${i}`} className="max-h-full w-auto object-contain" />
+                      </div>
                     </div>
                   ))}
-                </motion.div>
+                </Slider>
               </div>
 
               <button onClick={() => setIsFlipped(true)} className="mt-auto bg-violet text-white px-4 py-2 rounded-md">Contact Information</button>
@@ -270,21 +315,20 @@ function TeamPersonCard({ person }: { person: { name: string; title: string; des
             <div className="space-y-3">
               <div>
                 <div className="text-sm text-white/80">Phone</div>
-                <div className="text-white">+380 00 000 0000</div>
+                <div className="text-white">{person.contactInfo.phone}</div>
               </div>
               <div>
                 <div className="text-sm text-white/80">Email</div>
-                <div className="text-white">{person.name.replace(/\s+/g, '.').toLowerCase()}@example.com</div>
+                <div className="text-white">{person.contactInfo.email}</div>
               </div>
               <div>
                 <div className="text-sm text-white/80">LinkedIn</div>
-                <a className="text-white underline" href="#">https://linkedin.com/in/{person.name.replace(/\s+/g, '-').toLowerCase()}</a>
+                <a className="text-white underline" href={person.contactInfo.linkedin} target="_blank" rel="noopener noreferrer">{person.contactInfo.linkedin}</a>
               </div>
             </div>
 
-            <div className="mt-auto flex gap-3">
+            <div className="mt-auto">
               <button onClick={downloadVCard} className="bg-white text-violet px-3 py-2 rounded-md">Add Contact</button>
-              <button onClick={() => setIsFlipped(false)} className="text-white underline">Back</button>
             </div>
           </div>
         </div>
@@ -306,21 +350,26 @@ function AccordionTeam({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function SimpleMemberCard({ name, role, phone, email }: { name: string; role: string; phone: string; email: string }) {
+function SimpleMemberCard({ name, description, startDate, avatar }: { name: string; description: string; startDate: string; avatar?: string }) {
+  const calculateYears = (start: string) => {
+    const startDateObj = new Date(start);
+    const now = new Date();
+    const diffMs = now.getTime() - startDateObj.getTime();
+    const years = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 365.25));
+    return years;
+  };
+
+  const years = calculateYears(startDate);
+
   return (
     <div className="bg-card border border-border-color rounded-lg p-4">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-card-foreground/10 flex items-center justify-center overflow-hidden">
-          <img src="/assets/avatar-placeholder.png" alt={name} className="w-full h-full object-cover" />
+      <div className="flex flex-col items-center text-center">
+        <div className="w-20 h-20 rounded-full bg-card-foreground/10 mb-3 flex items-center justify-center overflow-hidden">
+          <img src={avatar || '/assets/avatar-placeholder.png'} alt={name} className="w-full h-full object-cover" />
         </div>
-        <div>
-          <div className="font-medium">{name}</div>
-          <div className="text-sm text-text-secondary">{role}</div>
-        </div>
-      </div>
-      <div className="mt-3 text-sm">
-        <div>Phone: {phone}</div>
-        <div>Email: {email}</div>
+        <div className="font-medium text-lg mb-2">{name}</div>
+        <div className="text-sm text-text-secondary mb-2">{description}</div>
+        <div className="text-sm text-violet font-medium">{years} {years === 1 ? 'year' : 'years'} of experience</div>
       </div>
     </div>
   );

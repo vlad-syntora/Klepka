@@ -784,143 +784,89 @@ export const Pricing: React.FC = () => {
               </h2>
             </motion.div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              <motion.div
-                key={0}
+            <div className="bg-card border border-violet rounded-lg p-8">
+              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={initialDiscoveryPlanningIcon}
-                  alt="Initial discovery & planning"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Initial discovery & planning
-                </span>
-              </motion.div>
-              <motion.div
-                key={1}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Initial discovery & planning</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 1 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={deliveryRoadmapIcon}
-                  alt="Delivery roadmap"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Delivery roadmap
-                </span>
-              </motion.div>
-              <motion.div
-                key={2}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Delivery roadmap</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 2 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={dataAccuracyAndIntegrityCheckIcon}
-                  alt="Data accuracy and integrity check"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Data accuracy and integrity check
-                </span>
-              </motion.div>
-              <motion.div
-                key={3}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Data accuracy and integrity check</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 3 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={transparentDeliveryProgressIcon}
-                  alt="Transparent delivery progress"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Transparent delivery progress
-                </span>
-              </motion.div>
-              <motion.div
-                key={4}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Transparent delivery progress</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 4 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={qualityCheckIcon}
-                  alt="Quality check"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Quality check
-                </span>
-              </motion.div>
-              <motion.div
-                key={5}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Quality check</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 5 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={documentationIcon}
-                  alt="Documentation"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Documentation
-                </span>
-              </motion.div>
-              <motion.div
-                key={6}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Documentation</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 6 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={userTrainingSessionsIcon}
-                  alt="User training sessions"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  User training sessions
-                </span>
-              </motion.div>
-              <motion.div
-                key={7}
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">User training sessions</span>
+              </motion.li>
+              <motion.li
                 initial={{ opacity: 0, scale: 0.8 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: 7 * 0.05 }}
-                className="bg-card border border-violet rounded-lg p-3 md:pl-9 flex flex-col sm:flex-row items-center justify-start gap-4 hover:shadow-lg transition-shadow"
+                className="flex items-start space-x-3"
               >
-                <img
-                  src={postLaunchSupportIcon}
-                  alt="Post-launch support"
-                  className="w-15 h-15 object-contain flex-shrink-0"
-                />
-                <span className="text-black font-medium text-center text-sm">
-                  Post-launch support
-                </span>
-              </motion.div>
+                <span className="text-violet font-bold text-lg flex-shrink-0">•</span>
+                <span className="text-black font-medium">Post-launch support</span>
+              </motion.li>
+              </ul>
             </div>
           </div>
         </section>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Phone, Mail, Linkedin, ArrowLeft, UserPlus } from 'lucide-react';
+import { SEOHead } from '../components/SEOHead';
 import { foundersConfig } from '../../config/teamConfig';
 import logoLight from '../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png';
 
@@ -61,8 +62,29 @@ export const FounderCardPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const personJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `https://klepka.solutions/card/${person.slug}#person`,
+    "name": person.name,
+    "jobTitle": person.title,
+    "description": person.shortBio,
+    "url": `https://klepka.solutions/card/${person.slug}`,
+    "worksFor": { "@id": "https://klepka.solutions/#organization" },
+    "email": person.contactInfo.email,
+    "telephone": person.contactInfo.phone,
+    "sameAs": [person.contactInfo.linkedin]
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-violet via-[#4a2a8a] to-[#1a0a3a] px-4 py-10">
+      <SEOHead
+        title={`${person.name} — ${person.title} at Klepka`}
+        description={person.shortBio}
+        canonicalPath={`/card/${person.slug}`}
+        ogType="profile"
+        jsonLd={personJsonLd}
+      />
       <div className="w-full max-w-sm">
 
         {/* Card */}

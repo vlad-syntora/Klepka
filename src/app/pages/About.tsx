@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { SEOHead } from '../components/SEOHead';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
@@ -54,8 +55,46 @@ export const About: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const aboutJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/about#webpage",
+      "url": "https://klepka.solutions/about",
+      "name": "Our Team — Klepka Salesforce Consulting",
+      "description": "Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://klepka.solutions/" },
+          { "@type": "ListItem", "position": 2, "name": "About", "item": "https://klepka.solutions/about" }
+        ]
+      }
+    },
+    ...foundersConfig.map((founder) => ({
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": `https://klepka.solutions/card/${founder.slug}#person`,
+      "name": founder.name,
+      "jobTitle": founder.title,
+      "worksFor": { "@id": "https://klepka.solutions/#organization" },
+      "description": founder.shortBio,
+      "url": `https://klepka.solutions/card/${founder.slug}`,
+      "email": founder.contactInfo.email,
+      "telephone": founder.contactInfo.phone,
+      "sameAs": [founder.contactInfo.linkedin],
+    })),
+  ];
+
   return (
     <div className="pt-14 lg:pt-32">
+      <SEOHead
+        title="Our Team — Klepka Salesforce Consulting"
+        description="Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
+        canonicalPath="/about"
+        jsonLd={aboutJsonLd}
+      />
       {/* Hero Section */ }
       <section className="pb-0 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">

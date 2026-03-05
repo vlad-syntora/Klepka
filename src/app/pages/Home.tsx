@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { SEOHead } from "../components/SEOHead";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Input, TextArea } from "../components/Input";
@@ -16,14 +17,7 @@ import { CrmChallengesForm } from "../components/CrmChallengesForm";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import cert1 from "../../assets/e2a3731ce5c28b0aaeabca19fd7e3c14965d21ca.png";
-import cert2 from "../../assets/7366f5a4c28ad07c8d9e9f7ffadee0e142693189.png";
-import cert3 from "../../assets/82604211df267665aa3c66c85446c94b2ee6cd46.png";
-import cert4 from "../../assets/3550a6afca687e342a05d1e6c391a8dbfbdb5561.png";
-import cert5 from "../../assets/16a5ea898db9e45a4dda47b5fd950a3b1ec8a9b5.png";
-import cert6 from "../../assets/aed582af24f5014b836a133be5f05bf36a841cd1.png";
-import cert7 from "../../assets/platform-app-builder.png";
-import cert8 from "../../assets/pardot-specialist.png";
+import { certificatesConfig } from "../../config/certificatesConfig";
 import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
 import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.png";
 import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
@@ -87,6 +81,8 @@ export const Home: React.FC = () => {
     pauseOnHover: true,
   };
 
+  const [showAllCerts, setShowAllCerts] = React.useState(false);
+
   const [sliderSettings, setSliderSettings] = React.useState(() => ({
     ...baseSettings,
     slidesToShow:
@@ -113,8 +109,99 @@ export const Home: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const homeJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": "https://klepka.solutions/#organization",
+      "name": "Klepka",
+      "url": "https://klepka.solutions",
+      "logo": "https://klepka.solutions/favicon.png",
+      "description": "Klepka delivers end-to-end Salesforce CRM implementations, integrations, automation, and ongoing support for SaaS, B2B, and enterprise teams.",
+      "knowsAbout": [
+        "Salesforce CRM Implementation",
+        "Salesforce Integration",
+        "Sales Cloud",
+        "Service Cloud",
+        "Experience Cloud",
+        "CRM Audit",
+        "Salesforce Automation",
+        "CRM Training"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "sales",
+        "areaServed": ["US", "EU"],
+        "availableLanguage": "English"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://klepka.solutions/#website",
+      "name": "Klepka",
+      "url": "https://klepka.solutions",
+      "description": "Salesforce CRM consulting, implementation, and integration services",
+      "publisher": { "@id": "https://klepka.solutions/#organization" }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Klepka Salesforce Services",
+      "description": "Full-cycle Salesforce delivery services offered by Klepka",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "item": {
+            "@type": "Service",
+            "name": "Salesforce Implementation",
+            "description": "End-to-end Salesforce setup tailored to your business processes.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "item": {
+            "@type": "Service",
+            "name": "CRM Audit & Optimization",
+            "description": "Identify bottlenecks, technical debt, and growth blockers in your Salesforce org.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "item": {
+            "@type": "Service",
+            "name": "Integrations & Automation",
+            "description": "Connect Salesforce with ERP, billing, marketing, and data tools.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "item": {
+            "@type": "Service",
+            "name": "Training & Enablement",
+            "description": "Empower teams to fully adopt and scale CRM usage.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        }
+      ]
+    }
+  ];
+
   return (
     <div className="min-h-screen">
+      <SEOHead
+        title="Klepka — Salesforce CRM Implementation & Integration Services"
+        description="Klepka delivers end-to-end Salesforce CRM implementations, integrations, and ongoing support. Scalable solutions built to drive revenue for SaaS, B2B, and enterprise teams."
+        canonicalPath="/"
+        jsonLd={homeJsonLd}
+      />
       {/* Hero Section */}
       <section className="pt-25 pb-2 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white/30 to-background">
         <div className="max-w-7xl mx-auto">
@@ -150,81 +237,44 @@ export const Home: React.FC = () => {
             className="text-center mb-12"
           ></motion.div>
 
-          <div className="certification-slider mb-24">
-            <Slider ref={sliderRef} {...sliderSettings}>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert3}
-                    alt="Platform Administrator Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
+          <div className="mb-24">
+            {showAllCerts ? (
+              <div className="flex flex-wrap justify-center gap-4 py-2">
+                {Object.values(certificatesConfig).map((cert) => (
+                  <div key={cert.id} className="flex items-center justify-center h-32 w-32">
+                    <img
+                      src={cert.image}
+                      alt={cert.name}
+                      title={cert.name}
+                      className="max-h-full w-auto object-contain"
+                    />
+                  </div>
+                ))}
               </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert7}
-                    alt="Platform App Builder"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
+            ) : (
+              <div className="certification-slider">
+                <Slider ref={sliderRef} {...sliderSettings}>
+                  {Object.values(certificatesConfig).map((cert) => (
+                    <div key={cert.id} className="px-4">
+                      <div className="flex items-center justify-center h-32">
+                        <img
+                          src={cert.image}
+                          alt={cert.name}
+                          title={cert.name}
+                          className="max-h-full w-auto object-contain"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </Slider>
               </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert2}
-                    alt="Experience Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-             <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert6}
-                    alt="Sales Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert8}
-                    alt="Pardot Specialist Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert1}
-                    alt="Data Cloud Consultant Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert4}
-                    alt="Platform Data Architect Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-              <div className="px-4">
-                <div className="flex items-center justify-center h-32">
-                  <img
-                    src={cert5}
-                    alt="Platform Sharing and Visibility Architect Certification"
-                    className="max-h-full w-auto object-contain"
-                  />
-                </div>
-              </div>
-            </Slider>
+            )}
+            <button
+              onClick={() => setShowAllCerts((s) => !s)}
+              className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-2"
+            >
+              {showAllCerts ? 'Show slider' : 'View all certificates'}
+            </button>
           </div>
         </div>
       

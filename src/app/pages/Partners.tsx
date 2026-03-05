@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
+import { SEOHead } from "../components/SEOHead";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Input, TextArea } from "../components/Input";
@@ -105,8 +106,59 @@ export const Partners: React.FC = () => {
     },
   ];
 
+  const partnersJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/partners#webpage",
+      "url": "https://klepka.solutions/partners",
+      "name": "Partners & Case Studies — Klepka Salesforce Consulting",
+      "description": "Explore Klepka's client partnerships and case studies. From Salesforce Nonprofit Cloud to B2B revenue teams, we deliver structured CRM solutions across industries.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://klepka.solutions/" },
+          { "@type": "ListItem", "position": 2, "name": "Partners", "item": "https://klepka.solutions/partners" }
+        ]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "Prytula Foundation USA — Salesforce Nonprofit Cloud Implementation",
+      "description": "Klepka built a robust Salesforce Nonprofit org for Prytula Foundation USA with two independent functional areas: Fundraising & Operations and Training & Educational Programs.",
+      "author": { "@id": "https://klepka.solutions/#organization" },
+      "publisher": { "@id": "https://klepka.solutions/#organization" },
+      "about": [
+        { "@type": "Thing", "name": "Salesforce Nonprofit Cloud" },
+        { "@type": "Thing", "name": "CRM Implementation" },
+        { "@type": "Organization", "name": "Prytula Foundation USA" }
+      ]
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "Klepka Areas of Expertise",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "item": { "@type": "Thing", "name": "SaaS and Product Companies" } },
+        { "@type": "ListItem", "position": 2, "item": { "@type": "Thing", "name": "B2B Sales and Revenue Teams" } },
+        { "@type": "ListItem", "position": 3, "item": { "@type": "Thing", "name": "Service and Support Teams" } },
+        { "@type": "ListItem", "position": 4, "item": { "@type": "Thing", "name": "Data-Driven and Analytics-Focused Teams" } },
+        { "@type": "ListItem", "position": 5, "item": { "@type": "Thing", "name": "Companies Scaling Internal Processes" } },
+        { "@type": "ListItem", "position": 6, "item": { "@type": "Thing", "name": "Migration and Optimization Projects" } }
+      ]
+    }
+  ];
+
   return (
     <div className="min-h-screen pt-24 lg:pt-32">
+      <SEOHead
+        title="Partners & Case Studies — Klepka Salesforce Consulting"
+        description="Explore Klepka's client partnerships and case studies. From Salesforce Nonprofit Cloud to B2B revenue teams, we deliver structured CRM solutions across industries."
+        canonicalPath="/partners"
+        jsonLd={partnersJsonLd}
+      />
       {/* Hero Section */}
       <section className="pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -252,12 +304,21 @@ export const Partners: React.FC = () => {
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
             </div>
-            <Input
-              required
-              name="partner_type"
-              placeholder="Partner Type (Technology, Delivery, or Referral)"
-              className="bg-card-foreground/10 text-off-white border-border-color/30"
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <Input
+                required
+                type="email"
+                name="reply_to"
+                placeholder="your@email.com"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+              <Input
+                required
+                name="partner_type"
+                placeholder="Partner Type (Technology, Delivery, or Referral)"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+            </div>
             <TextArea
               required
               name="message"

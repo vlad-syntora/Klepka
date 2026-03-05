@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { SEOHead } from "../components/SEOHead";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -749,9 +750,80 @@ export const Pricing: React.FC = () => {
     (pkg) => pkg.category === selectedCategory,
   );
 
+  const pricingJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/pricing#webpage",
+      "url": "https://klepka.solutions/pricing",
+      "name": "Salesforce CRM Pricing & Packages — Klepka",
+      "description": "View Klepka's Salesforce implementation pricing packages. Transparent, structured delivery from initial discovery to post-launch support.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://klepka.solutions/" },
+          { "@type": "ListItem", "position": 2, "name": "Pricing", "item": "https://klepka.solutions/pricing" }
+        ]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What Salesforce implementation services does Klepka offer?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Klepka offers Sales Cloud Setup, Service Cloud Setup, Experience Cloud Setup, AgentForce Setup, Analytics Cloud Setup, and DocuSign integration, starting from $1,800."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does a Salesforce CRM audit cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Klepka's CRM Audit starts from $3,500 for 50 hours and includes org health assessment, security review, and prioritized recommendations. Full audit with documentation and optimizations starts from $8,400."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Klepka provide ongoing Salesforce support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Klepka offers three support tiers: Support Starter (from $1,400 · 10 hrs), Support Grow (from $3,500 · 25 hrs), and Support Enterprise (from $8,400 · 60 hrs) with SLA-based handling and architecture advisory."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can Klepka migrate data to Salesforce from another CRM?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Klepka provides Migration to Salesforce from legacy CRMs starting from $4,800 · 80 hrs, including data mapping, cleansing, test migration, and reconciliation. Org mergers are also supported."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is included in Klepka's Salesforce training packages?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Training packages range from User Training Starter ($1,680 · 12 hrs) for single-role onboarding to User Training Enterprise ($7,000 · 50 hrs) covering up to 6 roles with train-the-trainer sessions and full enablement materials."
+          }
+        }
+      ]
+    }
+  ];
+
   return (
     <Tooltip.Provider>
       <div className="min-h-screen pt-24 lg:pt-32">
+        <SEOHead
+          title="Salesforce CRM Pricing & Packages — Klepka"
+          description="View Klepka's Salesforce implementation pricing packages. Transparent, structured delivery from initial discovery to post-launch support. Find the right plan for your team."
+          canonicalPath="/pricing"
+          jsonLd={pricingJsonLd}
+        />
         {/* Hero Section */}
         <section className="pb-0 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">

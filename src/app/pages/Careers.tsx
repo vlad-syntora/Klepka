@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
+import { SEOHead } from "../components/SEOHead";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input, TextArea } from "../components/Input";
@@ -76,8 +77,63 @@ export const Careers: React.FC = () => {
     },
   ];
 
+  const careersJsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/careers#webpage",
+      "url": "https://klepka.solutions/careers",
+      "name": "Careers at Klepka — Join Our Salesforce Team",
+      "description": "Join Klepka's remote Salesforce team. We're looking for consultants, architects, and engineers passionate about building CRM systems that drive real business impact.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://klepka.solutions/" },
+          { "@type": "ListItem", "position": 2, "name": "Careers", "item": "https://klepka.solutions/careers" }
+        ]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      "title": "Salesforce Consultant",
+      "description": "Help clients design and implement Salesforce solutions that drive revenue growth. Remote position open to US and EU candidates.",
+      "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
+      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "employmentType": "FULL_TIME",
+      "workHours": "Remote"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      "title": "CRM Solution Architect",
+      "description": "Lead complex enterprise CRM implementations and integrations. Remote position open to US and EU candidates.",
+      "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
+      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "employmentType": "FULL_TIME",
+      "workHours": "Remote"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
+      "title": "Integration Engineer",
+      "description": "Build and maintain integrations between Salesforce and various business systems. Remote position open to US and EU candidates.",
+      "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
+      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "employmentType": "FULL_TIME",
+      "workHours": "Remote"
+    }
+  ];
+
   return (
     <div className="min-h-screen pt-24 lg:pt-32">
+      <SEOHead
+        title="Careers at Klepka — Join Our Salesforce Team"
+        description="Join Klepka's remote Salesforce team. We're looking for consultants, architects, and engineers passionate about building CRM systems that drive real business impact."
+        canonicalPath="/careers"
+        jsonLd={careersJsonLd}
+      />
       {/* Hero Section */}
       <section className="pb-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">

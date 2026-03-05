@@ -110,6 +110,9 @@ export const Footer: React.FC = () => {
             <p className="text-sm text-white">
               © {new Date().getFullYear()} KLEPKA. All rights reserved.
             </p>
+            <p className="text-sm text-white">
+              Salesforce® is a registered trademark of Salesforce, Inc.
+            </p>
             {/*<div className="flex space-x-6">
               <a href="#" className="text-sm text-white hover:text-accent-yellow transition-colors">
                 Privacy Policy

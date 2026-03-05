@@ -212,7 +212,7 @@ export const Home: React.FC = () => {
             className="text-center max-w-4xl mx-auto"
           >
             <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
-              Scalable Salesforce CRM Solutions
+              Scalable Solutions for Salesforce® CRM
             </h1>
             <p className="text-lg sm:text-xl text-text-secondary mb-8 leading-relaxed">
               Implementations, integrations, and ongoing support. <br></br>
@@ -279,7 +279,7 @@ export const Home: React.FC = () => {
         </div>
       
 
-      {/* Tech Stack Section */}
+      {/* Tech Stack Section 
       
         <div className="max-w-7xl mx-auto mb-24">
           <motion.div
@@ -308,7 +308,7 @@ export const Home: React.FC = () => {
               ))}
             </Slider>
           </div>
-        </div>
+        </div>*/}
       {/* Services Overview */}
      
         <div className="max-w-7xl mx-auto mb-24">

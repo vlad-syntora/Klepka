@@ -73,6 +73,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@sparticuz/chromium": "^143.0.4",
     "@tailwindcss/vite": "4.1.12",
     "@types/react": "^19.2.11",
     "@types/react-dom": "^19.2.3",
@@ -84,7 +85,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.3.0",
-    "puppeteer": "^24.39.0",
+    "puppeteer-core": "^24.39.0",
     "tailwindcss": "4.1.12",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",

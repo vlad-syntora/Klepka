@@ -10,6 +10,8 @@ import {
   Zap,
   Target,
   Users,
+  Shield,
+  Database,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Slider from "react-slick";
@@ -17,7 +19,9 @@ import { CrmChallengesForm } from "../components/CrmChallengesForm";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
-import { certificatesConfig } from "../../config/certificatesConfig";
+import { certificatesConfig, certFullNames } from "../../config/certificatesConfig";
+import type { CertKey } from "../../config/certificatesConfig";
+import { foundersConfig, teamsConfig } from "../../config/teamConfig";
 import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
 import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.png";
 import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
@@ -28,30 +32,46 @@ export const Home: React.FC = () => {
   const sliderRef = React.useRef<any>(null);
   const services = [
     {
+      category: "Implementation",
       title: "Salesforce Implementation",
       description:
-        "End-to-end Salesforce setup tailored to your business processes.",
+        "Sales Cloud, Service Cloud, Experience Cloud, Agentforce — end-to-end setup and configuration tailored to your business.",
       icon: <Target className="w-8 h-8 text-black" />,
     },
     {
-      title: "CRM Audit & Optimization",
+      category: "Support",
+      title: "Support & Administration",
       description:
-        "Identify bottlenecks, technical debt, and growth blockers.",
-      icon: (
-        <CircleCheck className="w-8 h-8 text-black" />
-      ),
+        "Certified Salesforce administrators on an outsource or outstaff basis. Day-to-day platform management, configuration, and improvements — without hiring in-house.",
+      icon: <Shield className="w-8 h-8 text-black" />,
     },
     {
-      title: "Integrations & Automation",
+      category: "CRM Audit",
+      title: "CRM Audit",
       description:
-        "Connect Salesforce with ERP, billing, marketing, and data tools.",
-      icon: <Zap className="w-8 h-8 text-black" />,
+        "Org health assessment, security review, technical debt analysis, and prioritized recommendations to stabilize and improve your Salesforce.",
+      icon: <CircleCheck className="w-8 h-8 text-black" />,
     },
     {
+      category: "Trainings",
       title: "Training & Enablement",
       description:
-        "Empower teams to fully adopt and scale CRM usage.",
+        "Role-based Salesforce training — from single-user onboarding to enterprise-wide enablement programs with full materials.",
       icon: <Users className="w-8 h-8 text-black" />,
+    },
+    {
+      category: "Migration",
+      title: "Migration",
+      description:
+        "Data migration to Salesforce, Classic to Lightning, and org mergers — structured, validated, and low-risk delivery.",
+      icon: <Database className="w-8 h-8 text-black" />,
+    },
+    {
+      category: "Optimizations",
+      title: "Flow Optimizations",
+      description:
+        "Flow refactoring, Workflow Rule and Process Builder migration to Flow — reduce technical debt and future change costs.",
+      icon: <Zap className="w-8 h-8 text-black" />,
     },
   ];
 
@@ -109,6 +129,20 @@ export const Home: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const companyCertKeys = Array.from(
+    new Set<CertKey>([
+      ...foundersConfig.flatMap((f) => f.certs),
+      ...teamsConfig.flatMap((t) => t.members.flatMap((m) => m.certs ?? [])),
+    ])
+  );
+
+  const companyCreds = companyCertKeys.map((certKey) => ({
+    "@type": "EducationalOccupationalCredential",
+    "name": certFullNames[certKey],
+    "credentialCategory": "certification",
+    "recognizedBy": { "@type": "Organization", "name": "Salesforce" },
+  }));
+
   const homeJsonLd = [
     {
       "@context": "https://schema.org",
@@ -116,8 +150,12 @@ export const Home: React.FC = () => {
       "@id": "https://klepka.solutions/#organization",
       "name": "Klepka",
       "url": "https://klepka.solutions",
-      "logo": "https://klepka.solutions/favicon.png",
-      "description": "Klepka delivers end-to-end Salesforce CRM implementations, integrations, automation, and ongoing support for SaaS, B2B, and enterprise teams.",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://klepka.solutions/favicon.png"
+      },
+      "foundingDate": "2018",
+      "description": "Klepka is a Salesforce consulting company delivering end-to-end CRM implementations, integrations, automation, and ongoing support. We provide certified Salesforce administrators, consultants, and architects on an outsource and outstaff basis for SaaS, B2B, and enterprise teams.",
       "knowsAbout": [
         "Salesforce CRM Implementation",
         "Salesforce Integration",
@@ -126,8 +164,20 @@ export const Home: React.FC = () => {
         "Experience Cloud",
         "CRM Audit",
         "Salesforce Automation",
-        "CRM Training"
+        "CRM Training",
+        "Salesforce Administration",
+        "Salesforce Staff Augmentation",
+        "Salesforce Outsourcing",
+        "Salesforce Outstaffing",
+        "Salesforce Consulting",
+        "Data Cloud",
+        "Agentforce"
       ],
+      "sameAs": [
+        "https://www.linkedin.com/in/sergii-romashov-69b7871a3",
+        "https://www.linkedin.com/in/daria-ezerovych-a97a091a4/"
+      ],
+      "hasCredential": companyCreds,
       "contactPoint": {
         "@type": "ContactPoint",
         "contactType": "sales",
@@ -141,8 +191,31 @@ export const Home: React.FC = () => {
       "@id": "https://klepka.solutions/#website",
       "name": "Klepka",
       "url": "https://klepka.solutions",
-      "description": "Salesforce CRM consulting, implementation, and integration services",
+      "description": "Salesforce CRM consulting, implementation, outsource administration, and integration services",
       "publisher": { "@id": "https://klepka.solutions/#organization" }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/#homepage",
+      "url": "https://klepka.solutions",
+      "name": "Klepka — Salesforce CRM Implementation & Integration Services",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      "@id": "https://klepka.solutions/#contact",
+      "url": "https://klepka.solutions/#contact",
+      "name": "Contact Klepka",
+      "description": "Contact Klepka to discuss your Salesforce CRM project, outsource administration, or consulting needs.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" }
     },
     {
       "@context": "https://schema.org",
@@ -156,7 +229,7 @@ export const Home: React.FC = () => {
           "item": {
             "@type": "Service",
             "name": "Salesforce Implementation",
-            "description": "End-to-end Salesforce setup tailored to your business processes.",
+            "description": "Sales Cloud, Service Cloud, Experience Cloud, Agentforce — end-to-end setup and configuration tailored to your business.",
             "provider": { "@id": "https://klepka.solutions/#organization" }
           }
         },
@@ -165,8 +238,8 @@ export const Home: React.FC = () => {
           "position": 2,
           "item": {
             "@type": "Service",
-            "name": "CRM Audit & Optimization",
-            "description": "Identify bottlenecks, technical debt, and growth blockers in your Salesforce org.",
+            "name": "Salesforce Support & Administration",
+            "description": "Certified Salesforce administrators on an outsource or outstaff basis. Day-to-day platform management, configuration, and improvements without hiring in-house.",
             "provider": { "@id": "https://klepka.solutions/#organization" }
           }
         },
@@ -175,8 +248,8 @@ export const Home: React.FC = () => {
           "position": 3,
           "item": {
             "@type": "Service",
-            "name": "Integrations & Automation",
-            "description": "Connect Salesforce with ERP, billing, marketing, and data tools.",
+            "name": "CRM Audit",
+            "description": "Org health assessment, security review, technical debt analysis, and prioritized recommendations to stabilize and improve your Salesforce.",
             "provider": { "@id": "https://klepka.solutions/#organization" }
           }
         },
@@ -185,8 +258,28 @@ export const Home: React.FC = () => {
           "position": 4,
           "item": {
             "@type": "Service",
-            "name": "Training & Enablement",
-            "description": "Empower teams to fully adopt and scale CRM usage.",
+            "name": "Salesforce Training & Enablement",
+            "description": "Role-based Salesforce training — from single-user onboarding to enterprise-wide enablement programs with full materials.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "item": {
+            "@type": "Service",
+            "name": "Salesforce Migration",
+            "description": "Data migration to Salesforce, Classic to Lightning, and org mergers — structured, validated, and low-risk delivery.",
+            "provider": { "@id": "https://klepka.solutions/#organization" }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 6,
+          "item": {
+            "@type": "Service",
+            "name": "Salesforce Flow Optimizations",
+            "description": "Flow refactoring, Workflow Rule and Process Builder migration to Flow — reduce technical debt and future change costs.",
             "provider": { "@id": "https://klepka.solutions/#organization" }
           }
         }
@@ -326,7 +419,7 @@ export const Home: React.FC = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {services.map((service, index) => (
               <Card
                 key={index}

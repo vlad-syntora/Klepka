@@ -6,7 +6,7 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { foundersConfig, teamsConfig } from '../../config/teamConfig';
 import type { CertKey } from '../../config/certificatesConfig';
-import { certificatesConfig } from '../../config/certificatesConfig';
+import { certificatesConfig, certFullNames } from '../../config/certificatesConfig';
 
 export const About: React.FC = () => {
   const sliderRef = React.useRef(null);
@@ -58,12 +58,17 @@ export const About: React.FC = () => {
   const aboutJsonLd = [
     {
       "@context": "https://schema.org",
-      "@type": "WebPage",
+      "@type": "AboutPage",
       "@id": "https://klepka.solutions/about#webpage",
       "url": "https://klepka.solutions/about",
       "name": "Our Team — Klepka Salesforce Consulting",
-      "description": "Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design.",
+      "description": "Meet the Klepka team. Founded by certified Salesforce experts with 6–8+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -84,6 +89,12 @@ export const About: React.FC = () => {
       "email": founder.contactInfo.email,
       "telephone": founder.contactInfo.phone,
       "sameAs": [founder.contactInfo.linkedin],
+      "hasCredential": founder.certs.map((certKey) => ({
+        "@type": "EducationalOccupationalCredential",
+        "name": certFullNames[certKey],
+        "credentialCategory": "certification",
+        "recognizedBy": { "@type": "Organization", "name": "Salesforce" },
+      })),
     })),
   ];
 
@@ -91,7 +102,7 @@ export const About: React.FC = () => {
     <div className="pt-14 lg:pt-32">
       <SEOHead
         title="Our Team — Klepka Salesforce Consulting"
-        description="Meet the Klepka team. Founded by certified Salesforce experts with 6–7+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
+        description="Meet the Klepka team. Founded by certified Salesforce experts with 6–8+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
         canonicalPath="/about"
         jsonLd={aboutJsonLd}
       />

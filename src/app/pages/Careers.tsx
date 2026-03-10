@@ -36,6 +36,13 @@ export const Careers: React.FC = () => {
 
   const openRoles = [
     {
+      title: "Salesforce Administrator",
+      type: "Full-time",
+      location: "Remote (US/EU)",
+      description:
+        "Manage and optimize Salesforce orgs for our clients on an outstaff basis — configuration, user support, flows, reports, and ongoing platform improvements.",
+    },
+    {
       title: "Salesforce Consultant",
       type: "Full-time",
       location: "Remote (US/EU)",
@@ -83,9 +90,14 @@ export const Careers: React.FC = () => {
       "@type": "WebPage",
       "@id": "https://klepka.solutions/careers#webpage",
       "url": "https://klepka.solutions/careers",
-      "name": "Careers at Klepka — Join Our Salesforce Team",
-      "description": "Join Klepka's remote Salesforce team. We're looking for consultants, architects, and engineers passionate about building CRM systems that drive real business impact.",
+      "name": "Careers at Klepka — Salesforce Administrators, Consultants & Architects",
+      "description": "Join Klepka's remote Salesforce team. We're hiring certified Salesforce administrators, consultants, and architects to work with US and EU clients on an outstaff and outsource basis.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -97,12 +109,26 @@ export const Careers: React.FC = () => {
     {
       "@context": "https://schema.org",
       "@type": "JobPosting",
+      "title": "Salesforce Administrator",
+      "description": "Manage and optimize Salesforce orgs for our clients on an outstaff basis — configuration, user support, flows, reports, and ongoing platform improvements. Remote position open to US and EU candidates.",
+      "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
+      "jobLocation": { "@type": "Place", "name": "Remote" },
+      "applicantLocationRequirements": { "@type": "Country", "name": ["US", "EU"] },
+      "jobLocationType": "TELECOMMUTE",
+      "employmentType": "FULL_TIME",
+      "datePosted": "2026-01-01"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "JobPosting",
       "title": "Salesforce Consultant",
       "description": "Help clients design and implement Salesforce solutions that drive revenue growth. Remote position open to US and EU candidates.",
       "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
-      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "jobLocation": { "@type": "Place", "name": "Remote" },
+      "applicantLocationRequirements": { "@type": "Country", "name": ["US", "EU"] },
+      "jobLocationType": "TELECOMMUTE",
       "employmentType": "FULL_TIME",
-      "workHours": "Remote"
+      "datePosted": "2026-01-01"
     },
     {
       "@context": "https://schema.org",
@@ -110,9 +136,11 @@ export const Careers: React.FC = () => {
       "title": "CRM Solution Architect",
       "description": "Lead complex enterprise CRM implementations and integrations. Remote position open to US and EU candidates.",
       "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
-      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "jobLocation": { "@type": "Place", "name": "Remote" },
+      "applicantLocationRequirements": { "@type": "Country", "name": ["US", "EU"] },
+      "jobLocationType": "TELECOMMUTE",
       "employmentType": "FULL_TIME",
-      "workHours": "Remote"
+      "datePosted": "2026-01-01"
     },
     {
       "@context": "https://schema.org",
@@ -120,17 +148,19 @@ export const Careers: React.FC = () => {
       "title": "Integration Engineer",
       "description": "Build and maintain integrations between Salesforce and various business systems. Remote position open to US and EU candidates.",
       "hiringOrganization": { "@id": "https://klepka.solutions/#organization" },
-      "jobLocation": { "@type": "Place", "name": "Remote (US/EU)" },
+      "jobLocation": { "@type": "Place", "name": "Remote" },
+      "applicantLocationRequirements": { "@type": "Country", "name": ["US", "EU"] },
+      "jobLocationType": "TELECOMMUTE",
       "employmentType": "FULL_TIME",
-      "workHours": "Remote"
+      "datePosted": "2026-01-01"
     }
   ];
 
   return (
     <div className="min-h-screen pt-24 lg:pt-32">
       <SEOHead
-        title="Careers at Klepka — Join Our Salesforce Team"
-        description="Join Klepka's remote Salesforce team. We're looking for consultants, architects, and engineers passionate about building CRM systems that drive real business impact."
+        title="Careers at Klepka — Salesforce Administrators, Consultants & Architects"
+        description="Join Klepka's remote Salesforce team. We hire certified Salesforce administrators, consultants, and architects to work with US and EU clients on an outstaff and outsource basis."
         canonicalPath="/careers"
         jsonLd={careersJsonLd}
       />
@@ -143,7 +173,7 @@ export const Careers: React.FC = () => {
             className="text-center max-w-3xl mx-auto"
           >
             <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
-              Build CRM Systems Used by Real Businesses
+              Join Our Salesforce Team
             </h1>
             <p className="text-lg text-text-secondary leading-relaxed">
               Join a team of technical experts who love solving complex business

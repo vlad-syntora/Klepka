@@ -759,6 +759,11 @@ export const Pricing: React.FC = () => {
       "name": "Salesforce CRM Pricing & Packages — Klepka",
       "description": "View Klepka's Salesforce implementation pricing packages. Transparent, structured delivery from initial discovery to post-launch support.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/pricing#faq" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -770,6 +775,7 @@ export const Pricing: React.FC = () => {
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
+      "@id": "https://klepka.solutions/pricing#faq",
       "mainEntity": [
         {
           "@type": "Question",
@@ -809,6 +815,22 @@ export const Pricing: React.FC = () => {
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Training packages range from User Training Starter ($1,680 · 12 hrs) for single-role onboarding to User Training Enterprise ($7,000 · 50 hrs) covering up to 6 roles with train-the-trainer sessions and full enablement materials."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does Klepka offer Salesforce outsourcing or outstaff services?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Klepka provides certified Salesforce administrators and consultants on an outsource and outstaff basis. Our Support packages give you dedicated Salesforce specialists — from a single admin (Support Starter, from $1,400 · 10 hrs) to a team of up to 3 specialists (Support Enterprise, from $8,400 · 60 hrs) — without the overhead of hiring in-house."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I hire a Salesforce administrator from Klepka?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Through Klepka's Support packages you get access to certified Salesforce administrators who handle day-to-day platform management, configuration changes, flow updates, reports, and ongoing improvements. This is an outsource or outstaff engagement — your dedicated admin works as part of your team without you needing to hire full-time."
           }
         }
       ]

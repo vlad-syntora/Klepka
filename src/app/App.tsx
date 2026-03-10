@@ -8,6 +8,7 @@ import { Partners } from './pages/Partners';
 import { Pricing } from './pages/Pricing';
 import { About } from './pages/About';
 import { Careers } from './pages/Careers';
+import { Products } from './pages/Products';
 import { FounderCardPage } from './pages/FounderCardPage';
 
 function ScrollToTop() {
@@ -40,6 +41,7 @@ function AppLayout() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/about" element={<About />} />
           <Route path="/careers" element={<Careers />} />
+          <Route path="/products" element={<Products />} />
         </Routes>
       </main>
       <Footer />

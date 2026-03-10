@@ -48,7 +48,7 @@ export const FounderCardPage: React.FC = () => {
           binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
         }
         lines.push(`PHOTO;ENCODING=b;TYPE=${ext}:${btoa(binary)}`);
-      } catch {}
+      } catch { /* photo embed failed — continue without it */ }
     }
 
     lines.push('END:VCARD');

@@ -29,6 +29,7 @@ import formTitanLogo from "../../assets/492d9bc4032f73ffbe046c5c7e9cb125b5d3ef6b
 import tableauLogo from "../../assets/4380d03553cab5a60c1283a76c56f2d79493987a.png";
 
 export const Home: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sliderRef = React.useRef<any>(null);
   const services = [
     {

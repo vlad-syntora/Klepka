@@ -297,7 +297,7 @@ export const Partners: React.FC = () => {
               <Input
                 required
                 name="role"
-                placeholder="Your role"
+                placeholder="Your Role"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
               <Input

@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Star, ExternalLink, Package, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { SEOHead } from '../components/SEOHead';
-import { productsListingIds } from '../../config/productsConfig';
+import { Input, TextArea } from '../components/Input';
+import { sendEmailJsForm } from '../lib/emailjs';
+import { productsListingIds, comingSoonProducts, type ComingSoonProduct } from '../../config/productsConfig';
 
 // ---------------------------------------------------------------------------
 // API types (AppExchange REST API)
@@ -28,6 +31,11 @@ interface Plugin {
   };
 }
 
+interface BusinessNeedSection {
+  categories: string[];
+  isSelected: boolean;
+}
+
 interface AppExchangeListing {
   tzId: string;
   name: string;
@@ -38,9 +46,7 @@ interface AppExchangeListing {
     logoUrl?: string;
   };
   plugins?: Plugin[];
-  extensions?: Array<{
-    listingCategories?: string[];
-  }>;
+  businessNeeds?: Record<string, BusinessNeedSection>;
   reviewsSummary?: {
     averageRating: number;
     reviewCount: number;
@@ -59,6 +65,18 @@ function extractLogoUrl(plugins?: Plugin[]): string | null {
   const preferred = logoSet.data.items.find((i) => i.logoType === 'Logo');
   const fallback = logoSet.data.items.find((i) => i.mediaId?.startsWith('https'));
   return (preferred ?? fallback)?.mediaId ?? null;
+}
+
+/** camelCase → Title Case: "contractManagement" → "Contract Management" */
+function formatCategory(key: string): string {
+  return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+}
+
+function extractCategories(businessNeeds?: Record<string, BusinessNeedSection>): string[] {
+  if (!businessNeeds) return [];
+  return Object.values(businessNeeds).flatMap((section) =>
+    section.categories.map(formatCategory),
+  );
 }
 
 const APPEXCHANGE_URL = 'https://appexchange.salesforce.com/appxListingDetail?listingId=';
@@ -106,7 +124,7 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
   listing,
   index,
 }) => {
-  const tags = listing.extensions?.[0]?.listingCategories ?? [];
+  const tags = extractCategories(listing.businessNeeds);
   const rating = listing.reviewsSummary?.averageRating ?? 0;
   const reviewCount = listing.reviewsSummary?.reviewCount ?? 0;
   const hasRating = rating > 0 && reviewCount > 0;
@@ -213,6 +231,68 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
 };
 
 // ---------------------------------------------------------------------------
+// Coming soon card
+// ---------------------------------------------------------------------------
+
+const ComingSoonCard: React.FC<{ product: ComingSoonProduct; index: number }> = ({
+  product,
+  index,
+}) => (
+  <motion.article
+    initial={{ opacity: 0, y: 24 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ duration: 0.4, delay: index * 0.08 }}
+    className="bg-white border border-dashed border-border-color rounded-2xl overflow-hidden flex flex-col opacity-75"
+  >
+    {/* Image area */}
+    <div className="w-full aspect-video bg-gradient-to-br from-grey/8 to-grey/4 flex items-center justify-center overflow-hidden">
+      {product.image ? (
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-full object-contain p-6 grayscale opacity-60"
+          loading="lazy"
+        />
+      ) : (
+        <Package className="w-12 h-12 text-grey/30" />
+      )}
+    </div>
+
+    {/* Content */}
+    <div className="flex flex-col flex-1 p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs font-semibold bg-grey/10 text-grey px-2.5 py-1 rounded-full uppercase tracking-wide">
+          Coming Soon
+        </span>
+        {product.releaseDate && (
+          <span className="text-xs text-grey">{product.releaseDate}</span>
+        )}
+      </div>
+
+      <h3 className="text-lg font-semibold text-gray-700 leading-snug mb-2">
+        {product.name}
+      </h3>
+
+      <p className="text-sm text-grey leading-relaxed flex-1 mb-4 line-clamp-3">
+        {product.shortDescription}
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {product.tags.map((tag) => (
+          <span
+            key={tag}
+            className="text-xs bg-grey/8 text-grey px-2.5 py-0.5 rounded-full border border-grey/15"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+    </div>
+  </motion.article>
+);
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -220,6 +300,24 @@ export const Products: React.FC = () => {
   const [listings, setListings] = useState<AppExchangeListing[]>([]);
   const [loading, setLoading] = useState(productsListingIds.length > 0);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formSent, setFormSent] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await sendEmailJsForm(e.currentTarget);
+      toast.success('Message sent!', { description: 'We will get back to you shortly.' });
+      e.currentTarget.reset();
+      setFormSent(true);
+    } catch {
+      toast.error("Couldn't send the message", { description: 'Please try again in a moment.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (productsListingIds.length === 0) return;
@@ -230,21 +328,93 @@ export const Products: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const pageJsonLd = {
+  const softwareSchemas = listings.map((l) => {
+    const isFree = l.pricing?.price_model_type === 'free';
+    const plan = l.pricing?.model?.plans?.find((p) => p.lowest_starting_price)
+      ?? l.pricing?.model?.plans?.[0];
+    const categories = extractCategories(l.businessNeeds);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const schema: Record<string, any> = {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      '@id': `https://klepka.solutions/products#${l.tzId}`,
+      name: l.title || l.name,
+      description: l.description,
+      url: `${APPEXCHANGE_URL}${l.tzId}`,
+      applicationCategory: categories[0] ?? 'BusinessApplication',
+      operatingSystem: 'Salesforce',
+      author: {
+        '@type': 'Organization',
+        '@id': 'https://klepka.solutions/#organization',
+        name: l.publisher.name,
+      },
+      offers: isFree
+        ? { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+        : plan
+          ? {
+              '@type': 'Offer',
+              price: String(plan.price),
+              priceCurrency: plan.currency_code,
+              priceSpecification: {
+                '@type': 'UnitPriceSpecification',
+                price: plan.price,
+                priceCurrency: plan.currency_code,
+                unitText: plan.frequency === 'monthly' ? 'MON' : plan.frequency.toUpperCase(),
+                referenceQuantity: { '@type': 'QuantitativeValue', value: '1', unitText: plan.units },
+              },
+            }
+          : undefined,
+    };
+
+    if (l.reviewsSummary && l.reviewsSummary.reviewCount > 0) {
+      schema.aggregateRating = {
+        '@type': 'AggregateRating',
+        ratingValue: l.reviewsSummary.averageRating,
+        reviewCount: l.reviewsSummary.reviewCount,
+        bestRating: '5',
+        worstRating: '1',
+      };
+    }
+
+    return schema;
+  });
+
+  const itemListSchema = listings.length > 0 ? {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    '@id': 'https://klepka.solutions/products#webpage',
-    name: 'Our Products — Klepka',
-    description:
-      'Salesforce AppExchange products developed by Klepka — certified Salesforce consultants building tools for admins, developers, and business teams.',
-    url: 'https://klepka.solutions/products',
-    isPartOf: { '@id': 'https://klepka.solutions/#website' },
-    about: { '@id': 'https://klepka.solutions/#organization' },
-    speakable: {
-      '@type': 'SpeakableSpecification',
-      cssSelector: ['h1', '.products-intro'],
+    '@type': 'ItemList',
+    '@id': 'https://klepka.solutions/products#list',
+    name: 'Klepka Salesforce AppExchange Products',
+    description: 'Salesforce tools built by Klepka — certified administrators, consultants and architects.',
+    numberOfItems: listings.length,
+    itemListElement: listings.map((l, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${APPEXCHANGE_URL}${l.tzId}`,
+      name: l.title || l.name,
+    })),
+  } : null;
+
+  const pageJsonLd = [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      '@id': 'https://klepka.solutions/products#webpage',
+      name: 'Our Products — Klepka',
+      description:
+        'Salesforce AppExchange products developed by Klepka — certified Salesforce consultants building tools for admins, developers, and business teams.',
+      url: 'https://klepka.solutions/products',
+      isPartOf: { '@id': 'https://klepka.solutions/#website' },
+      about: { '@id': 'https://klepka.solutions/#organization' },
+      mainEntity: itemListSchema ? { '@id': 'https://klepka.solutions/products#list' } : undefined,
+      speakable: {
+        '@type': 'SpeakableSpecification',
+        cssSelector: ['h1', '.products-intro'],
+      },
     },
-  };
+    ...(itemListSchema ? [itemListSchema] : []),
+    ...softwareSchemas,
+  ];
 
   return (
     <>
@@ -306,9 +476,24 @@ export const Products: React.FC = () => {
         </div>
       </section>
 
+      {/* Coming Soon */}
+      {comingSoonProducts.length > 0 && (
+        <section className="pb-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-2xl font-light text-violet mb-8">Coming Soon</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {comingSoonProducts.map((product, index) => (
+                <ComingSoonCard key={product.id} product={product} index={index} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA banner */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-violet text-off-white">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+          {/* Left — text */}
           <div>
             <h2 className="text-2xl font-light text-accent-yellow mb-2">
               Have a product idea?
@@ -318,12 +503,45 @@ export const Products: React.FC = () => {
               building something together.
             </p>
           </div>
-          <a
-            href="mailto:hello@klepka.solutions"
-            className="flex-shrink-0 bg-white text-violet hover:bg-accent-yellow transition-colors font-medium px-6 py-3 rounded-xl"
-          >
-            Get in touch
-          </a>
+
+          {/* Right — form */}
+          {formSent ? (
+            <div className="rounded-xl border border-white/20 bg-white/10 px-6 py-8 text-center">
+              <p className="text-accent-yellow font-medium text-lg mb-1">Thank you!</p>
+              <p className="text-off-white/70 text-sm">We'll be in touch soon.</p>
+            </div>
+          ) : (
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
+              <input type="hidden" name="form_name" value="Product Idea" />
+              <Input
+                required
+                name="full_name"
+                placeholder="Name"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+              <Input
+                required
+                type="email"
+                name="reply_to"
+                placeholder="Email"
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+              <TextArea
+                required
+                name="message"
+                placeholder="Your idea"
+                rows={4}
+                className="bg-card-foreground/10 text-off-white border-border-color/30"
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-white text-violet hover:bg-accent-yellow hover:text-violet transition-colors font-medium px-6 py-3 rounded-xl ring-2 ring-white/40 ring-offset-2 ring-offset-violet disabled:opacity-60"
+              >
+                {isSubmitting ? 'Sending…' : 'Get in touch'}
+              </button>
+            </form>
+          )}
         </div>
       </section>
     </>

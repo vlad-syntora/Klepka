@@ -22,8 +22,8 @@ export const Header: React.FC = () => {
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Partners', path: '/partners' },
-    { name: 'Pricing', path: '/pricing' },
     { name: 'Products', path: '/products' },
+    { name: 'Pricing', path: '/pricing' },
     { name: 'About', path: '/about' },
     { name: 'Careers', path: '/careers' },
   ];

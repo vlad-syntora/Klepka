@@ -8,6 +8,26 @@ import { productsListingIds } from '../../config/productsConfig';
 // API types (AppExchange REST API)
 // ---------------------------------------------------------------------------
 
+interface PricingPlan {
+  price: number;
+  currency_code: string;
+  frequency: string;
+  units: string;
+  lowest_starting_price?: boolean;
+}
+
+interface Plugin {
+  pluginType: string;
+  data: {
+    items?: Array<{
+      mediaId?: string;
+      logoType?: string;
+      type?: string;
+      data?: { mediaId?: string; altText?: string };
+    }>;
+  };
+}
+
 interface AppExchangeListing {
   tzId: string;
   name: string;
@@ -15,8 +35,9 @@ interface AppExchangeListing {
   description: string;
   publisher: {
     name: string;
-    website?: string;
+    logoUrl?: string;
   };
+  plugins?: Plugin[];
   extensions?: Array<{
     listingCategories?: string[];
   }>;
@@ -24,13 +45,26 @@ interface AppExchangeListing {
     averageRating: number;
     reviewCount: number;
   };
+  pricing?: {
+    price_model_type: string;
+    model?: {
+      plans?: PricingPlan[];
+    };
+  };
 }
 
-const LISTINGS_API = 'https://api.appexchange.salesforce.com/partners/experience/listings';
+function extractLogoUrl(plugins?: Plugin[]): string | null {
+  const logoSet = plugins?.find((p) => p.pluginType === 'listing/plugins/LogoSet');
+  if (!logoSet?.data?.items) return null;
+  const preferred = logoSet.data.items.find((i) => i.logoType === 'Logo');
+  const fallback = logoSet.data.items.find((i) => i.mediaId?.startsWith('https'));
+  return (preferred ?? fallback)?.mediaId ?? null;
+}
+
 const APPEXCHANGE_URL = 'https://appexchange.salesforce.com/appxListingDetail?listingId=';
 
 async function fetchListing(id: string): Promise<AppExchangeListing> {
-  const res = await fetch(`${LISTINGS_API}/${id}`);
+  const res = await fetch(`/api/listings/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch listing ${id}: ${res.status}`);
   return res.json() as Promise<AppExchangeListing>;
 }
@@ -77,6 +111,17 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
   const reviewCount = listing.reviewsSummary?.reviewCount ?? 0;
   const hasRating = rating > 0 && reviewCount > 0;
 
+  const logoUrl = extractLogoUrl(listing.plugins);
+
+  const isFree = listing.pricing?.price_model_type === 'free';
+  const startingPlan = listing.pricing?.model?.plans?.find((p) => p.lowest_starting_price)
+    ?? listing.pricing?.model?.plans?.[0];
+  const priceLabel = isFree
+    ? 'Free'
+    : startingPlan
+      ? `From $${startingPlan.price} / ${startingPlan.units === 'user' ? 'user / ' : ''}${startingPlan.frequency === 'monthly' ? 'mo' : startingPlan.frequency}`
+      : null;
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 24 }}
@@ -85,9 +130,18 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
       transition={{ duration: 0.4, delay: index * 0.08 }}
       className="bg-white border border-border-color rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col"
     >
-      {/* Image placeholder */}
-      <div className="w-full aspect-video bg-gradient-to-br from-violet/10 to-violet/5 flex items-center justify-center">
-        <Package className="w-12 h-12 text-violet/25" />
+      {/* Logo / image */}
+      <div className="w-full aspect-video bg-gradient-to-br from-violet/10 to-violet/5 flex items-center justify-center overflow-hidden">
+        {logoUrl ? (
+          <img
+            src={logoUrl}
+            alt={listing.title || listing.name}
+            className="w-full h-full object-contain p-6"
+            loading="lazy"
+          />
+        ) : (
+          <Package className="w-12 h-12 text-violet/25" />
+        )}
       </div>
 
       {/* Content */}
@@ -116,6 +170,13 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
             <span className="text-xs text-grey">No reviews yet</span>
           )}
         </div>
+
+        {/* Price */}
+        {priceLabel && (
+          <p className={`text-sm font-semibold mb-3 ${isFree ? 'text-green-600' : 'text-violet'}`}>
+            {priceLabel}
+          </p>
+        )}
 
         {/* Description */}
         <p className="text-sm text-grey leading-relaxed flex-1 mb-4 line-clamp-3">

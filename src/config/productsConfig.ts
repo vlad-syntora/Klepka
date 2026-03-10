@@ -6,4 +6,6 @@
 export const productsListingIds: string[] = [
   'a0N3A00000EvaSKUAZ',
   'a0N30000004e3VUEAY',
+  'a0N30000004gI1hEAE',
+  '9bbf17ec-e4cb-4a4d-9273-a14a356a7d7c'
 ];

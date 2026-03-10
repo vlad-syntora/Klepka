@@ -23,6 +23,17 @@ export type CertKey =
   | 'platformDataArchitect'
   | 'sharingVisibilityArchitect';
 
+export const certFullNames: Record<CertKey, string> = {
+  platformAdmin: 'Salesforce Certified Administrator',
+  platformAppBuilder: 'Salesforce Certified Platform App Builder',
+  experienceCloud: 'Salesforce Certified Experience Cloud Consultant',
+  salesCloud: 'Salesforce Certified Sales Cloud Consultant',
+  pardotSpecialist: 'Salesforce Certified Marketing Cloud Account Engagement Specialist',
+  dataCloud: 'Salesforce Certified Data Cloud Consultant',
+  platformDataArchitect: 'Salesforce Certified Platform Data Architect',
+  sharingVisibilityArchitect: 'Salesforce Certified Sharing and Visibility Architect',
+};
+
 export const certificatesConfig: Record<CertKey, Certificate> = {
   platformAdmin: {
     id: 'platformAdmin',

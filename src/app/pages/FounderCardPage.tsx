@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Phone, Mail, Linkedin, ArrowLeft, UserPlus } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { foundersConfig } from '../../config/teamConfig';
+import { certFullNames } from '../../config/certificatesConfig';
 import logoLight from '../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png';
 
 export const FounderCardPage: React.FC = () => {
@@ -73,7 +74,13 @@ export const FounderCardPage: React.FC = () => {
     "worksFor": { "@id": "https://klepka.solutions/#organization" },
     "email": person.contactInfo.email,
     "telephone": person.contactInfo.phone,
-    "sameAs": [person.contactInfo.linkedin]
+    "sameAs": [person.contactInfo.linkedin],
+    "hasCredential": person.certs.map((certKey) => ({
+      "@type": "EducationalOccupationalCredential",
+      "name": certFullNames[certKey],
+      "credentialCategory": "certification",
+      "recognizedBy": { "@type": "Organization", "name": "Salesforce" },
+    })),
   };
 
   return (

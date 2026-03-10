@@ -93,6 +93,11 @@ export const Careers: React.FC = () => {
       "name": "Careers at Klepka — Salesforce Administrators, Consultants & Architects",
       "description": "Join Klepka's remote Salesforce team. We're hiring certified Salesforce administrators, consultants, and architects to work with US and EU clients on an outstaff and outsource basis.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [

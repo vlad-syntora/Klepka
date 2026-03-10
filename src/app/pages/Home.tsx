@@ -191,8 +191,31 @@ export const Home: React.FC = () => {
       "@id": "https://klepka.solutions/#website",
       "name": "Klepka",
       "url": "https://klepka.solutions",
-      "description": "Salesforce CRM consulting, implementation, and integration services",
+      "description": "Salesforce CRM consulting, implementation, outsource administration, and integration services",
       "publisher": { "@id": "https://klepka.solutions/#organization" }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "https://klepka.solutions/#homepage",
+      "url": "https://klepka.solutions",
+      "name": "Klepka — Salesforce CRM Implementation & Integration Services",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      "@id": "https://klepka.solutions/#contact",
+      "url": "https://klepka.solutions/#contact",
+      "name": "Contact Klepka",
+      "description": "Contact Klepka to discuss your Salesforce CRM project, outsource administration, or consulting needs.",
+      "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/#organization" }
     },
     {
       "@context": "https://schema.org",

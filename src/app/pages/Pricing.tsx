@@ -759,6 +759,11 @@ export const Pricing: React.FC = () => {
       "name": "Salesforce CRM Pricing & Packages — Klepka",
       "description": "View Klepka's Salesforce implementation pricing packages. Transparent, structured delivery from initial discovery to post-launch support.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/pricing#faq" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -770,6 +775,7 @@ export const Pricing: React.FC = () => {
     {
       "@context": "https://schema.org",
       "@type": "FAQPage",
+      "@id": "https://klepka.solutions/pricing#faq",
       "mainEntity": [
         {
           "@type": "Question",

@@ -9,10 +9,11 @@
       "headers": [{ "key": "Content-Type", "value": "text/plain" }]
     }
   ],
-  "rewrites": [
+  "routes": [
+    { "handle": "filesystem" },
     {
-      "source": "/((?!robots\\.txt|sitemap\\.xml|favicon\\.png|og-image\\.png).*)",
-      "destination": "/index.html"
+      "src": "/((?!robots\\.txt|sitemap\\.xml|favicon\\.png|og-image\\.png).*)",
+      "dest": "/index.html"
     }
   ]
 }

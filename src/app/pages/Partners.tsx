@@ -115,6 +115,11 @@ export const Partners: React.FC = () => {
       "name": "Partners & Case Studies — Klepka Salesforce Consulting",
       "description": "Explore Klepka's client partnerships and case studies. From Salesforce Nonprofit Cloud to B2B revenue teams, we deliver structured CRM solutions across industries.",
       "isPartOf": { "@id": "https://klepka.solutions/#website" },
+      "mainEntity": { "@id": "https://klepka.solutions/partners#case-study-prytula" },
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", "h3"]
+      },
       "breadcrumb": {
         "@type": "BreadcrumbList",
         "itemListElement": [
@@ -126,8 +131,11 @@ export const Partners: React.FC = () => {
     {
       "@context": "https://schema.org",
       "@type": "Article",
+      "@id": "https://klepka.solutions/partners#case-study-prytula",
       "headline": "Prytula Foundation USA — Salesforce Nonprofit Cloud Implementation",
       "description": "Klepka built a robust Salesforce Nonprofit org for Prytula Foundation USA with two independent functional areas: Fundraising & Operations and Training & Educational Programs.",
+      "datePublished": "2024-01-01",
+      "dateModified": "2026-03-10",
       "author": { "@id": "https://klepka.solutions/#organization" },
       "publisher": { "@id": "https://klepka.solutions/#organization" },
       "about": [

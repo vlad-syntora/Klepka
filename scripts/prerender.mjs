@@ -7,7 +7,8 @@
  * data, headings, and visible text content.
  */
 
-import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import { createServer } from 'http';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, extname } from 'path';
@@ -68,14 +69,14 @@ const server = createServer((req, res) => {
 await new Promise((resolve) => server.listen(PORT, resolve));
 console.log(`🚀 Static server listening on http://localhost:${PORT}`);
 
+const executablePath =
+  process.env.PUPPETEER_EXECUTABLE_PATH ??
+  (await chromium.executablePath());
+
 const browser = await puppeteer.launch({
-  headless: true,
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-  ],
+  args: chromium.args,
+  executablePath,
+  headless: chromium.headless,
 });
 
 for (const route of ROUTES) {

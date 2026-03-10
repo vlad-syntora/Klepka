@@ -287,7 +287,9 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
     contactInfo: { phone: string; email: string; linkedin: string };
     company: string;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sliderSettings: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sliderRef: any
 }) {
   const [isFlipped, setIsFlipped] = React.useState(false);
@@ -336,8 +338,7 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
         }
         const b64 = btoa(binary);
         lines.push(`PHOTO;ENCODING=b;TYPE=${ ext }:${ b64 }`);
-      } catch {
-      }
+      } catch { /* photo embed failed — continue without it */ }
     }
 
     lines.push('END:VCARD');
@@ -486,7 +487,9 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderS
   startDate: string;
   avatar?: string;
   certs?: CertKey[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sliderSettings: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sliderRef: any;
 }) {
   const [showAllCerts, setShowAllCerts] = React.useState(false);

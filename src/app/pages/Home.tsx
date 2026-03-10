@@ -68,9 +68,9 @@ export const Home: React.FC = () => {
     },
     {
       category: "Optimizations",
-      title: "Code & Flow Optimizations",
+      title: "Flow Optimizations",
       description:
-        "Flow refactoring, Workflow Rule and Process Builder migration to Flow, Apex code review — reduce technical debt and future change costs.",
+        "Flow refactoring, Workflow Rule and Process Builder migration to Flow — reduce technical debt and future change costs.",
       icon: <Zap className="w-8 h-8 text-black" />,
     },
   ];
@@ -278,8 +278,8 @@ export const Home: React.FC = () => {
           "position": 6,
           "item": {
             "@type": "Service",
-            "name": "Salesforce Code & Flow Optimizations",
-            "description": "Flow refactoring, Workflow Rule and Process Builder migration to Flow, Apex code review — reduce technical debt and future change costs.",
+            "name": "Salesforce Flow Optimizations",
+            "description": "Flow refactoring, Workflow Rule and Process Builder migration to Flow — reduce technical debt and future change costs.",
             "provider": { "@id": "https://klepka.solutions/#organization" }
           }
         }

@@ -176,8 +176,8 @@ export const Careers: React.FC = () => {
               Join Our Salesforce Team
             </h1>
             <p className="text-lg text-text-secondary leading-relaxed">
-              We hire certified Salesforce administrators, consultants, and architects
-              to work with US and EU clients — remote, full-time, outstaff model
+              Join a team of technical experts who love solving complex business
+              problems
             </p>
           </motion.div>
         </div>

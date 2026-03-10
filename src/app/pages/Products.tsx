@@ -523,13 +523,13 @@ export const Products: React.FC = () => {
                 required
                 type="email"
                 name="reply_to"
-                placeholder="Email"
+                placeholder="your@email.com"
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
               <TextArea
                 required
                 name="message"
-                placeholder="Your idea"
+                placeholder="Your Idea"
                 rows={4}
                 className="bg-card-foreground/10 text-off-white border-border-color/30"
               />
@@ -538,7 +538,7 @@ export const Products: React.FC = () => {
                 disabled={isSubmitting}
                 className="w-full bg-white text-violet hover:bg-accent-yellow hover:text-violet transition-colors font-medium px-6 py-3 rounded-xl ring-2 ring-white/40 ring-offset-2 ring-offset-violet disabled:opacity-60"
               >
-                {isSubmitting ? 'Sending…' : 'Get in touch'}
+                {isSubmitting ? 'Sending…' : 'Get In Touch'}
               </button>
             </form>
           )}

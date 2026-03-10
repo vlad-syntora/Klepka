@@ -68,7 +68,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
         <Input
           required
           name="last_name"
-          placeholder="Last name"
+          placeholder="Last Name"
           className={inputClasses}
         />
         <Input

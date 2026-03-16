@@ -4,12 +4,19 @@
  * GET https://api.appexchange.salesforce.com/partners/experience/listings/{id}
  */
 export const productsListingIds: string[] = [];
+import FlowEmailComposerLogo from '../assets/products/FlowEmailComposerLogo.png';
 
 export interface ComingSoonProduct {
   id: string;
   name: string;
   shortDescription: string;
   tags: string[];
+  /** Product lifecycle status, e.g.: 'Coming Soon' */
+  status?: string;
+  /** Show User Guide button on product card when true */
+  haveDocumentation: boolean;
+  /** User Guide URL opened from the card button */
+  documentationPageSrc?: string;
   /** Imported asset, e.g.: import myImg from '../assets/myImg.png' */
   image?: string;
   /** Expected release date, e.g.: 'Q3 2025' or '2025-09-01' */
@@ -21,12 +28,15 @@ export interface ComingSoonProduct {
  * Data is stored here in the config (no API fetch).
  */
 export const comingSoonProducts: ComingSoonProduct[] = [
-  // {
-  //   id: 'flow-toolkit',
-  //   name: 'Flow Toolkit',
-  //   shortDescription: 'Reusable Flow components and templates for common Salesforce automation patterns.',
-  //   tags: ['Flow', 'Automation', 'Admin'],
-  //   image: flowToolkitImg,
-  //   releaseDate: 'Q4 2026',
-  // },
+  {
+     id: 'flow-email-composer',
+     name: 'Flow Email Composer',
+     shortDescription: 'Compose and send guided emails inside Salesforce Flows with auto-filled recipients, templates, attachments, and activity logging.',
+     tags: ['Flow', 'Automation', 'Admin'],
+     status: 'In QA',
+     haveDocumentation: true,
+     documentationPageSrc: '/fec',
+     image: FlowEmailComposerLogo,
+     releaseDate: 'Q2 2026',
+   },
 ];

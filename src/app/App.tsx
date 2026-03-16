@@ -9,6 +9,7 @@ import { Pricing } from './pages/Pricing';
 import { About } from './pages/About';
 import { Careers } from './pages/Careers';
 import { Products } from './pages/Products';
+import { FEC } from './pages/FEC';
 import { FounderCardPage } from './pages/FounderCardPage';
 
 function ScrollToTop() {
@@ -42,6 +43,7 @@ function AppLayout() {
           <Route path="/about" element={<About />} />
           <Route path="/careers" element={<Careers />} />
           <Route path="/products" element={<Products />} />
+          <Route path="/fec" element={<FEC />} />
         </Routes>
       </main>
       <Footer />

@@ -274,6 +274,12 @@ const ComingSoonCard: React.FC<{ product: ComingSoonProduct; index: number }> = 
         {product.name}
       </h3>
 
+      {product.status && (
+        <p className="text-sm text-grey mb-2">
+          <span className="font-medium text-gray-700">Status:</span> {product.status}
+        </p>
+      )}
+
       <p className="text-sm text-grey leading-relaxed flex-1 mb-4 line-clamp-3">
         {product.shortDescription}
       </p>
@@ -288,6 +294,18 @@ const ComingSoonCard: React.FC<{ product: ComingSoonProduct; index: number }> = 
           </span>
         ))}
       </div>
+
+      {product.haveDocumentation && product.documentationPageSrc && (
+        <a
+          href={product.documentationPageSrc}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center justify-center gap-2 bg-violet text-white rounded-xl py-2.5 px-4 text-sm font-medium hover:bg-violet/90 active:scale-95 transition-all"
+        >
+          User Guide
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      )}
     </div>
   </motion.article>
 );

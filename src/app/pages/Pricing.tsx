@@ -377,7 +377,7 @@ const PricingSpotlightCard: React.FC<{ content: PricingSpotlightCardContent }> =
             </div>
 
             <CrmChallengesForm
-              formName={`Pricing Spotlight Request '${content.title}'`}
+              formName={'Pricing Spotlight Request Book Meeting with an Expert'}
             />
           </Card>
         </div>

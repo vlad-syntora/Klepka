@@ -1,12 +1,14 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { SEOHead } from '../components/SEOHead';
+import { Button } from '../components/Button';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import { foundersConfig, teamsConfig } from '../../config/teamConfig';
 import type { CertKey } from '../../config/certificatesConfig';
 import { certificatesConfig, certFullNames } from '../../config/certificatesConfig';
+import { linkedinActivityConfig } from '../../config/linkedinActivityConfig';
 
 export const About: React.FC = () => {
   const sliderRef = React.useRef(null);
@@ -265,6 +267,43 @@ export const About: React.FC = () => {
                 </AccordionTeam>
               )) }
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* LinkedIn Activity Section */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-8"
+          >
+            <h2 className="text-3xl sm:text-4xl mb-3 text-violet">Our LinkedIn Activity</h2>
+            <p className="text-text-secondary">Latest updates and insights from our team</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+            {linkedinActivityConfig.map((post, idx) => (
+              <motion.div
+                key={post.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.05 }}
+                className="w-full"
+              >
+                <iframe
+                  src={`https://www.linkedin.com/embed/feed/update/${post.urn}?collapsed=1`}
+                  height="500"
+                  width="100%"
+                  frameBorder="0"
+                  allowFullScreen
+                  title="Embedded post"
+                />
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>

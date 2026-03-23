@@ -5,6 +5,7 @@
  */
 export const productsListingIds: string[] = [];
 import FlowEmailComposerLogo from '../assets/products/FlowEmailComposerLogo.png';
+import RecordPhotoComponentLogo from '../assets/products/RecordPhotoComponent.png';
 
 export interface ComingSoonProduct {
   id: string;
@@ -32,11 +33,22 @@ export const comingSoonProducts: ComingSoonProduct[] = [
      id: 'flow-email-composer',
      name: 'Flow Email Composer',
      shortDescription: 'Compose and send guided emails inside Salesforce Flows with auto-filled recipients, templates, attachments, and activity logging.',
-     tags: ['Flow', 'Automation', 'Admin'],
+     tags: ['Flow', 'Automation', 'Admin', 'Email', 'Email-to-Case'],
      status: 'In QA',
      haveDocumentation: true,
      documentationPageSrc: '/fec',
      image: FlowEmailComposerLogo,
+     releaseDate: 'Q2 2026',
+   },
+   {
+     id: 'Record-Photo-Logo-Component-for-Salesforce',
+     name: 'Record Photo & Logo Component for Salesforce',
+     shortDescription: 'Add profile photos and logos to any Salesforce record with a simple drag & drop component for Lightning App Builder.',
+     tags: ['UI', 'Record Logo', 'Record Icon',  'Lightning App Builder', 'Admin' ],
+     status: 'In QA',
+     haveDocumentation: false,
+     documentationPageSrc: '',
+     image: RecordPhotoComponentLogo,
      releaseDate: 'Q2 2026',
    },
 ];

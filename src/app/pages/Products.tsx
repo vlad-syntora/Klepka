@@ -467,7 +467,8 @@ export const Products: React.FC = () => {
       </section>
 
       {/* Products grid */}
-      <section className="pb-20 px-4 sm:px-6 lg:px-8">
+      {!loading && !error && listings.length > 0 &&
+      (<section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {loading && (
             <div className="flex items-center justify-center py-24 gap-3 text-grey">
@@ -492,7 +493,7 @@ export const Products: React.FC = () => {
             </div>
           )}
         </div>
-      </section>
+      </section>)}
 
       {/* Coming Soon */}
       {comingSoonProducts.length > 0 && (

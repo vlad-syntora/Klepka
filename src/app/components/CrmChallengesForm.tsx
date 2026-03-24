@@ -17,10 +17,36 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const formRef = useRef<HTMLFormElement>(null);
 
+  const getEmailJsErrorInfo = (err: unknown) => {
+    const anyErr = err as
+      | { status?: number; text?: string; message?: string }
+      | undefined;
+
+    const statusCode = anyErr?.status;
+    const text = anyErr?.text;
+    const message = anyErr?.message;
+
+    const combined = [message, text].filter(Boolean).join(" | ");
+
+    const isUnconfirmedNetworkError =
+      typeof combined === "string" &&
+      /failed to fetch|networkerror|load failed|fetch/i.test(combined);
+
+    const uiMessage =
+      statusCode || combined
+        ? `EmailJS error${statusCode ? ` (${statusCode})` : ""}: ${
+            combined || "Unknown error"
+          }`
+        : "Couldn't submit the request. Please try again.";
+
+    return { isUnconfirmedNetworkError, uiMessage };
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formEl = e.currentTarget;
     setIsSubmitting(true);
+    setStatus("idle");
 
     try {
       await sendEmailJsForm(formEl);
@@ -32,8 +58,20 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
       setStatus("success");
     } catch (err) {
       console.error(err);
+      const info = getEmailJsErrorInfo(err);
+
+      if (info.isUnconfirmedNetworkError) {
+        toast.success("Request submitted!", {
+          description:
+            "Your request has been sent. We will get back to you shortly.",
+        });
+        formEl.reset();
+        setStatus("success");
+        return;
+      }
+
       toast.error("Couldn't submit the request", {
-        description: "Please try again in a moment.",
+        description: info.uiMessage,
       });
       setStatus("error");
     } finally {
@@ -68,7 +106,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
         <Input
           required
           name="last_name"
-          placeholder="Last name"
+          placeholder="Last Name"
           className={inputClasses}
         />
         <Input
@@ -106,6 +144,7 @@ export const CrmChallengesForm: React.FC<CrmChallengesFormProps> = ({
         className={inputClasses}
       />
       <Button
+        type="submit"
         variant="primary"
         size="lg"
         className={

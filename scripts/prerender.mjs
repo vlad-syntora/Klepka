@@ -25,6 +25,9 @@ const ROUTES = [
   '/pricing',
   '/partners',
   '/careers',
+  '/products',
+  '/fec',
+  '/rplc',
   '/card/sergii-romashov',
   '/card/daria-ezerovych',
 ];

@@ -16,21 +16,15 @@ import transparentDeliveryProgressIcon from "../../assets/Transparent_delivery_p
 import qualityCheckIcon from "../../assets/Quality_check.png";
 import userTrainingSessionsIcon from "../../assets/User_training_sessions.png";
 import postLaunchSupportIcon from "../../assets/Post_launch_support.png";
-
-type PricingCategory = {
-  id: string;
-  label: string;
-};
-
-type PricingPackage = {
-  name: string;
-  category: string;
-  description: string;
-  subtitle: string;
-  price: string;
-  features: string[];
-  popular?: boolean;
-};
+import {
+  pricingSpotlightConfig,
+  type PricingSpotlightCardContent,
+} from "../../config/pricingSpotlightConfig";
+import {
+  pricingCategories,
+  pricingPackages,
+  type PricingPackage,
+} from "../../config/pricingPackagesConfig";
 
 const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
   const [isFlipped, setIsFlipped] = React.useState(false);
@@ -296,9 +290,109 @@ const PackageGetStartedCard: React.FC<{ pkg: PricingPackage }> = ({ pkg }) => {
   );
 };
 
+const PricingSpotlightCard: React.FC<{ content: PricingSpotlightCardContent }> = ({
+  content,
+}) => {
+  const [isFlipped, setIsFlipped] = React.useState(false);
+
+  return (
+    <div className="w-full" style={{ perspective: "1200px" }}>
+      <motion.div
+        className="relative [transform-style:preserve-3d]"
+        animate={{ rotateY: isFlipped ? 180 : 0 }}
+        transition={{ duration: 0.55, ease: [0.2, 0.8, 0.2, 1] }}
+      >
+        <div className="[backface-visibility:hidden]">
+          <Card className="p-8 !bg-card !border-border-color h-full">
+            <div className="max-w-3xl mx-auto text-center mb-8">
+              <h2 className="text-3xl sm:text-4xl mb-3 text-violet">{content.title}</h2>
+              <p className="text-text-secondary leading-relaxed">{content.subtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="rounded-lg border border-border-color p-5 bg-white/80 space-y-5">
+                <div>
+                  <h3 className="text-violet text-lg mb-3">What&apos;s included</h3>
+                  <ul className="space-y-2">
+                    {content.whatsIncluded.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-black">
+                        <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-violet text-lg mb-1">What you get</h3>
+                  <ul className="space-y-2">
+                    {content.whatYouGet.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-black">
+                        <Check className="w-4 h-4 text-violet mt-1 flex-shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border-color p-5 bg-white/80 space-y-4">
+                <div>
+                  <h3 className="text-violet text-lg mb-1">Who this is for</h3>
+                  <p className="text-black">{content.whoThisIsFor}</p>
+                </div>
+                <div>
+                  <h3 className="text-violet text-lg mb-1">Who this is NOT for</h3>
+                  <p className="text-black">{content.whoThisIsNotFor}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="primary"
+                className="px-10"
+                onClick={() => setIsFlipped(true)}
+              >
+                {content.buttonLabel}
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="absolute inset-0 [transform:rotateY(180deg)] [backface-visibility:hidden]">
+          <Card className="p-8 !bg-violet !border-violet/40 text-off-white">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h3 className="text-2xl text-white">Book Meeting with an Expert</h3>
+                <p className="text-white/80 text-sm">{content.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsFlipped(false)}
+                className="text-white/80 hover:text-white text-sm underline underline-offset-4"
+              >
+                Back
+              </button>
+            </div>
+
+            <CrmChallengesForm
+              formName={'Pricing Spotlight Request Book Meeting with an Expert'}
+            />
+          </Card>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export const Pricing: React.FC = () => {
   const [selectedCategory, setSelectedCategory] =
     React.useState("Implementation");
+  const [spotlightContent] = React.useState<PricingSpotlightCardContent>(() => {
+    const randomIndex = Math.floor(Math.random() * pricingSpotlightConfig.length);
+    return pricingSpotlightConfig[randomIndex];
+  });
 
   const packagesGridRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -374,379 +468,7 @@ export const Pricing: React.FC = () => {
     };
   }, [alignPackageCardsInRows]);
 
-  const categories: PricingCategory[] = [
-    { id: "Implementation", label: "Implementation" },
-    { id: "Support", label: "Support" },
-    { id: "CRM Audit", label: "CRM Audit" },
-    { id: "Trainings", label: "Trainings" },
-    { id: "Migration", label: "Migration" },
-    { id: "Optimizations", label: "Optimizations" },
-    { id: "Custom Configuration", label: "Custom Configuration" },
-  ];
-
-  const packages: PricingPackage[] = [
-    {
-      name: 'Support Starter',
-      category: 'Support',
-      description: 'Reliable Salesforce support for small teams and stable orgs',
-      subtitle: 'For companies that need day-to-day Salesforce assistance without a full-time admin.',
-      price: 'From $1400 · 10 hrs',
-      features: [
-        '1 Certified Salesforce Specialist',
-'Break/fix support',
-'Minor configuration changes (fields, layouts, permissions)',
-'Small Flow updates',
-'Basic release assistance',
-'Reports & dashboards',
-'Monthly activity summary',
-      ],
-    },
-{
-      name: 'Support Grow',
-      category: 'Support',
-      description: 'Ongoing Salesforce support with proactive improvements and predictable capacity.',
-      subtitle: 'For growing teams that want continuous system improvements, not just fixes.',
-      price: 'From $3500 · 25 hrs',
-      features: [
-        'Up to 3 Certified Salesforce Specialist',
-'Break/fix support',
-'Minor configuration changes (fields, layouts, permissions)',
-'Basic release assistance',
-'Monthly activity summary',
-'Proactive backlog grooming',
-'Flow automation improvements',
-'Reports & dashboards',
-'Monthly review and improvement plan',
-      ],
-    },
-{
-      name: 'Support Enterprise',
-      category: 'Support',
-      description: 'Managed Salesforce operations with SLAs and governance.',
-      subtitle: 'For complex orgs that require reliability, control, and architectural oversight.',
-      price: 'From $8400 · 60 hrs',
-      features: [
-        'Up to 3 Certified Salesforce Specialist',
-'Break/fix support',
-'Minor configuration changes (fields, layouts, permissions)',
-'Monthly activity summary',
-'Proactive backlog grooming',
-'Flow automation improvements',
-'Reports & dashboards',
-'Monthly review and improvement plan',
-'SLA-based incident handling',
-'Release and deployment support',
-'Governance & best-practice controls',
-'Architecture advisory',
-      ],
-    },
-{
-      name: 'CRM Audit',
-      category: 'CRM Audit',
-      description: 'A fast, structured health check of your Salesforce org.',
-      subtitle: 'To identify risks, technical debt, and quick wins.',
-      price: 'From $3500 · 50 hrs',
-      features: [
-        'Stakeholder discovery',
-'Org health assessment',
-'Security, data, and automation review',
-'Prioritized recommendations',
-      ],
-    },
-{
-      name: 'CRM Audit & Documentation',
-      category: 'CRM Audit',
-      description: 'Audit plus clear system documentation for long-term stability.',
-      subtitle: 'For teams lacking transparency and internal Salesforce knowledge.',
-      price: 'From $5600 · 80 hrs',
-      features: [
-        'Stakeholder discovery',
-'Org health assessment',
-'Security, data, and automation review',
-'Prioritized recommendations',
-'Process and data model overview',
-'Automation inventory',
-'Admin operating documentation',
-'Identified quick wins and long-term optimizations',
-      ],
-    },
-{
-      name: 'CRM Audit & Optimisation',
-      category: 'CRM Audit',
-      description: 'Audit combined with implementation of high-impact improvements.',
-      subtitle: 'To stabilize Salesforce and immediately improve performance and usability.',
-      price: 'From $8400 · 120 hrs',
-      features: [
-        'Stakeholder discovery',
-'Org health assessment',
-'Security, data, and automation review',
-'Prioritized recommendations',
-'Process and data model overview',
-'Automation inventory',
-'Admin operating documentation',
-'Identified quick wins and long-term optimizations',
-'Performance and UX improvements',
-'Post-implementation validation',
-      ],
-    },
-{
-      name: 'User Training Starter',
-      category: 'Trainings',
-      description: 'Essential Salesforce onboarding for end users.',
-      subtitle: 'To ensure users adopt Salesforce correctly from day one.',
-      price: 'From $1680 · 12 hrs',
-      features: [
-        'Training for 1 user role',
-'One live session (up to 2 hours)',
-'Quick reference guide',
-'Q&A session',
-      ],
-    },
-{
-      name: 'User Training Grow',
-      category: 'Trainings',
-      description: 'Structured Salesforce training across multiple roles.',
-      subtitle: 'To reduce support load and increase productivity.',
-      price: 'From $3360 · 24 hrs',
-      features: [
-        'Training for up to 3 roles',
-'Multiple live sessions',
-'Playbooks and SOPs',
-'Adoption feedback and recommendations',
-      ],
-    },
-{
-      name: 'User Training Enterprise',
-      category: 'Trainings',
-      description: 'Enterprise-grade enablement and onboarding framework.',
-      subtitle: 'For large teams with frequent onboarding and complex roles.',
-      price: 'From $7000 · 50 hrs',
-      features: [
-        'Training tracks for up to 6 roles',
-'Train-the-trainer session',
-'Full enablement materials',
-'Office hours and adoption reporting',
-      ],
-    },
-{
-      name: 'Sales Cloud Setup',
-      category: 'Implementation',
-      description: 'A clean and scalable Sales Cloud foundation.',
-      subtitle: 'To launch or reset Salesforce sales processes quickly and correctly.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Core object configuration',
-'Sales stages and validation rules',
-'Page layouts and record types',
-'Reports and dashboards',
-'Security baseline',
-'Custom Automations Setup',
-      ],
-    },
-{
-      name: 'Service Cloud Setup',
-      category: 'Implementation',
-      description: 'A production-ready Service Cloud setup for case management.',
-      subtitle: 'To enable support teams to work efficiently in Salesforce.',
-      price: 'From $5400 · 90 hrs',
-      features: [
-        'Case lifecycle and queues',
-'Channel setup (email or web)',
-'Macros and quick actions',
-'Reports and dashboards',
-'Knowledge base basics',
-'Custom Automations Setup',
-      ],
-    },
-{
-      name: 'Experience Cloud Setup',
-      category: 'Implementation',
-      description: 'A secure customer or partner portal built on Salesforce.',
-      subtitle: 'To enable self-service and collaboration with external users.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Portal setup and branding',
-'Access and sharing model',
-'Core pages and navigation',
-'Forms and basic automation',
-'Production deployment',
-      ],
-    },
-{
-      name: 'Advanced Sales Cloud Setup',
-      category: 'Implementation',
-      description: 'Sales Cloud built for scale, automation, and data quality.',
-      subtitle: 'For teams with complex sales processes and reporting needs.',
-      price: 'From $8400 · 140 hrs',
-      features: [
-        'Core object configuration',
-'Sales stages and validation rules',
-'Page layouts and record types',
-'Reports and dashboards',
-'Security baseline',
-'Custom Automations Setup',
-'Lead routing and approvals',
-'Data quality and dedup rules',
-'Advanced dashboards',
-      ],
-    },
-{
-      name: 'Advanced Service Cloud Setup',
-      category: 'Implementation',
-      description: 'Service operations optimized for scale and efficiency.',
-      subtitle: 'For high-volume or multi-team support environments.',
-      price: 'From $9600 · 160 hrs',
-      features: [
-        'Case lifecycle and queues',
-'Channel setup (email or web)',
-'Macros and quick actions',
-'Reports and dashboards',
-'Knowledge base basics',
-'Custom Automations Setup',
-'Omni-Channel routing',
-'SLA and entitlement model',
-      ],
-    },
-{
-      name: 'Advanced Experience Cloud Setup',
-      category: 'Implementation',
-      description: 'A scalable Experience Cloud portal with enterprise-grade governance.',
-      subtitle: 'For complex external user scenarios and integrations.',
-      price: 'From $8400 · 140 hrs',
-      features: [
-        'Access and sharing model',
-'Core pages and navigation',
-'Forms and basic automation',
-'Production deployment',
-'Advanced sharing and security',
-'Custom pages and guided flows',
-'SSO configuration support',
-'Performance optimization',
-      ],
-    },
-{
-      name: 'AgentForce Setup',
-      category: 'Implementation',
-      description: 'Deploy Salesforce Agentforce with clear use cases and guardrails.',
-      subtitle: 'To safely introduce AI-driven assistance into service or sales workflows.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Use-case definition',
-'Knowledge and data readiness',
-'Agent configuration (1 use case)',
-'Guardrails and testing',
-'Enablement session',
-      ],
-    },
-{
-      name: 'Analytic Cloud Setup',
-      category: 'Implementation',
-      description: 'Launch Salesforce Analytics (CRM Analytics / Tableau CRM) with clear KPIs and decision-ready dashboards.',
-      subtitle: 'For leadership and operations teams that need reliable, actionable insights from Salesforce data instead of static reports.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'KPI definition workshop (business & operational metrics)',
-'Data source analysis (Salesforce objects, relationships, data quality check)',
-'Dataset configuration and preparation (basic transformations)',
-'Up to 3 interactive dashboards (executive / operational level)',
-'Security and access model setup',
-'Enablement session for users and admins',
-      ],
-    },
-{
-      name: 'Setup Docusign Integration',
-      category: 'Implementation',
-      description: 'Reliable DocuSign and Salesforce integration for e-signatures.',
-      subtitle: 'To automate document signing and status tracking.',
-      price: 'From $1800 · 40 hrs',
-      features: [
-        'Integration configuration',
-'Object and template mapping',
-'1–2 DocuSign workflows',
-'User guidance',
-      ],
-    },
-{
-      name: 'Migration to Salesforce',
-      category: 'Migration',
-      description: 'Move your data and processes into Salesforce with confidence.',
-      subtitle: 'For companies adopting Salesforce or replacing legacy CRMs.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Migration strategy',
-'Data mapping and cleansing rules',
-'Test and production migration',
-'Reconciliation and release',
-      ],
-    },
-{
-      name: 'Merger Salesforce Orgs',
-      category: 'Migration',
-      description: 'Safely merge multiple Salesforce orgs into one.',
-      subtitle: 'After mergers, acquisitions, or multi-org growth.',
-      price: 'From $13200 · 220 hrs',
-      features: [
-        'Org comparison and target design',
-'Data and security alignment',
-'Phased migration',
-'Cutover planning',
-      ],
-    },
-{
-      name: 'Flow Refactoring',
-      category: 'Optimizations',
-      description: 'Make Salesforce automation faster, safer, and easier to maintain.',
-      subtitle: 'To reduce automation failures and future change costs.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Flow inventory and assessment',
-'Flow Refactoring',
-'Error handling and standards',
-'Testing and deployment',
-      ],
-    },
-{
-      name: 'WFR & PB Refactoring',
-      category: 'Optimizations',
-      description: 'Modernize legacy automation by moving it to Salesforce Flow.',
-      subtitle: 'To reduce risk and prepare for long-term platform stability.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Inventory of Workflow Rules and Process Builder',
-'Conversion to Flow ',
-'Logic consolidation',
-'Testing and deployment',
-      ],
-    },
-{
-      name: 'Apex Refactoring',
-      category: 'Optimizations',
-      description: 'Improve code quality, performance, and maintainability.',
-      subtitle: 'To reduce defects and technical debt in custom development.',
-      price: 'From $4800 · 80 hrs',
-      features: [
-        'Code review',
-'Refactoring classes/triggers',
-'Unit test improvements',
-'Deployment support',
-      ],
-    },
-{
-      name: 'Classic to Lightning Migration',
-      category: 'Migration',
-      description: 'Move from Salesforce Classic to Lightning Experience.',
-      subtitle: 'To unlock modern UX, automation, and new Salesforce features.',
-      price: 'From $4000 · 100 hrs',
-      features: [
-        'Readiness assessment',
-'Lightning apps and pages',
-'User enablement',
-'Pilot and production rollout',
-      ],
-    },
-  ];
-
-  const filteredPackages = packages.filter(
+  const filteredPackages = pricingPackages.filter(
     (pkg) => pkg.category === selectedCategory,
   );
 
@@ -864,6 +586,12 @@ export const Pricing: React.FC = () => {
           </div>
         </section>
 
+        <section className="py-10 px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <PricingSpotlightCard content={spotlightContent} />
+          </div>
+        </section>
+
 {/* Additional Info */}
         <section className="py-10 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
@@ -969,7 +697,7 @@ export const Pricing: React.FC = () => {
         <section className="pb-0 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-wrap justify-center gap-4">
-              {categories.map((cat) => (
+              {pricingCategories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}

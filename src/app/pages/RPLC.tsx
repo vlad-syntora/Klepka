@@ -3,7 +3,10 @@ import { motion } from 'motion/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SEOHead } from '../components/SEOHead';
-import userGuideContent from '../../../guidelines/productUserGuides/user-guide_EmailSender.md?raw';
+import userGuideContent from '../../../guidelines/productUserGuides/UserGuideRecordProfile.md?raw';
+import screenshotConfig from '@/assets/RPLC/Screenshot 2026-03-24 at 14.02.37.png';
+import screenshotProfileCard from '@/assets/RPLC/Screenshot 2026-03-24 at 14.04.10.png';
+import screenshotCompanyLogo from '@/assets/RPLC/Screenshot 2026-03-24 at 14.04.17.png';
 
 type Bookmark = {
   id: string;
@@ -13,6 +16,13 @@ type Bookmark = {
 
 function unescapeMarkdownText(value: string): string {
   return value.replace(/\\([\\`*{}\[\]()#+\-.!_>])/g, '$1');
+}
+
+function stripMarkdownFormatting(value: string): string {
+  return value
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_~]/g, '')
+    .trim();
 }
 
 function slugify(value: string): string {
@@ -44,35 +54,17 @@ function textFromNode(node: React.ReactNode): string {
   return '';
 }
 
-function stripTableOfContents(markdown: string): string {
-  const lines = markdown.split('\n');
-  const result: string[] = [];
-  let skipping = false;
+export const RPLC: React.FC = () => {
+  const guideContent = React.useMemo(
+    () =>
+      userGuideContent
+        .replace(/^\[image1\]:\s*<data:[^\n]+$/m, `[image1]: ${screenshotConfig}`)
+        .replace(/^\[image2\]:\s*<data:[^\n]+$/m, `[image2]: ${screenshotProfileCard}`)
+        .replace(/^\[image3\]:\s*<data:[^\n]+$/m, `[image3]: ${screenshotCompanyLogo}`)
+        .trim(),
+    [],
+  );
 
-  for (const line of lines) {
-    if (!skipping && line.trim() === '## Table of Contents') {
-      skipping = true;
-      continue;
-    }
-
-    if (skipping) {
-      if (/^##\s+/.test(line)) {
-        skipping = false;
-        result.push(line);
-      }
-      continue;
-    }
-
-    result.push(line);
-  }
-
-  return result.join('\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-export const FEC: React.FC = () => {
-  const guideContent = React.useMemo(() => stripTableOfContents(userGuideContent), []);
-
-  /** Single source of truth: heading plain-text → stable slug id */
   const idMap = React.useMemo<Map<string, string>>(() => {
     const nextSlug = createSlugger();
     const map = new Map<string, string>();
@@ -95,7 +87,7 @@ export const FEC: React.FC = () => {
         const [, hashes, rawTitle] = match;
         const title = unescapeMarkdownText(rawTitle.trim());
         return {
-          title,
+          title: stripMarkdownFormatting(title),
           level: hashes.length,
           id: idMap.get(title) ?? slugify(title),
         };
@@ -163,8 +155,8 @@ export const FEC: React.FC = () => {
           <img
             src={src}
             alt={alt ?? ''}
-            className="w-auto h-auto max-w-full rounded-lg border border-border-color shadow-sm"
-            style={{ imageRendering: 'auto' }}
+            className="rounded-lg border border-border-color shadow-sm"
+            style={{ imageRendering: 'auto', maxWidth: '480px', width: '100%', height: 'auto' }}
             loading="eager"
           />
         </a>
@@ -183,9 +175,9 @@ export const FEC: React.FC = () => {
   return (
     <div className="pt-14 lg:pt-32">
       <SEOHead
-        title="FEC User Guide | Klepka"
-        description="Flow Email Composer (FEC) user guide for Salesforce administrators and end users."
-        canonicalPath="/fec"
+        title="RPLC User Guide | Klepka"
+        description="Record Photo & Logo Component for Salesforce user guide for Salesforce administrators and end users."
+        canonicalPath="/rplc"
       />
 
       <section className="pb-4 px-4 sm:px-6 lg:px-8">
@@ -196,7 +188,7 @@ export const FEC: React.FC = () => {
             className="text-center max-w-3xl mx-auto"
           >
             <h1 className="text-3xl sm:text-4xl mb-4 text-violet">
-              Flow Email Composer
+              Record Photo & Logo Component
             </h1>
             <p className="text-xl text-text-secondary leading-relaxed">
               Official user guide for administrators and end users.
@@ -209,7 +201,7 @@ export const FEC: React.FC = () => {
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-8 items-start">
           <aside className="lg:sticky lg:top-28 bg-card border border-border-color rounded-lg p-4 sm:p-5 shadow-sm">
             <h2 className="text-lg text-violet mb-3">Bookmarks</h2>
-            <nav aria-label="FEC user guide bookmarks">
+            <nav aria-label="RPLC user guide bookmarks">
               <ul className="space-y-2 max-h-[65vh] overflow-auto pr-1">
                 {bookmarks.map((bookmark) => (
                   <li key={bookmark.id} className={bookmark.level === 1 ? '' : bookmark.level === 2 ? 'pl-3' : 'pl-6'}>
@@ -233,19 +225,18 @@ export const FEC: React.FC = () => {
             className="bg-card border border-border-color rounded-lg p-6 sm:p-8 shadow-sm"
           >
             <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={markdownComponents}
-                        urlTransform={(url) => {
-                          if (/^javascript:/i.test(url)) return '';
-                          return url;
-                        }}
-                      >
-                        {guideContent}
-                      </ReactMarkdown>
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+              urlTransform={(url) => {
+                if (/^javascript:/i.test(url)) return '';
+                return url;
+              }}
+            >
+              {guideContent}
+            </ReactMarkdown>
           </motion.article>
         </div>
       </section>
-
     </div>
   );
 };

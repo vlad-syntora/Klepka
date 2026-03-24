@@ -6,6 +6,8 @@
 export const productsListingIds: string[] = [];
 import FlowEmailComposerLogo from '../assets/products/FlowEmailComposerLogo.png';
 import RecordPhotoComponentLogo from '../assets/products/RecordPhotoComponent.png';
+import URMLogo from '../assets/products/urmLogo.png';
+
 
 export interface ComingSoonProduct {
   id: string;
@@ -46,9 +48,20 @@ export const comingSoonProducts: ComingSoonProduct[] = [
      shortDescription: 'Add profile photos and logos to any Salesforce record with a simple drag & drop component for Lightning App Builder.',
      tags: ['UI', 'Record Logo', 'Record Icon',  'Lightning App Builder', 'Admin' ],
      status: 'In QA',
+     haveDocumentation: true,
+     documentationPageSrc: '/rplc',
+     image: RecordPhotoComponentLogo,
+     releaseDate: 'Q2 2026',
+   },
+   {
+     id: 'universal-record-merge',
+     name: 'Universal Record Merge',
+     shortDescription: '',
+     tags: ['UI', 'De-Duplication', 'Data Quality', 'Admin' ],
+     status: 'In Implementation',
      haveDocumentation: false,
      documentationPageSrc: '',
-     image: RecordPhotoComponentLogo,
+     image: URMLogo,
      releaseDate: 'Q2 2026',
    },
 ];

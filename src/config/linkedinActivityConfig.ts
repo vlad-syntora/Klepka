@@ -28,10 +28,6 @@ export const linkedinActivityConfig: LinkedinPost[] = [
     id: "post-4",
     urn: "urn:li:share:7434177061860270080",
   },
-   {
-    id: "post-3",
-    urn: "urn:li:share:7434633827114844160",
-  },
   {
     id: "post-2",
     urn: "urn:li:share:7433106652628819968",

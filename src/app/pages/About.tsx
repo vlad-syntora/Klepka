@@ -9,6 +9,15 @@ import { foundersConfig, teamsConfig } from '../../config/teamConfig';
 import type { CertKey } from '../../config/certificatesConfig';
 import { certificatesConfig, certFullNames } from '../../config/certificatesConfig';
 import { linkedinActivityConfig } from '../../config/linkedinActivityConfig';
+import teamHeroPhotoOne from '../../assets/teamHeroPhotos/photo-output_1 (1).jpeg';
+import teamHeroPhotoTwo from '../../assets/teamHeroPhotos/photo-output_0 (2).jpeg';
+import teamHeroPhotoThree from '../../assets/teamHeroPhotos/photo-output_2 (1).jpeg';
+
+const teamHeroPhotos = [
+  { src: teamHeroPhotoOne, alt: 'Klepka team collaborating in the office' },
+  { src: teamHeroPhotoTwo, alt: 'Klepka founders during a team workshop' },
+  { src: teamHeroPhotoThree, alt: 'Klepka leadership in a working session' },
+];
 
 export const About: React.FC = () => {
   const sliderRef = React.useRef(null);
@@ -18,6 +27,12 @@ export const About: React.FC = () => {
     if (w <= 768) return 2;
     if (w <= 1024) return 3;
     return 5;
+  };
+
+  const computeLinkedinPostsPerRow = (w: number) => {
+    if (w < 640) return 1;
+    if (w < 1024) return 2;
+    return 4;
   };
 
   const baseSettings = {
@@ -38,12 +53,22 @@ export const About: React.FC = () => {
         ? computeSlidesToShow(window.innerWidth)
         : 5,
   }));
+  const [linkedinPostsPerRow, setLinkedinPostsPerRow] = React.useState(() =>
+    typeof window !== 'undefined' ? computeLinkedinPostsPerRow(window.innerWidth) : 4
+  );
+  const [showAllLinkedinPosts, setShowAllLinkedinPosts] = React.useState(false);
 
   React.useEffect(() => {
     const handleResize = () => {
-      const next = computeSlidesToShow(window.innerWidth);
+      const width = window.innerWidth;
+      const next = computeSlidesToShow(width);
+      const nextLinkedinPostsPerRow = computeLinkedinPostsPerRow(width);
+
       setSliderSettings((prev) =>
         prev.slidesToShow === next ? prev : { ...prev, slidesToShow: next }
+      );
+      setLinkedinPostsPerRow((prev) =>
+        prev === nextLinkedinPostsPerRow ? prev : nextLinkedinPostsPerRow
       );
     };
 
@@ -56,6 +81,10 @@ export const About: React.FC = () => {
     const t = setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     return () => clearTimeout(t);
   }, []);
+
+  const visibleLinkedinPosts = showAllLinkedinPosts
+    ? linkedinActivityConfig
+    : linkedinActivityConfig.slice(0, linkedinPostsPerRow);
 
   const aboutJsonLd = [
     {
@@ -101,7 +130,7 @@ export const About: React.FC = () => {
   ];
 
   return (
-    <div className="pt-14 lg:pt-32">
+    <div className="pt-14 lg:pt-20">
       <SEOHead
         title="Our Team — Klepka Salesforce Consulting"
         description="Meet the Klepka team. Founded by certified Salesforce experts with 6–8+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
@@ -109,26 +138,32 @@ export const About: React.FC = () => {
         jsonLd={aboutJsonLd}
       />
       {/* Hero Section */ }
-      <section className="pb-0 px-4 sm:px-6 lg:px-8">
+      <section className="pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={ { opacity: 0, y: 20 } }
-            animate={ { opacity: 1, y: 0 } }
-            className="text-center max-w-3xl mx-auto"
-          >
-            <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
-              Our Team
-            </h1>
-            <p className="text-xl text-text-secondary leading-relaxed mb-8">
-              Founded by two Salesforce experts with experience working on systems at different
-              stages, from early implementations to complex, evolving environments.
-              We bring that experience into every project, focusing on practical, structured
-              solutions that make clients’ work easier over time.
-            </p>
-          </motion.div>
+          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
+            <motion.div
+              initial={ { opacity: 0, y: 20 } }
+              animate={ { opacity: 1, y: -20 } }
+              className="flex-1 text-center lg:text-left"
+            >
+              <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
+                Our Team
+              </h1>
+              <p className="text-xl text-text-secondary leading-relaxed">
+                Founded by two Salesforce experts with experience working on systems at different
+                stages, from early implementations to complex, evolving environments.
+               </p>
+               <p className="text-xl text-text-secondary leading-relaxed">  
+                We bring that experience into every project, focusing on practical, structured
+                solutions that make clients’ work easier over time.
+              </p>
+            </motion.div>
+            <div className="flex-1 w-full">
+              <TeamHeroPhotoStrip />
+            </div>
+          </div>
         </div>
       </section>
-
       {/* Mission 
       <section className="py-12 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -186,7 +221,7 @@ export const About: React.FC = () => {
               <motion.div
                 key={ index }
                 initial={ { opacity: 0, y: 20 } }
-                whileInView={ { opacity: 1, y: 0 } }
+                whileInView={ { opacity: 1, y: -20 } }
                 viewport={ { once: true } }
                 transition={ { delay: index * 0.1 } }
                 className="text-center"
@@ -226,7 +261,7 @@ export const About: React.FC = () => {
 
             <div
               className="grid gap-6"
-              style={ { gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' } }
+              style={ { gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))' } }
             >
               { foundersConfig.map((person, idx) => (
                 <TeamPersonCard key={ idx } person={ person } sliderSettings={ sliderSettings }
@@ -285,7 +320,7 @@ export const About: React.FC = () => {
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
-            {linkedinActivityConfig.map((post, idx) => (
+            {visibleLinkedinPosts.map((post, idx) => (
               <motion.div
                 key={post.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -305,6 +340,17 @@ export const About: React.FC = () => {
               </motion.div>
             ))}
           </div>
+
+          {linkedinActivityConfig.length > linkedinPostsPerRow && (
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setShowAllLinkedinPosts((prev) => !prev)}
+                className="rounded-md bg-violet px-6 py-3 text-off-white transition-opacity hover:opacity-90"
+              >
+                {showAllLinkedinPosts ? 'View Less Articles' : 'View More Articles'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -314,6 +360,39 @@ export const About: React.FC = () => {
 
 
 /* Helper components used only in this file */
+
+function TeamHeroPhotoStrip() {
+  return (
+    <motion.div
+      initial={ { opacity: 0, x: 24 } }
+      animate={ { opacity: 1, x: 0 } }
+      transition={ { duration: 0.55, ease: [0.2, 0.8, 0.2, 1], delay: 0.1 } }
+      className="relative mx-auto w-full max-w-2xl"
+    >
+      <div className="grid grid-cols-2 gap-4 sm:gap-5">
+        { teamHeroPhotos.map((photo, index) => (
+          <motion.div
+            key={ photo.src }
+            initial={ { opacity: 0, y: 24 } }
+            animate={ { opacity: 1, y: 0 } }
+            transition={ { duration: 0.45, delay: 0.15 + index * 0.1 } }
+            className={ index === 0 ? 'col-span-2' : '' }
+          >
+            <div className="overflow-hidden rounded-[28px] border border-border-color/70 bg-card shadow-[0_20px_60px_rgba(53,52,89,0.14)]">
+              <img
+                src={ photo.src }
+                alt={ photo.alt }
+                className={ index === 0
+                  ? 'h-64 w-full object-cover sm:h-72'
+                  : 'h-44 w-full object-cover sm:h-52' }
+              />
+            </div>
+          </motion.div>
+        )) }
+      </div>
+    </motion.div>
+  );
+}
 
 function TeamPersonCard({ person, sliderSettings, sliderRef }: {
   person: {
@@ -406,7 +485,7 @@ function TeamPersonCard({ person, sliderSettings, sliderRef }: {
           <div className={ frontCardClasses } data-package-card="true">
             <div className="flex flex-col items-center">
               <div
-                className="w-28 h-28 mb-4 flex items-center justify-center overflow-hidden rounded-lg">
+                className="w-36 h-36 mb-5 flex items-center justify-center overflow-hidden rounded-lg">
                 <img src={ person.avatar || '/assets/avatar-placeholder.png' } alt={ person.name }
                      className="w-full h-full object-cover"/>
               </div>
@@ -544,17 +623,17 @@ function SimpleMemberCard({ name, description, startDate, avatar, certs, sliderS
   const years = calculateYears(startDate);
 
   return (
-    <div className="bg-card border border-border-color rounded-lg p-4">
+    <div className="bg-card border border-border-color rounded-lg p-6">
       <div className="flex flex-col items-center text-center">
         <div
-          className="w-20 h-20 mb-3 flex items-center justify-center overflow-hidden rounded-lg">
+          className="w-32 h-32 mb-5 flex items-center justify-center overflow-hidden rounded-lg">
           <img src={ avatar || '/assets/avatar-placeholder.png' } alt={ name }
                className="w-full h-full object-cover"/>
         </div>
-        <div className="font-medium text-lg mb-2">{ name }</div>
-        <div className="text-sm text-text-secondary mb-2 whitespace-pre-line">{ description }</div>
+        <div className="font-medium text-xl mb-2">{ name }</div>
+        <div className="text-base text-text-secondary mb-2 whitespace-pre-line">{ description }</div>
         <div
-          className="text-sm text-violet font-medium mb-3">{ years } { years === 1 ? 'year' : 'years' } of
+          className="text-base text-violet font-medium mb-3">{ years } { years === 1 ? 'year' : 'years' } of
           experience
         </div>
         { certs && certs.length > 0 && (

@@ -11,6 +11,7 @@ import { Careers } from './pages/Careers';
 import { Products } from './pages/Products';
 import { FEC } from './pages/FEC';
 import { RPLC } from './pages/RPLC';
+import { URM } from './pages/URM';
 import { FounderCardPage } from './pages/FounderCardPage';
 
 function ScrollToTop() {
@@ -46,6 +47,7 @@ function AppLayout() {
           <Route path="/products" element={<Products />} />
           <Route path="/fec" element={<FEC />} />
           <Route path="/rplc" element={<RPLC />} />
+          <Route path="/urm" element={<URM />} />
         </Routes>
       </main>
       <Footer />

@@ -4,6 +4,15 @@ export type LinkedinPost = {
 };
 
 export const linkedinActivityConfig: LinkedinPost[] = [
+  
+  {
+    id: "post-10",
+    urn: "urn:li:share:7444324753974378496",
+  },
+    {
+    id: "post-11",
+    urn: "urn:li:share:7445035750770946048",
+  },
   {
     id: "post-9",
     urn: "urn:li:share:7441812111338586112",

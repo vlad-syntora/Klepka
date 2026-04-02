@@ -130,7 +130,7 @@ export const About: React.FC = () => {
   ];
 
   return (
-    <div className="pt-14 lg:pt-20">
+    <div className="pt-16 lg:pt-20">
       <SEOHead
         title="Our Team — Klepka Salesforce Consulting"
         description="Meet the Klepka team. Founded by certified Salesforce experts with 6–8+ years of experience in multi-cloud CRM implementations, integrations, and scalable system design."
@@ -138,7 +138,7 @@ export const About: React.FC = () => {
         jsonLd={aboutJsonLd}
       />
       {/* Hero Section */ }
-      <section className="pb-12 px-4 sm:px-6 lg:px-8">
+      <section className="pt-5 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
             <motion.div

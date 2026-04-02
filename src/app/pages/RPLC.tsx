@@ -1,8 +1,9 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SEOHead } from '../components/SEOHead';
+import { ImageLightbox } from '../components/ImageLightbox';
 import userGuideContent from '../../../guidelines/productUserGuides/UserGuideRecordProfile.md?raw';
 import screenshotConfig from '@/assets/RPLC/Screenshot 2026-03-24 at 14.02.37.png';
 import screenshotProfileCard from '@/assets/RPLC/Screenshot 2026-03-24 at 14.04.10.png';
@@ -55,6 +56,8 @@ function textFromNode(node: React.ReactNode): string {
 }
 
 export const RPLC: React.FC = () => {
+  const [lightboxImage, setLightboxImage] = React.useState<{ src: string; alt: string } | null>(null);
+
   const guideContent = React.useMemo(
     () =>
       userGuideContent
@@ -151,7 +154,12 @@ export const RPLC: React.FC = () => {
         <td className="border border-border-color px-3 py-2 text-text-secondary">{children}</td>
       ),
       img: ({ src, alt }) => (
-        <a href={src} target="_blank" rel="noopener noreferrer" className="block my-4">
+        <button
+          type="button"
+          className="block my-4 cursor-zoom-in p-0 border-0 bg-transparent"
+          onClick={() => setLightboxImage({ src: src ?? '', alt: alt ?? '' })}
+          aria-label={`View image: ${alt ?? ''}`}
+        >
           <img
             src={src}
             alt={alt ?? ''}
@@ -159,7 +167,7 @@ export const RPLC: React.FC = () => {
             style={{ imageRendering: 'auto', maxWidth: '480px', width: '100%', height: 'auto' }}
             loading="eager"
           />
-        </a>
+        </button>
       ),
       code: ({ children }) => (
         <code className="bg-violet/8 text-violet px-1.5 py-0.5 rounded text-sm">{children}</code>
@@ -170,7 +178,7 @@ export const RPLC: React.FC = () => {
         </a>
       ),
     };
-  }, [idMap]);
+  }, [idMap, setLightboxImage]);
 
   return (
     <div className="pt-14 lg:pt-32">
@@ -237,6 +245,16 @@ export const RPLC: React.FC = () => {
           </motion.article>
         </div>
       </section>
+
+      <AnimatePresence>
+        {lightboxImage && (
+          <ImageLightbox
+            src={lightboxImage.src}
+            alt={lightboxImage.alt}
+            onClose={() => setLightboxImage(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

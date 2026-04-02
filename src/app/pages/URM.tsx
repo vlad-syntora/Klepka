@@ -1,8 +1,9 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SEOHead } from '../components/SEOHead';
+import { ImageLightbox } from '../components/ImageLightbox';
 import userGuideContent from '../../../guidelines/productUserGuides/UNIVERSAL_RECORD_MERGE_USER_GUIDE.md?raw';
 import adminSettingsImg from '@/assets/URM/4.1.AdminSettings.png';
 import objectSettingsImg from '@/assets/URM/4.2.ObjectSettings.png';
@@ -63,6 +64,8 @@ function textFromNode(node: React.ReactNode): string {
 }
 
 export const URM: React.FC = () => {
+  const [lightboxImage, setLightboxImage] = React.useState<{ src: string; alt: string } | null>(null);
+
   const guideContent = React.useMemo(() => userGuideContent.trim(), []);
 
   const idMap = React.useMemo<Map<string, string>>(() => {
@@ -153,7 +156,12 @@ export const URM: React.FC = () => {
       img: ({ src, alt }) => {
         const resolvedSrc = src ? (URM_IMAGE_MAP[src] ?? src) : undefined;
         return (
-          <a href={resolvedSrc} target="_blank" rel="noopener noreferrer" className="block my-4">
+          <button
+            type="button"
+            className="block my-4 cursor-zoom-in p-0 border-0 bg-transparent"
+            onClick={() => setLightboxImage({ src: resolvedSrc ?? '', alt: alt ?? '' })}
+            aria-label={`View image: ${alt ?? ''}`}
+          >
             <img
               src={resolvedSrc}
               alt={alt ?? ''}
@@ -161,7 +169,7 @@ export const URM: React.FC = () => {
               style={{ imageRendering: 'auto', maxWidth: '480px', width: '100%', height: 'auto' }}
               loading="eager"
             />
-          </a>
+          </button>
         );
       },
       code: ({ children }) => (
@@ -173,7 +181,7 @@ export const URM: React.FC = () => {
         </a>
       ),
     };
-  }, [idMap]);
+  }, [idMap, setLightboxImage]);
 
   return (
     <div className="pt-14 lg:pt-32">
@@ -240,6 +248,16 @@ export const URM: React.FC = () => {
           </motion.article>
         </div>
       </section>
+
+      <AnimatePresence>
+        {lightboxImage && (
+          <ImageLightbox
+            src={lightboxImage.src}
+            alt={lightboxImage.alt}
+            onClose={() => setLightboxImage(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

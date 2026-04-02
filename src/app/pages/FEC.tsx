@@ -1,8 +1,9 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SEOHead } from '../components/SEOHead';
+import { ImageLightbox } from '../components/ImageLightbox';
 import userGuideContent from '../../../guidelines/productUserGuides/user-guide_EmailSender.md?raw';
 
 type Bookmark = {
@@ -70,6 +71,8 @@ function stripTableOfContents(markdown: string): string {
 }
 
 export const FEC: React.FC = () => {
+  const [lightboxImage, setLightboxImage] = React.useState<{ src: string; alt: string } | null>(null);
+
   const guideContent = React.useMemo(() => stripTableOfContents(userGuideContent), []);
 
   /** Single source of truth: heading plain-text → stable slug id */
@@ -159,7 +162,12 @@ export const FEC: React.FC = () => {
         <td className="border border-border-color px-3 py-2 text-text-secondary">{children}</td>
       ),
       img: ({ src, alt }) => (
-        <a href={src} target="_blank" rel="noopener noreferrer" className="block my-4">
+        <button
+          type="button"
+          className="block my-4 cursor-zoom-in p-0 border-0 bg-transparent"
+          onClick={() => setLightboxImage({ src: src ?? '', alt: alt ?? '' })}
+          aria-label={`View image: ${alt ?? ''}`}
+        >
           <img
             src={src}
             alt={alt ?? ''}
@@ -167,7 +175,7 @@ export const FEC: React.FC = () => {
             style={{ imageRendering: 'auto' }}
             loading="eager"
           />
-        </a>
+        </button>
       ),
       code: ({ children }) => (
         <code className="bg-violet/8 text-violet px-1.5 py-0.5 rounded text-sm">{children}</code>
@@ -178,7 +186,7 @@ export const FEC: React.FC = () => {
         </a>
       ),
     };
-  }, [idMap]);
+  }, [idMap, setLightboxImage]);
 
   return (
     <div className="pt-14 lg:pt-32">
@@ -246,6 +254,15 @@ export const FEC: React.FC = () => {
         </div>
       </section>
 
+      <AnimatePresence>
+        {lightboxImage && (
+          <ImageLightbox
+            src={lightboxImage.src}
+            alt={lightboxImage.alt}
+            onClose={() => setLightboxImage(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

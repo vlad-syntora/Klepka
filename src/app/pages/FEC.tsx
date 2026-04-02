@@ -12,7 +12,7 @@ type Bookmark = {
 };
 
 function unescapeMarkdownText(value: string): string {
-  return value.replace(/\\([\\`*{}\[\]()#+\-.!_>])/g, '$1');
+  return value.replace(/\\([\\`*{}[\]()#+\-.!_>])/g, '$1');
 }
 
 function slugify(value: string): string {

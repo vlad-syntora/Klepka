@@ -23,7 +23,7 @@ type Bookmark = {
 };
 
 function unescapeMarkdownText(value: string): string {
-  return value.replace(/\\([\\`*{}\[\]()#+\-.!_>])/g, '$1');
+  return value.replace(/\\([\\`*{}[\]()#+\-.!_>])/g, '$1');
 }
 
 function stripMarkdownFormatting(value: string): string {

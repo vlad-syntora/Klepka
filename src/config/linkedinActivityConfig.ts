@@ -14,6 +14,24 @@ export const linkedinActivityConfig: LinkedinPost[] = [
     urn: "urn:li:share:7445035750770946048",
   },
   {
+    id: "post-15",
+    urn: "urn:li:share:7445756594690228224",
+  },
+  {
+    id: "post-14",
+    urn: "urn:li:share:7446848771428216832",
+  },
+  
+  {
+    id: "post-13",
+    urn: "urn:li:share:7447945058882027520",
+  },
+  
+  {
+    id: "post-12",
+    urn: "urn:li:share:7449382138975801344",
+  },
+  {
     id: "post-9",
     urn: "urn:li:share:7441812111338586112",
   },

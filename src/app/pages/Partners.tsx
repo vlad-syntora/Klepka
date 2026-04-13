@@ -74,32 +74,19 @@ export const Partners: React.FC = () => {
         <div>
           <h3 className="text-2xl mb-3 text-violet">Prytula Foundation USA</h3>
           <p className="text-2xl mb-3 text-text-secondary">Salesforce Nonprofit Cloud Implementation</p>
-          <p className="text-text-secondary mb-4 leading-relaxed">
-            We partnered with Prytula Foundation USA to build a robust Salesforce-based CRM that strengthens the foundation’s ability to operate, scale, and deliver impact with confidence.
-          </p>
-
-          <p className="text-text-secondary mb-4 leading-relaxed">
-            The solution was designed as a <strong>single Salesforce Nonprofit org with two strategically independent functional areas</strong>, aligned to the foundation’s mission and growth trajectory.
-          </p>
-
-          <ul className="list-disc pl-5 text-text-secondary mb-4">
-            <li className="mb-2">
-              <strong>Fundraising &amp; Operations</strong>
-              <div className="mt-1">A unified system supporting donations, request management, procurement workflows, and asset distribution—providing full transparency and operational control from intake to delivery.</div>
-            </li>
-            <li>
-              <strong>Training &amp; Educational Programs</strong>
-              <div className="mt-1">A separate, purpose-built subsystem for training initiatives, architected with clear boundaries to enable independent scaling and future expansion.</div>
-            </li>
-          </ul>
-
-          <p className="text-text-secondary mb-4 leading-relaxed">
-            By intentionally designing these areas as <strong>independent systems within one Salesforce org</strong>, we ensured flexibility, clean data separation, and long-term maintainability.
-          </p>
-
-          <p className="text-text-secondary leading-relaxed">
-            The result is a future-proof platform that empowers the foundation to focus on what matters most—maximizing humanitarian impact through efficient, well-structured operations.
-          </p>
+          <p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>We&rsquo;re happy to share our partnership experience with&nbsp;</span><strong><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>Prytula Foundation USA</span></strong><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>We implemented a Salesforce-based CRM that brings more structure, visibility, and scalability to their operations.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>Salesforce Nonprofit Cloud is a powerful platform for managing processes in nonprofit organizations, and this project is a good example of how it can be applied in practice.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>The solution is built as a single Salesforce org with two logically independent areas, aligned with the foundation&rsquo;s core activities.</span></p>
+<p><strong><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>Fundraising &amp; Operations</span></strong></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>We built a unified system covering donations, donor acquisition, request management, procurement, and asset distribution.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>We also introduced a structured donor funnel, making it easier to manage how new supporters are engaged and converted into active donors, with clear visibility into the fundraising pipeline.</span></p>
+<p><strong><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>Training &amp; Educational Programs</span></strong></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>A separate subsystem for training initiatives, designed to operate independently and support future growth. It covers the full lifecycle of training programs, from participant registration to attendance tracking.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>By keeping these areas logically separated within one org, we ensured flexibility without adding unnecessary complexity, and created a foundation that can scale together with the organization.</span></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>This project reflects our approach: applying proven Salesforce and commercial best practices to help organizations build systems that are not only functional today, but ready to scale tomorrow.</span></p>
+<p><strong><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>If you&apos;re building or scaling a nonprofit or fundraising operation and considering Salesforce, feel free to reach out.</span></strong></p>
+<p><span style={{ fontSize: "11pt", fontFamily: "Arial,sans-serif" }}>#Salesforce #NonprofitCloud #SalesforceImplementation #CRM #Nonprofit #Fundraising #SalesforcePartner&nbsp;</span></p>
         </div>
       ),
       icon: logoPrytulaIcon,

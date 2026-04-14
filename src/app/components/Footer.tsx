@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Linkedin} from 'lucide-react';
+import { Mail, Phone, Linkedin } from 'lucide-react';
 import logo from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
+import goodFirmsIcon from '../../assets/goodfirms-favicon.png';
 import UaIcon from "../../assets/ua.svg";
 
 export const Footer: React.FC = () => {
@@ -29,8 +30,23 @@ export const Footer: React.FC = () => {
               Designing scalable Salesforce CRM systems for revenue teams.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.linkedin.com/company/klepka-solutions" className="text-white hover:text-accent-yellow transition-colors">
+              <a
+                href="https://www.linkedin.com/company/klepka-solutions"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Klepka on LinkedIn"
+                className="text-white hover:text-accent-yellow transition-colors"
+              >
                 <Linkedin className="w-5 h-5" />
+              </a>
+              <a
+                href="https://www.goodfirms.co/company/klepka"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Klepka on GoodFirms"
+                className="transition-opacity hover:opacity-80"
+              >
+                <img src={goodFirmsIcon} alt="GoodFirms" className="h-5 w-5 rounded-sm" />
               </a>
               {/*<a href="#" className="text-white hover:text-accent-yellow transition-colors">
                 <Twitter className="w-5 h-5" />

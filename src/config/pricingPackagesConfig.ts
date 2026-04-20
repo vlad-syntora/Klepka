@@ -29,7 +29,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Support',
     description: 'Reliable Salesforce support for small teams and stable orgs',
     subtitle: 'For companies that need day-to-day Salesforce assistance without a full-time admin.',
-    price: 'From $1400 · 10 hrs',
+    price: 'Starting from 10 hrs',
     features: [
       '1 Certified Salesforce Specialist',
 'Break/fix support',
@@ -45,7 +45,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Support',
     description: 'Ongoing Salesforce support with proactive improvements and predictable capacity.',
     subtitle: 'For growing teams that want continuous system improvements, not just fixes.',
-    price: 'From $3500 · 25 hrs',
+    price: 'Starting from 25 hrs',
     features: [
       'Up to 3 Certified Salesforce Specialist',
 'Break/fix support',
@@ -63,7 +63,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Support',
     description: 'Managed Salesforce operations with SLAs and governance.',
     subtitle: 'For complex orgs that require reliability, control, and architectural oversight.',
-    price: 'From $8400 · 60 hrs',
+    price: 'Starting from 60 hrs',
     features: [
       'Up to 3 Certified Salesforce Specialist',
 'Break/fix support',
@@ -84,7 +84,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'CRM Audit',
     description: 'A fast, structured health check of your Salesforce org.',
     subtitle: 'To identify risks, technical debt, and quick wins.',
-    price: 'From $3500 · 50 hrs',
+    price: 'Approximate 50 hrs',
     features: [
       'Stakeholder discovery',
 'Org health assessment',
@@ -97,7 +97,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'CRM Audit',
     description: 'Audit plus clear system documentation for long-term stability.',
     subtitle: 'For teams lacking transparency and internal Salesforce knowledge.',
-    price: 'From $5600 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Stakeholder discovery',
 'Org health assessment',
@@ -114,7 +114,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'CRM Audit',
     description: 'Audit combined with implementation of high-impact improvements.',
     subtitle: 'To stabilize Salesforce and immediately improve performance and usability.',
-    price: 'From $8400 · 120 hrs',
+    price: 'Approximate 120 hrs',
     features: [
       'Stakeholder discovery',
 'Org health assessment',
@@ -133,7 +133,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Trainings',
     description: 'Essential Salesforce onboarding for end users.',
     subtitle: 'To ensure users adopt Salesforce correctly from day one.',
-    price: 'From $1680 · 12 hrs',
+    price: 'Approximate 12 hrs',
     features: [
       'Training for 1 user role',
 'One live session (up to 2 hours)',
@@ -146,7 +146,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Trainings',
     description: 'Structured Salesforce training across multiple roles.',
     subtitle: 'To reduce support load and increase productivity.',
-    price: 'From $3360 · 24 hrs',
+    price: 'Approximate 24 hrs',
     features: [
       'Training for up to 3 roles',
 'Multiple live sessions',
@@ -159,7 +159,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Trainings',
     description: 'Enterprise-grade enablement and onboarding framework.',
     subtitle: 'For large teams with frequent onboarding and complex roles.',
-    price: 'From $7000 · 50 hrs',
+    price: 'Approximate 50 hrs',
     features: [
       'Training tracks for up to 6 roles',
 'Train-the-trainer session',
@@ -172,7 +172,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'A clean and scalable Sales Cloud foundation.',
     subtitle: 'To launch or reset Salesforce sales processes quickly and correctly.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Core object configuration',
 'Sales stages and validation rules',
@@ -187,7 +187,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'A production-ready Service Cloud setup for case management.',
     subtitle: 'To enable support teams to work efficiently in Salesforce.',
-    price: 'From $5400 · 90 hrs',
+    price: 'Approximate 90 hrs',
     features: [
       'Case lifecycle and queues',
 'Channel setup (email or web)',
@@ -202,7 +202,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'A secure customer or partner portal built on Salesforce.',
     subtitle: 'To enable self-service and collaboration with external users.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Portal setup and branding',
 'Access and sharing model',
@@ -216,7 +216,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'Sales Cloud built for scale, automation, and data quality.',
     subtitle: 'For teams with complex sales processes and reporting needs.',
-    price: 'From $8400 · 140 hrs',
+    price: 'Approximate 140 hrs',
     features: [
       'Core object configuration',
 'Sales stages and validation rules',
@@ -234,7 +234,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'Service operations optimized for scale and efficiency.',
     subtitle: 'For high-volume or multi-team support environments.',
-    price: 'From $9600 · 160 hrs',
+    price: 'Approximate 160 hrs',
     features: [
       'Case lifecycle and queues',
 'Channel setup (email or web)',
@@ -251,7 +251,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'A scalable Experience Cloud portal with enterprise-grade governance.',
     subtitle: 'For complex external user scenarios and integrations.',
-    price: 'From $8400 · 140 hrs',
+    price: 'Approximate 140 hrs',
     features: [
       'Access and sharing model',
 'Core pages and navigation',
@@ -268,7 +268,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'Deploy Salesforce Agentforce with clear use cases and guardrails.',
     subtitle: 'To safely introduce AI-driven assistance into service or sales workflows.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Use-case definition',
 'Knowledge and data readiness',
@@ -282,7 +282,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'Launch Salesforce Analytics (CRM Analytics / Tableau CRM) with clear KPIs and decision-ready dashboards.',
     subtitle: 'For leadership and operations teams that need reliable, actionable insights from Salesforce data instead of static reports.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'KPI definition workshop (business & operational metrics)',
 'Data source analysis (Salesforce objects, relationships, data quality check)',
@@ -297,7 +297,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Implementation',
     description: 'Reliable DocuSign and Salesforce integration for e-signatures.',
     subtitle: 'To automate document signing and status tracking.',
-    price: 'From $1800 · 40 hrs',
+    price: 'Approximate 40 hrs',
     features: [
       'Integration configuration',
 'Object and template mapping',
@@ -310,7 +310,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Migration',
     description: 'Move your data and processes into Salesforce with confidence.',
     subtitle: 'For companies adopting Salesforce or replacing legacy CRMs.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Migration strategy',
 'Data mapping and cleansing rules',
@@ -323,7 +323,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Migration',
     description: 'Safely merge multiple Salesforce orgs into one.',
     subtitle: 'After mergers, acquisitions, or multi-org growth.',
-    price: 'From $13200 · 220 hrs',
+    price: 'Approximate 220 hrs',
     features: [
       'Org comparison and target design',
 'Data and security alignment',
@@ -336,7 +336,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Optimizations',
     description: 'Make Salesforce automation faster, safer, and easier to maintain.',
     subtitle: 'To reduce automation failures and future change costs.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Flow inventory and assessment',
 'Flow Refactoring',
@@ -349,7 +349,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Optimizations',
     description: 'Modernize legacy automation by moving it to Salesforce Flow.',
     subtitle: 'To reduce risk and prepare for long-term platform stability.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Inventory of Workflow Rules and Process Builder',
 'Conversion to Flow ',
@@ -362,7 +362,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Optimizations',
     description: 'Improve code quality, performance, and maintainability.',
     subtitle: 'To reduce defects and technical debt in custom development.',
-    price: 'From $4800 · 80 hrs',
+    price: 'Approximate 80 hrs',
     features: [
       'Code review',
 'Refactoring classes/triggers',
@@ -375,7 +375,7 @@ export const pricingPackages: PricingPackage[] = [
     category: 'Migration',
     description: 'Move from Salesforce Classic to Lightning Experience.',
     subtitle: 'To unlock modern UX, automation, and new Salesforce features.',
-    price: 'From $4000 · 100 hrs',
+    price: 'Approximate 100 hrs',
     features: [
       'Readiness assessment',
 'Lightning apps and pages',

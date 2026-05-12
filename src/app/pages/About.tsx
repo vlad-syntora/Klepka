@@ -8,6 +8,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import { foundersConfig, teamsConfig } from '../../config/teamConfig';
 import type { CertKey } from '../../config/certificatesConfig';
 import { certificatesConfig, certFullNames } from '../../config/certificatesConfig';
+import { partnerCertificateConfig } from '../../config/partnerCertificateConfig';
 import { linkedinActivityConfig } from '../../config/linkedinActivityConfig';
 import teamHeroPhotoOne from '../../assets/teamHeroPhotos/photo-output_1 (1).jpeg';
 import teamHeroPhotoTwo from '../../assets/teamHeroPhotos/photo-output_0 (2).jpeg';
@@ -57,6 +58,7 @@ export const About: React.FC = () => {
     typeof window !== 'undefined' ? computeLinkedinPostsPerRow(window.innerWidth) : 4
   );
   const [showAllLinkedinPosts, setShowAllLinkedinPosts] = React.useState(false);
+  const [showAllPartnerCerts, setShowAllPartnerCerts] = React.useState(false);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -157,6 +159,50 @@ export const About: React.FC = () => {
                 We bring that experience into every project, focusing on practical, structured
                 solutions that make clients’ work easier over time.
               </p>
+              <div className="mt-6 max-w-lg w-full mx-auto lg:mx-0 text-left">
+                {showAllPartnerCerts ? (
+                  <div className="flex flex-wrap justify-start gap-4 py-2">
+                    {Object.values(partnerCertificateConfig).map((cert) => (
+                      <div key={cert.id} className="flex items-center justify-start h-32 w-56">
+                        <img
+                          src={cert.image}
+                          alt={cert.name}
+                          title={cert.name}
+                          className="max-h-full w-auto object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="certification-slider [&_.slick-track]:ml-0 [&_.slick-track]:mr-auto">
+                    <Slider
+                      ref={sliderRef}
+                      {...sliderSettings}
+                      slidesToShow={1}
+                      infinite={Object.values(partnerCertificateConfig).length > 1}
+                    >
+                      {Object.values(partnerCertificateConfig).map((cert) => (
+                        <div key={cert.id}>
+                          <div className="flex items-center justify-start h-32">
+                            <img
+                              src={cert.image}
+                              alt={cert.name}
+                              title={cert.name}
+                              className="max-h-full w-auto object-contain"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </Slider>
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowAllPartnerCerts((s) => !s)}
+                  className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-2"
+                >
+                  {showAllPartnerCerts ? 'Show slider' : 'View all'}
+                </button>
+              </div>
             </motion.div>
             <div className="flex-1 w-full">
               <TeamHeroPhotoStrip />

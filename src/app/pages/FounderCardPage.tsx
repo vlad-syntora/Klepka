@@ -102,7 +102,7 @@ export const FounderCardPage: React.FC = () => {
             <img
               src={person.avatar || '/assets/avatar-placeholder.png'}
               alt={person.name}
-              className="w-full h-full object-cover object-top"
+              className="w-full h-full object-cover object-center"
             />
             {/* Company badge */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-5 pt-8 pb-4">

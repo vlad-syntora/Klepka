@@ -20,6 +20,7 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
 import { certificatesConfig, certFullNames } from "../../config/certificatesConfig";
+import { partnerCertificateConfig } from "../../config/partnerCertificateConfig";
 import type { CertKey } from "../../config/certificatesConfig";
 import { foundersConfig, teamsConfig } from "../../config/teamConfig";
 import salesforceLogo from "../../assets/cbbb4ce1dcbf542b256647147b8d01b2362fdc18.png";
@@ -27,6 +28,7 @@ import docusignLogo from "../../assets/25155f2a11a011d3b70848d424b874c0c621c32b.
 import slackLogo from "../../assets/ed122e531258ed50ebab3a297e8ca6dba7ae30f2.png";
 import formTitanLogo from "../../assets/492d9bc4032f73ffbe046c5c7e9cb125b5d3ef6b.png";
 import tableauLogo from "../../assets/4380d03553cab5a60c1283a76c56f2d79493987a.png";
+import salesforcePartnerBadgeSquare from "../../assets/Salesforce Partner Badge_Horizontal.png";
 
 export const Home: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +105,7 @@ export const Home: React.FC = () => {
   };
 
   const [showAllCerts, setShowAllCerts] = React.useState(false);
+  const [showAllPartnerCerts, setShowAllPartnerCerts] = React.useState(false);
 
   const [sliderSettings, setSliderSettings] = React.useState(() => ({
     ...baseSettings,
@@ -305,8 +308,13 @@ export const Home: React.FC = () => {
             transition={{ duration: 0.6 }}
             className="text-center max-w-4xl mx-auto"
           >
-            <h1 className="text-3xl sm:text-4xl mb-6 text-violet">
-              Scalable Solutions for Salesforce® CRM
+            <h1 className="text-3xl sm:text-4xl mb-6 text-violet inline-flex items-center justify-center gap-3 flex-wrap">
+              <span>Scalable Solutions for Salesforce® CRM</span>
+              <img
+                src={salesforcePartnerBadgeSquare}
+                alt="Salesforce Partner Badge"
+                className="h-10 sm:h-12 w-auto"
+              />
             </h1>
             <p className="text-lg sm:text-xl text-text-secondary mb-8 leading-relaxed">
               Implementations, integrations, and ongoing support. <br></br>
@@ -330,6 +338,46 @@ export const Home: React.FC = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           ></motion.div>
+
+         {/*} <div className="mb-24">
+            {showAllPartnerCerts ? (
+              <div className="flex flex-wrap justify-center gap-4 py-2">
+                {Object.values(partnerCertificateConfig).map((cert) => (
+                  <div key={cert.id} className="flex items-center justify-center h-32 w-56">
+                    <img
+                      src={cert.image}
+                      alt={cert.name}
+                      title={cert.name}
+                      className="max-h-full w-auto object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="certification-slider">
+                <Slider ref={sliderRef} {...sliderSettings}>
+                  {Object.values(partnerCertificateConfig).map((cert) => (
+                    <div key={cert.id} className="px-4">
+                      <div className="flex items-center justify-center h-32">
+                        <img
+                          src={cert.image}
+                          alt={cert.name}
+                          title={cert.name}
+                          className="max-h-full w-auto object-contain"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </Slider>
+              </div>
+            )}
+            <button
+              onClick={() => setShowAllPartnerCerts((s) => !s)}
+              className="w-full text-xs text-text-secondary hover:text-violet cursor-pointer mt-2"
+            >
+              {showAllPartnerCerts ? "Show slider" : "View all partnership certificates"}
+            </button>
+          </div>*/}
 
           <div className="mb-24">
             {showAllCerts ? (

@@ -4,6 +4,7 @@ import { Mail, Phone, Linkedin } from 'lucide-react';
 import logo from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
 import goodFirmsIcon from '../../assets/goodfirms-favicon.png';
 import appExchangeIcon from '../../assets/Available on AgentExchange_Square.png';
+import clutchIcon from '../../assets/idL5DZtk8a_logos.jpeg';
 import salesforcePartnerBadge from '../../assets/Salesforce Partner Badge_Horizontal.png';
 import UaIcon from "../../assets/ua.svg";
 
@@ -54,6 +55,15 @@ export const Footer: React.FC = () => {
                 className="transition-opacity hover:opacity-80"
               >
                 <img src={appExchangeIcon} alt="AppExchange" className="h-5 w-5 rounded-sm" />
+              </a>
+              <a
+                href="https://clutch.co/profile/klepka"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Klepka on Clutch"
+                className="transition-opacity hover:opacity-80"
+              >
+                <img src={clutchIcon} alt="Clutch" className="h-5 w-5 rounded-sm" />
               </a>
               <a
                 href="https://www.goodfirms.co/company/klepka"

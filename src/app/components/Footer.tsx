@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Mail, Phone, Linkedin } from 'lucide-react';
 import logo from "../../assets/d1e97a210363d7653bba220190650a54a2d2ee58.png";
 import goodFirmsIcon from '../../assets/goodfirms-favicon.png';
+import appExchangeIcon from '../../assets/Available on AgentExchange_Square.png';
+import salesforcePartnerBadge from '../../assets/Salesforce Partner Badge_Horizontal.png';
 import UaIcon from "../../assets/ua.svg";
 
 export const Footer: React.FC = () => {
@@ -23,8 +25,13 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           {/* Company Info */}
           <div>
-            <div className="flex items-center mb-6">
+            <div className="flex items-center gap-4 mb-6">
               <img src={logo} alt="KLEPKA" className="h-10 w-auto brightness-0 invert" />
+              <img
+                src={salesforcePartnerBadge}
+                alt="Salesforce Partner"
+                className="h-8 sm:h-10 w-auto"
+              />
             </div>
             <p className="text-white mb-4 text-sm leading-relaxed">
               Designing scalable Salesforce CRM systems for revenue teams.
@@ -38,6 +45,15 @@ export const Footer: React.FC = () => {
                 className="text-white hover:text-accent-yellow transition-colors"
               >
                 <Linkedin className="w-5 h-5" />
+              </a>
+              <a
+                href="https://appexchange.salesforce.com/appxConsultingListingDetail?listingId=24317a62-44c7-47fe-a5c1-8150d1a8d2f3"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Klepka on Salesforce AppExchange"
+                className="transition-opacity hover:opacity-80"
+              >
+                <img src={appExchangeIcon} alt="AppExchange" className="h-5 w-5 rounded-sm" />
               </a>
               <a
                 href="https://www.goodfirms.co/company/klepka"

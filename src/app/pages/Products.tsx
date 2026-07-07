@@ -84,6 +84,11 @@ const APPEXCHANGE_URL = 'https://appexchange.salesforce.com/appxListingDetail?li
 async function fetchListing(id: string): Promise<AppExchangeListing> {
   const res = await fetch(`/api/listings/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch listing ${id}: ${res.status}`);
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(`Invalid JSON response for listing ${id}: ${contentType} - ${text.slice(0,200)}`);
+  }
   return res.json() as Promise<AppExchangeListing>;
 }
 
@@ -361,7 +366,9 @@ export const Products: React.FC = () => {
 
     Promise.all(productsListingIds.map(({ id }) => fetchListing(id)))
       .then(setListings)
-      .catch(() => setError('Failed to load products. Please try again later.'))
+      .catch((err) => {
+        console.error('Failed to load products', err);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -486,18 +493,14 @@ export const Products: React.FC = () => {
       </section>
 
       {/* Products grid */}
-      {!loading && !error && listings.length > 0 &&
-      (<section className="pb-20 px-4 sm:px-6 lg:px-8">
+      {(loading || listings.length > 0) && (
+      <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {loading && (
             <div className="flex items-center justify-center py-24 gap-3 text-grey">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Loading products…</span>
             </div>
-          )}
-
-          {error && (
-            <p className="text-center text-red-500 py-24">{error}</p>
           )}
 
           {!loading && !error && listings.length === 0 && (
@@ -511,7 +514,7 @@ export const Products: React.FC = () => {
                   key={listing.tzId || index}
                   listing={listing}
                   index={index}
-                  documentationPageSrc={productsListingIds[index]?.documentationPageSrc}
+                  documentationPageSrc={productsListingIds.find((p) => p.id === listing.tzId)?.documentationPageSrc}
                 />
               ))}
             </div>

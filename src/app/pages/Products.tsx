@@ -120,9 +120,14 @@ const StarRating: React.FC<{ rating: number }> = ({ rating }) => (
 // Product card
 // ---------------------------------------------------------------------------
 
-const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
+const ProductCard: React.FC<{
+  listing: AppExchangeListing;
+  index: number;
+  documentationPageSrc?: string;
+}> = ({
   listing,
   index,
+  documentationPageSrc,
 }) => {
   const tags = extractCategories(listing.businessNeeds);
   const rating = listing.reviewsSummary?.averageRating ?? 0;
@@ -216,15 +221,29 @@ const ProductCard: React.FC<{ listing: AppExchangeListing; index: number }> = ({
         )}
 
         {/* CTA */}
-        <a
-          href={`${APPEXCHANGE_URL}${listing.tzId}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-auto flex items-center justify-center gap-2 bg-violet text-white rounded-xl py-2.5 text-sm font-medium hover:bg-violet/90 active:scale-95 transition-all"
-        >
-          View on AppExchange
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        <div className="mt-auto flex flex-col gap-2">
+          <a
+            href={`${APPEXCHANGE_URL}${listing.tzId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 bg-violet text-white rounded-xl py-2.5 text-sm font-medium hover:bg-violet/90 active:scale-95 transition-all"
+          >
+            View on AppExchange
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+
+          {documentationPageSrc && (
+            <a
+              href={documentationPageSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 border border-violet/20 bg-white text-violet rounded-xl py-2.5 px-4 text-sm font-medium hover:bg-violet/5 active:scale-95 transition-all"
+            >
+              User Guide
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+        </div>
       </div>
     </motion.article>
   );
@@ -340,7 +359,7 @@ export const Products: React.FC = () => {
   useEffect(() => {
     if (productsListingIds.length === 0) return;
 
-    Promise.all(productsListingIds.map(fetchListing))
+    Promise.all(productsListingIds.map(({ id }) => fetchListing(id)))
       .then(setListings)
       .catch(() => setError('Failed to load products. Please try again later.'))
       .finally(() => setLoading(false));
@@ -488,7 +507,12 @@ export const Products: React.FC = () => {
           {!loading && !error && listings.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {listings.map((listing, index) => (
-                <ProductCard key={listing.tzId} listing={listing} index={index} />
+                <ProductCard
+                  key={listing.tzId || index}
+                  listing={listing}
+                  index={index}
+                  documentationPageSrc={productsListingIds[index]?.documentationPageSrc}
+                />
               ))}
             </div>
           )}

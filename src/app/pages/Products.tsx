@@ -38,6 +38,7 @@ interface BusinessNeedSection {
 
 interface AppExchangeListing {
   tzId: string;
+  external_id?: string;
   name: string;
   title: string;
   description: string;
@@ -514,7 +515,7 @@ export const Products: React.FC = () => {
                   key={listing.tzId || index}
                   listing={listing}
                   index={index}
-                  documentationPageSrc={productsListingIds.find((p) => p.id === listing.tzId)?.documentationPageSrc}
+                  documentationPageSrc={productsListingIds.find((p) => p.id === listing.external_id || p.id === listing.tzId)?.documentationPageSrc}
                 />
               ))}
             </div>

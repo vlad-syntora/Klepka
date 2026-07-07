@@ -361,7 +361,9 @@ export const Products: React.FC = () => {
 
     Promise.all(productsListingIds.map(({ id }) => fetchListing(id)))
       .then(setListings)
-      .catch(() => setError('Failed to load products. Please try again later.'))
+      .catch((err) => {
+        console.error('Failed to load products', err);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -486,7 +488,7 @@ export const Products: React.FC = () => {
       </section>
 
       {/* Products grid */}
-      {(loading || error || listings.length > 0) && (
+      {(loading || listings.length > 0) && (
       <section className="pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {loading && (
@@ -494,10 +496,6 @@ export const Products: React.FC = () => {
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Loading products…</span>
             </div>
-          )}
-
-          {error && (
-            <p className="text-center text-red-500 py-24">{error}</p>
           )}
 
           {!loading && !error && listings.length === 0 && (

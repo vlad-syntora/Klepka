@@ -84,6 +84,11 @@ const APPEXCHANGE_URL = 'https://appexchange.salesforce.com/appxListingDetail?li
 async function fetchListing(id: string): Promise<AppExchangeListing> {
   const res = await fetch(`/api/listings/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch listing ${id}: ${res.status}`);
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    throw new Error(`Invalid JSON response for listing ${id}: ${contentType} - ${text.slice(0,200)}`);
+  }
   return res.json() as Promise<AppExchangeListing>;
 }
 

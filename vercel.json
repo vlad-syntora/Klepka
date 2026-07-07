@@ -12,7 +12,7 @@
   "routes": [
     { "handle": "filesystem" },
     {
-      "src": "/((?!robots\\.txt|sitemap\\.xml|favicon\\.png|og-image\\.png).*)",
+      "src": "/((?!api/|robots\.txt|sitemap\.xml|favicon\.png|og-image\.png).*)",
       "dest": "/index.html"
     }
   ]

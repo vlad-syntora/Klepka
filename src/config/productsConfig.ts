@@ -1,13 +1,23 @@
+import FlowEmailComposerLogo from '../assets/products/FlowEmailComposerLogo.png';
+import RecordPhotoComponentLogo from '../assets/products/RecordPhotoComponent.png';
+import URMLogo from '../assets/products/urmLogo.png';
+
 /**
  * AppExchange listing IDs for published Klepka products.
  * All display data is fetched at runtime from:
  * GET https://api.appexchange.salesforce.com/partners/experience/listings/{id}
  */
-export const productsListingIds: string[] = [];
-import FlowEmailComposerLogo from '../assets/products/FlowEmailComposerLogo.png';
-import RecordPhotoComponentLogo from '../assets/products/RecordPhotoComponent.png';
-import URMLogo from '../assets/products/urmLogo.png';
+export interface AppExchangeProductConfig {
+  id: string;
+  documentationPageSrc?: string;
+}
 
+export const productsListingIds: AppExchangeProductConfig[] = [
+  {
+    id: 'dcbc0f99-8778-4c05-9b1f-091ed64a6bbe',
+    documentationPageSrc: '/fec',
+  },
+];
 
 export interface ComingSoonProduct {
   id: string;
@@ -40,19 +50,9 @@ export const comingSoonProducts: ComingSoonProduct[] = [
      haveDocumentation: true,
      documentationPageSrc: '/fec',
      image: FlowEmailComposerLogo,
-     releaseDate: 'Q2 2026',
+     releaseDate: 'Q3 2026',
    },
-   {
-     id: 'Record-Photo-Logo-Component-for-Salesforce',
-     name: 'Record Photo & Logo Component for Salesforce',
-     shortDescription: 'Add profile photos and logos to any Salesforce record with a simple drag & drop component for Lightning App Builder.',
-     tags: ['UI', 'Record Logo', 'Record Icon',  'Lightning App Builder', 'Admin' ],
-     status: 'In Listings Review',
-     haveDocumentation: true,
-     documentationPageSrc: '/rplc',
-     image: RecordPhotoComponentLogo,
-     releaseDate: 'Q2 2026',
-   },
+ 
    {
      id: 'universal-record-merge',
      name: 'Universal Record Merge',
@@ -62,6 +62,19 @@ export const comingSoonProducts: ComingSoonProduct[] = [
      haveDocumentation: true,
      documentationPageSrc: '/urm',
      image: URMLogo,
-     releaseDate: 'Q2 2026',
+     releaseDate: 'Q3 2026',
    },
+     /*
+     Live Products:
+     {
+     id: 'Record-Photo-Logo-Component-for-Salesforce',
+     name: 'Record Photo & Logo Component for Salesforce',
+     shortDescription: 'Add profile photos and logos to any Salesforce record with a simple drag & drop component for Lightning App Builder.',
+     tags: ['UI', 'Record Logo', 'Record Icon',  'Lightning App Builder', 'Admin' ],
+     status: 'In Listings Review',
+     haveDocumentation: true,
+     documentationPageSrc: '/rplc',
+     image: RecordPhotoComponentLogo,
+     releaseDate: 'Q3 2026',
+   },*/
 ];

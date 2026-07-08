@@ -14,7 +14,12 @@ export interface AppExchangeProductConfig {
 
 export const productsListingIds: AppExchangeProductConfig[] = [
   {
-    id: 'dcbc0f99-8778-4c05-9b1f-091ed64a6bbe',
+    /*id: 'dcbc0f99-8778-4c05-9b1f-091ed64a6bbe',*/
+    id: 'a0NKX000001VLyT2AW',
+    documentationPageSrc: '/rplc',
+  },
+  {
+    id: 'a0NKX000001VLUH2A4',
     documentationPageSrc: '/fec',
   },
 ];
@@ -41,18 +46,6 @@ export interface ComingSoonProduct {
  * Data is stored here in the config (no API fetch).
  */
 export const comingSoonProducts: ComingSoonProduct[] = [
-  {
-     id: 'flow-email-composer',
-     name: 'Flow Email Composer',
-     shortDescription: 'Compose and send guided emails inside Salesforce Flows with auto-filled recipients, templates, attachments, and activity logging.',
-     tags: ['Flow', 'Automation', 'Admin', 'Email', 'Email-to-Case'],
-     status: 'In Listings Review',
-     haveDocumentation: true,
-     documentationPageSrc: '/fec',
-     image: FlowEmailComposerLogo,
-     releaseDate: 'Q3 2026',
-   },
- 
    {
      id: 'universal-record-merge',
      name: 'Universal Record Merge',
@@ -75,6 +68,17 @@ export const comingSoonProducts: ComingSoonProduct[] = [
      haveDocumentation: true,
      documentationPageSrc: '/rplc',
      image: RecordPhotoComponentLogo,
+     releaseDate: 'Q3 2026',
+   },
+     {
+     id: 'flow-email-composer',
+     name: 'Flow Email Composer',
+     shortDescription: 'Compose and send guided emails inside Salesforce Flows with auto-filled recipients, templates, attachments, and activity logging.',
+     tags: ['Flow', 'Automation', 'Admin', 'Email', 'Email-to-Case'],
+     status: 'In Listings Review',
+     haveDocumentation: true,
+     documentationPageSrc: '/fec',
+     image: FlowEmailComposerLogo,
      releaseDate: 'Q3 2026',
    },*/
 ];

@@ -5,6 +5,44 @@ export type LinkedinPost = {
 
 export const linkedinActivityConfig: LinkedinPost[] = [
   
+  /*
+  {
+    id: "post-",
+    urn: "urn:li:share:",
+  },
+  */
+ {
+    id: "post-24",
+    urn: "urn:li:ugcPost:7480567985712193536",
+  },
+   {
+    id: "post-23",
+    urn: "urn:li:share:7479865971311198208",
+  },
+   {
+    id: "post-22",
+    urn: "urn:li:share:7477318589260300291",
+  },
+   {
+    id: "post-21",
+    urn: "urn:li:share:7478718754089250818",
+  },
+  {
+    id: "post-20",
+    urn: "urn:li:share:7478029336395128833",
+  },
+     {
+    id: "post-27",
+    urn: "urn:li:share:7476211728033230849",
+  },
+   {
+    id: "post-26",
+    urn: "urn:li:share:7475473094149636112",
+  },
+  {
+    id: "post-25",
+    urn: "urn:li:share:7474775018640560128",
+  },
   {
     id: "post-17",
     urn: "urn:li:share:7459577928146878465",

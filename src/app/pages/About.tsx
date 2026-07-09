@@ -178,7 +178,7 @@ export const About: React.FC = () => {
                     <Slider
                       ref={sliderRef}
                       {...sliderSettings}
-                      slidesToShow={1}
+                      slidesToShow={2}
                       infinite={Object.values(partnerCertificateConfig).length > 1}
                     >
                       {Object.values(partnerCertificateConfig).map((cert) => (

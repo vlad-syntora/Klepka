@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { loadEnv, fetchPublishedArticles } from './load-env.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = join(__dirname, '../dist');
@@ -31,6 +32,13 @@ const ROUTES = [
   '/card/sergii-romashov',
   '/card/daria-ezerovych',
 ];
+
+// Article routes are dynamic: published slugs come from Supabase at build time.
+loadEnv();
+const articles = await fetchPublishedArticles();
+if (articles.length > 0) {
+  ROUTES.push('/articles', ...articles.map((article) => `/articles/${article.slug}`));
+}
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',

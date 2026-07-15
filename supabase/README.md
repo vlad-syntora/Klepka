@@ -37,7 +37,7 @@ Set in **Vercel → Project → Settings → Environment Variables** (and locall
 |---|---|
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Build + client |
 | `VITE_TURNSTILE_SITE_KEY` | Build + client |
-| `SUPABASE_SERVICE_ROLE_KEY` | Functions only |
+| `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY` from the Vercel integration) | Functions only |
 | `TURNSTILE_SECRET_KEY` | Functions only |
 | `DEPLOY_HOOK_URL` | Functions only (same URL as in Vault) |
 | `COMMENT_IP_SALT` | Functions only (any random string) |

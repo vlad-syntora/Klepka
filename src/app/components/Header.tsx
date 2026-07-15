@@ -25,7 +25,11 @@ export const Header: React.FC = () => {
     { name: 'Pricing', path: '/pricing' },
     { name: 'About', path: '/about' },
     { name: 'Careers', path: '/careers' },
+    { name: 'Articles', path: '/articles' },
   ];
+
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
 
   return (
     <motion.header
@@ -55,7 +59,7 @@ export const Header: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={`px-4 py-2 rounded-lg transition-colors ${
-                  location.pathname === item.path
+                  isActive(item.path)
                     ? 'bg-white text-violet'
                     : scrolled
                       ? 'text-[#F9EDBD] hover:bg-white hover:text-violet'
@@ -98,7 +102,7 @@ export const Header: React.FC = () => {
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-4 py-3 rounded-lg transition-colors ${
-                  location.pathname === item.path
+                  isActive(item.path)
                     ? 'bg-white text-violet'
                     : 'text-black hover:bg-white hover:text-violet'
                 }`}

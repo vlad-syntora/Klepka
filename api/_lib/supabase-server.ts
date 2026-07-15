@@ -3,7 +3,8 @@ import type { VercelRequest } from '@vercel/node';
 
 export function createServiceClient(): SupabaseClient {
   const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // SUPABASE_SECRET_KEY is the new-format key (sb_secret_...) created by the Vercel integration.
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !serviceRoleKey) {
     throw new Error('Supabase server environment variables are not configured');

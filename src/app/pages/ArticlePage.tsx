@@ -85,7 +85,14 @@ export const ArticlePage: React.FC = () => {
     ...(article.cover_url ? { image: article.cover_url } : {}),
     ...(article.published_at ? { datePublished: article.published_at } : {}),
     ...(article.author
-      ? { author: { '@type': 'Person', name: article.author.full_name } }
+      ? {
+          author: {
+            '@type': 'Person',
+            name: article.author.full_name,
+            ...(article.author.title ? { jobTitle: article.author.title } : {}),
+            ...(article.author.bio ? { description: article.author.bio } : {}),
+          },
+        }
       : {}),
     publisher: {
       '@type': 'Organization',
@@ -128,7 +135,12 @@ export const ArticlePage: React.FC = () => {
                       {article.author.full_name.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-text-secondary">{article.author.full_name}</span>
+                  <div>
+                    <span className="text-text-secondary block leading-tight">{article.author.full_name}</span>
+                    {article.author.title && (
+                      <span className="text-xs text-grey block leading-tight">{article.author.title}</span>
+                    )}
+                  </div>
                 </div>
               )}
               {article.published_at && (
@@ -163,6 +175,22 @@ export const ArticlePage: React.FC = () => {
             className="bg-card border border-border-color rounded-lg p-6 sm:p-8 shadow-sm min-w-0"
           >
             <ArticleBody body={processedBody} />
+
+            {article.author && article.author.bio && (
+              <div className="mt-8 pt-6 border-t border-border-color flex gap-4">
+                <Avatar className="size-14 shrink-0">
+                  <AvatarImage src={article.author.avatar_url ?? undefined} alt={article.author.full_name} />
+                  <AvatarFallback className="bg-violet/10 text-violet">
+                    {article.author.full_name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-violet">{article.author.full_name}</p>
+                  {article.author.title && <p className="text-sm text-grey mb-1">{article.author.title}</p>}
+                  <p className="text-sm text-text-secondary leading-relaxed">{article.author.bio}</p>
+                </div>
+              </div>
+            )}
           </motion.article>
         </div>
       </section>

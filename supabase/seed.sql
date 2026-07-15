@@ -1,7 +1,13 @@
 -- Development seed data: one author and three articles (published/published/draft).
 
-insert into authors (id, full_name, avatar_url) values
-  ('11111111-1111-1111-1111-111111111111', 'Sergii Romashov', null);
+insert into authors (id, full_name, avatar_url, title, bio) values
+  (
+    '11111111-1111-1111-1111-111111111111',
+    'Sergii Romashov',
+    null,
+    'Co-Founder & Salesforce Architect',
+    'Salesforce architect with 10+ years of CRM consulting experience, helping revenue teams build scalable Salesforce systems.'
+  );
 
 insert into articles (title, slug, excerpt, body, author_id, tags, hidden_keywords, status, published_at) values
 (

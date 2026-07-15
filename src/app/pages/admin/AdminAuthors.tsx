@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Input } from '../../components/Input';
+import { Input, TextArea } from '../../components/Input';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import {
   Dialog,
@@ -39,6 +39,8 @@ interface AuthorFormProps {
 
 const AuthorForm: React.FC<AuthorFormProps> = ({ author, onSaved, onClose }) => {
   const [fullName, setFullName] = React.useState(author?.full_name ?? '');
+  const [title, setTitle] = React.useState(author?.title ?? '');
+  const [bio, setBio] = React.useState(author?.bio ?? '');
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(author?.avatar_url ?? null);
   const [saving, setSaving] = React.useState(false);
 
@@ -47,11 +49,18 @@ const AuthorForm: React.FC<AuthorFormProps> = ({ author, onSaved, onClose }) => 
     const name = fullName.trim();
     if (!name) return;
 
+    const input = {
+      full_name: name,
+      avatar_url: avatarUrl,
+      title: title.trim() || null,
+      bio: bio.trim() || null,
+    };
+
     setSaving(true);
     try {
       const saved = author
-        ? await adminUpdateAuthor(author.id, { full_name: name, avatar_url: avatarUrl })
-        : await adminCreateAuthor({ full_name: name, avatar_url: avatarUrl });
+        ? await adminUpdateAuthor(author.id, input)
+        : await adminCreateAuthor(input);
       onSaved(saved);
       onClose();
       toast.success(author ? 'Author updated' : 'Author created');
@@ -72,6 +81,20 @@ const AuthorForm: React.FC<AuthorFormProps> = ({ author, onSaved, onClose }) => 
         onChange={(event) => setFullName(event.target.value)}
         maxLength={120}
         required
+      />
+      <Input
+        label="Position"
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        maxLength={120}
+        placeholder="e.g. Salesforce Architect"
+      />
+      <TextArea
+        label="Short bio"
+        value={bio}
+        onChange={(event) => setBio(event.target.value)}
+        rows={3}
+        maxLength={500}
       />
       <MediaUpload label="Avatar" value={avatarUrl} folder="avatars" onChange={setAvatarUrl} />
       <DialogFooter>
@@ -166,7 +189,10 @@ export const AdminAuthors: React.FC = () => {
                   {author.full_name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="flex-1">{author.full_name}</span>
+              <div className="flex-1 min-w-0">
+                <p>{author.full_name}</p>
+                {author.title && <p className="text-sm text-grey truncate">{author.title}</p>}
+              </div>
 
               <button
                 onClick={() => {

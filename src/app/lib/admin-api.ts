@@ -28,12 +28,12 @@ export interface ArticleUpsertInput {
 }
 
 const ADMIN_ARTICLE_COLUMNS =
-  'id, title, slug, excerpt, body, cover_url, author_id, tags, hidden_keywords, status, publish_at, published_at, created_at, updated_at, author:authors(id, full_name, avatar_url)';
+  'id, title, slug, excerpt, body, cover_url, author_id, tags, hidden_keywords, status, publish_at, published_at, created_at, updated_at, author:authors(id, full_name, avatar_url, title, bio)';
 
 export async function adminListArticles(): Promise<AdminArticleListItem[]> {
   const { data, error } = await getSupabase()
     .from('articles')
-    .select('id, title, slug, status, publish_at, published_at, updated_at, author:authors(id, full_name, avatar_url)')
+    .select('id, title, slug, status, publish_at, published_at, updated_at, author:authors(id, full_name, avatar_url, title, bio)')
     .order('updated_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -82,14 +82,18 @@ export async function adminDeleteArticle(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function adminCreateAuthor(input: {
+export interface AuthorUpsertInput {
   full_name: string;
   avatar_url: string | null;
-}): Promise<Author> {
+  title: string | null;
+  bio: string | null;
+}
+
+export async function adminCreateAuthor(input: AuthorUpsertInput): Promise<Author> {
   const { data, error } = await getSupabase()
     .from('authors')
     .insert(input)
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, title, bio')
     .single();
 
   if (error) throw new Error(error.message);
@@ -98,13 +102,13 @@ export async function adminCreateAuthor(input: {
 
 export async function adminUpdateAuthor(
   id: string,
-  patch: { full_name?: string; avatar_url?: string | null },
+  patch: Partial<AuthorUpsertInput>,
 ): Promise<Author> {
   const { data, error } = await getSupabase()
     .from('authors')
     .update(patch)
     .eq('id', id)
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, title, bio')
     .single();
 
   if (error) throw new Error(error.message);

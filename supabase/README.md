@@ -5,7 +5,7 @@ One-time setup for the articles portal backend (Supabase + Vercel).
 ## 1. Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run `migrations/0001_articles_portal.sql`.
+2. In **SQL Editor**, run `migrations/0001_articles_portal.sql`, then `migrations/0003_author_profile.sql` (0002 comes later, see step 3).
 3. (Optional, dev) Run `seed.sql` for sample data.
 
 ## 2. Admin users

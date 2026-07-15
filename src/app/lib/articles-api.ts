@@ -15,7 +15,7 @@ import {
 } from '@/app/lib/articles-types';
 
 const LIST_COLUMNS =
-  'id, title, slug, excerpt, cover_url, tags, published_at, author:authors(id, full_name, avatar_url)';
+  'id, title, slug, excerpt, cover_url, tags, published_at, author:authors(id, full_name, avatar_url, title, bio)';
 
 export const ARTICLES_PAGE_SIZE = 12;
 
@@ -55,7 +55,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 export async function listAuthors(): Promise<Author[]> {
   const { data, error } = await getSupabase()
     .from('authors')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, title, bio')
     .order('full_name');
 
   if (error) throw new Error(error.message);

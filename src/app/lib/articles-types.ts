@@ -13,6 +13,8 @@ export const AuthorSchema = z.object({
   id: z.uuid(),
   full_name: z.string(),
   avatar_url: z.string().nullable(),
+  title: z.string().nullable(),
+  bio: z.string().nullable(),
 });
 export type Author = z.infer<typeof AuthorSchema>;
 

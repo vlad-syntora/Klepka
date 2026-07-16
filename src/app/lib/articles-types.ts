@@ -10,7 +10,7 @@ export const ArticleBodySchema = z.custom<JSONContent>(
 export type ArticleBody = JSONContent;
 
 export const AuthorSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   full_name: z.string(),
   avatar_url: z.string().nullable(),
   title: z.string().nullable(),
@@ -19,7 +19,7 @@ export const AuthorSchema = z.object({
 export type Author = z.infer<typeof AuthorSchema>;
 
 export const ArticleListItemSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   title: z.string(),
   slug: z.string(),
   excerpt: z.string(),
@@ -36,7 +36,7 @@ export const ArticleSchema = ArticleListItemSchema.extend({
 export type Article = z.infer<typeof ArticleSchema>;
 
 export const AdminArticleSchema = ArticleSchema.extend({
-  author_id: z.uuid().nullable(),
+  author_id: z.guid().nullable(),
   hidden_keywords: z.array(z.string()),
   status: ArticleStatusSchema,
   publish_at: z.string().nullable(),
@@ -46,7 +46,7 @@ export const AdminArticleSchema = ArticleSchema.extend({
 export type AdminArticle = z.infer<typeof AdminArticleSchema>;
 
 export const AdminArticleListItemSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   title: z.string(),
   slug: z.string(),
   status: ArticleStatusSchema,
@@ -58,20 +58,20 @@ export const AdminArticleListItemSchema = z.object({
 export type AdminArticleListItem = z.infer<typeof AdminArticleListItemSchema>;
 
 export const SearchResultSchema = z.object({
-  id: z.uuid(),
+  id: z.guid(),
   title: z.string(),
   slug: z.string(),
   excerpt: z.string(),
   cover_url: z.string().nullable(),
-  author_id: z.uuid().nullable(),
+  author_id: z.guid().nullable(),
   tags: z.array(z.string()),
   published_at: z.string().nullable(),
 });
 export type SearchResult = z.infer<typeof SearchResultSchema>;
 
 export const CommentSchema = z.object({
-  id: z.uuid(),
-  article_id: z.uuid(),
+  id: z.guid(),
+  article_id: z.guid(),
   author_name: z.string(),
   body: z.string(),
   created_at: z.string(),
@@ -86,7 +86,7 @@ export const AdminCommentSchema = CommentSchema.extend({
 export type AdminComment = z.infer<typeof AdminCommentSchema>;
 
 export const CommentInputSchema = z.object({
-  articleId: z.uuid(),
+  articleId: z.guid(),
   name: z.string().trim().min(1).max(80),
   email: z.email().max(255),
   body: z.string().trim().min(1).max(5000),

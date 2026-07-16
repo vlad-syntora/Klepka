@@ -2,7 +2,7 @@
 
 insert into authors (id, full_name, avatar_url, title, bio) values
   (
-    '11111111-1111-1111-1111-111111111111',
+    '11111111-1111-4111-8111-111111111111',
     'Sergii Romashov',
     null,
     'Co-Founder & Salesforce Architect',
@@ -46,7 +46,7 @@ insert into articles (title, slug, excerpt, body, author_id, tags, hidden_keywor
       {"type": "paragraph", "content": [{"type": "text", "marks": [{"type": "italic"}], "text": "Avoid DML inside loops"}, {"type": "text", "text": " — always collect records and commit once."}]}
     ]
   }'::jsonb,
-  '11111111-1111-1111-1111-111111111111',
+  '11111111-1111-4111-8111-111111111111',
   array['salesforce', 'flows', 'automation'],
   array['process builder', 'workflow rules'],
   'published',
@@ -68,7 +68,7 @@ insert into articles (title, slug, excerpt, body, author_id, tags, hidden_keywor
       {"type": "paragraph", "content": [{"type": "text", "text": "Reassign records of deactivated users quarterly."}]}
     ]
   }'::jsonb,
-  '11111111-1111-1111-1111-111111111111',
+  '11111111-1111-4111-8111-111111111111',
   array['crm', 'data quality'],
   array['dedupe', 'duplicates', 'data cleaning'],
   'published',
@@ -85,7 +85,7 @@ insert into articles (title, slug, excerpt, body, author_id, tags, hidden_keywor
       {"type": "paragraph", "content": [{"type": "text", "text": "This draft should never be visible to anonymous visitors."}]}
     ]
   }'::jsonb,
-  '11111111-1111-1111-1111-111111111111',
+  '11111111-1111-4111-8111-111111111111',
   array['salesforce', 'release'],
   array['spring release'],
   'draft',

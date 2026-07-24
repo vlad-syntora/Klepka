@@ -1,4 +1,10 @@
 node_modules
 dist
 .env
+.env.local
+.env*.local
 .idea
+.claude/
+portal-design/
+# macOS
+.DS_Store

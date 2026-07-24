@@ -11,7 +11,13 @@
   --grey: #7F7B82;
   --text-secondary: #000000;
   --border-color: #E2E8F0;
-  
+
+  /* Client portal status colours (portal-design §15) */
+  --portal-green: #1E8E5A;
+  --portal-amber: #B8860B;
+  --portal-red: #C0392B;
+  --portal-tint: #F4EEFB;
+
   --background: #FFFFFF;
   --foreground: #0F172A;
   --card: #ffffff;
@@ -89,6 +95,10 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-border-color: var(--border-color);
+  --color-portal-green: var(--portal-green);
+  --color-portal-amber: var(--portal-amber);
+  --color-portal-red: var(--portal-red);
+  --color-portal-tint: var(--portal-tint);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

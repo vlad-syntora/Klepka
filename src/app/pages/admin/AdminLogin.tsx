@@ -5,6 +5,8 @@ import { SEOHead } from '../../components/SEOHead';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { getSupabase, isSupabaseConfigured } from '@/app/lib/supabase';
+import { GoogleButton } from '@/app/components/portal/GoogleButton';
+import { EmailLinkForm } from '@/app/components/portal/EmailLinkForm';
 import logoPurple from '../../../assets/85bd7ec43f69e1c0fc0ed1f1121c7466d87fd6c5.png';
 
 export const AdminLogin: React.FC = () => {
@@ -38,6 +40,22 @@ export const AdminLogin: React.FC = () => {
       <div className="w-full max-w-sm bg-card border border-border-color rounded-lg shadow-sm p-8">
         <img src={logoPurple} alt="KLEPKA" className="h-10 w-auto mx-auto mb-6" />
         <h1 className="text-xl text-violet text-center mb-6">Admin Sign In</h1>
+
+        <GoogleButton redirectPath="/admin" />
+
+        <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-grey">
+          <span className="h-px flex-1 bg-border-color" />
+          or
+          <span className="h-px flex-1 bg-border-color" />
+        </div>
+
+        <EmailLinkForm redirectPath="/admin" />
+
+        <div className="my-5 flex items-center gap-3 text-[11px] uppercase tracking-wide text-grey">
+          <span className="h-px flex-1 bg-border-color" />
+          with a password
+          <span className="h-px flex-1 bg-border-color" />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input

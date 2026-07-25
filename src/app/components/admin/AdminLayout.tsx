@@ -1,14 +1,27 @@
 import React from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { FileText, LogOut, MessageSquare, Users } from 'lucide-react';
+import { Building2, FileText, LogOut, MessageSquare, MessageSquareHeart, Users, UsersRound } from 'lucide-react';
 import { SEOHead } from '../SEOHead';
 import { getSupabase } from '@/app/lib/supabase';
 import logoPurple from '../../../assets/85bd7ec43f69e1c0fc0ed1f1121c7466d87fd6c5.png';
 
-const navItems = [
-  { name: 'Articles', path: '/admin/articles', icon: FileText },
-  { name: 'Authors', path: '/admin/authors', icon: Users },
-  { name: 'Comments', path: '/admin/comments', icon: MessageSquare },
+const navGroups = [
+  {
+    title: 'Content',
+    items: [
+      { name: 'Articles', path: '/admin/articles', icon: FileText },
+      { name: 'Authors', path: '/admin/authors', icon: Users },
+      { name: 'Comments', path: '/admin/comments', icon: MessageSquare },
+    ],
+  },
+  {
+    title: 'Client portal',
+    items: [
+      { name: 'Accounts', path: '/admin/portal/accounts', icon: Building2 },
+      { name: 'Users & Team', path: '/admin/portal/team', icon: UsersRound },
+      { name: 'Feedback', path: '/admin/portal/feedback', icon: MessageSquareHeart },
+    ],
+  },
 ];
 
 export const AdminLayout: React.FC = () => {
@@ -28,20 +41,25 @@ export const AdminLayout: React.FC = () => {
           <img src={logoPurple} alt="KLEPKA" className="h-8 w-auto brightness-0 invert" />
         </Link>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
-                  isActive ? 'bg-white text-violet' : 'text-accent-yellow hover:bg-white/10'
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4" />
-              {item.name}
-            </NavLink>
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <div className="px-3 pb-1 text-[11px] uppercase tracking-widest text-white/50">{group.title}</div>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm ${
+                      isActive ? 'bg-white text-violet' : 'text-accent-yellow hover:bg-white/10'
+                    }`
+                  }
+                >
+                  <item.icon className="w-4 h-4" />
+                  {item.name}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { Toaster } from './components/ui/sonner';
@@ -23,6 +23,25 @@ import { AdminArticles } from './pages/admin/AdminArticles';
 import { AdminArticleEditor } from './pages/admin/AdminArticleEditor';
 import { AdminAuthors } from './pages/admin/AdminAuthors';
 import { AdminComments } from './pages/admin/AdminComments';
+import { AdminAccounts } from './pages/admin/portal/AdminAccounts';
+import { AdminAccountWorkspace } from './pages/admin/portal/AdminAccountWorkspace';
+import { AdminPortalTeam } from './pages/admin/portal/AdminPortalTeam';
+import { AdminPortalFeedback } from './pages/admin/portal/AdminPortalFeedback';
+import { PortalUserProvider } from './components/portal/PortalUserProvider';
+import { InternalGuard, PortalGuard } from './components/portal/PortalGuard';
+import { PortalLayout } from './components/portal/PortalLayout';
+import { PortalLogin } from './pages/portal/PortalLogin';
+import { PortalDashboard } from './pages/portal/PortalDashboard';
+import { PortalStart } from './pages/portal/PortalStart';
+import { PortalIntake } from './pages/portal/PortalIntake';
+import { PortalPipeline } from './pages/portal/PortalPipeline';
+import { PortalCalls } from './pages/portal/PortalCalls';
+import { PortalDocuments } from './pages/portal/PortalDocuments';
+import { PortalPayments } from './pages/portal/PortalPayments';
+import { PortalProject } from './pages/portal/PortalProject';
+import { PortalFeedback } from './pages/portal/PortalFeedback';
+import { PortalNotifications } from './pages/portal/PortalNotifications';
+import { PortalSettings } from './pages/portal/PortalSettings';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -36,6 +55,7 @@ function AppLayout() {
   const { pathname } = useLocation();
   const isCardPage = pathname.startsWith('/card/');
   const isAdminPage = pathname.startsWith('/admin');
+  const isPortalPage = pathname.startsWith('/portal');
 
   if (isCardPage) {
     return (
@@ -45,26 +65,68 @@ function AppLayout() {
     );
   }
 
+  if (isPortalPage) {
+    return (
+      <PortalUserProvider>
+        <Routes>
+          <Route path="/portal/login" element={<PortalLogin />} />
+          <Route
+            path="/portal"
+            element={
+              <PortalGuard>
+                <PortalLayout />
+              </PortalGuard>
+            }
+          >
+            <Route index element={<PortalDashboard />} />
+            <Route path="start" element={<PortalStart />} />
+            <Route path="intake" element={<PortalIntake />} />
+            <Route path="pipeline" element={<PortalPipeline />} />
+            <Route path="calls" element={<PortalCalls />} />
+            <Route path="documents" element={<PortalDocuments />} />
+            <Route path="payments" element={<PortalPayments />} />
+            <Route path="project" element={<PortalProject />} />
+            <Route path="feedback" element={<PortalFeedback />} />
+            <Route path="notifications" element={<PortalNotifications />} />
+            <Route path="settings" element={<PortalSettings />} />
+            <Route path="*" element={<Navigate to="/portal" replace />} />
+          </Route>
+        </Routes>
+      </PortalUserProvider>
+    );
+  }
+
   if (isAdminPage) {
     return (
-      <Routes>
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
-          path="/admin"
-          element={
-            <AdminGuard>
-              <AdminLayout />
-            </AdminGuard>
-          }
-        >
-          <Route index element={<Navigate to="/admin/articles" replace />} />
-          <Route path="articles" element={<AdminArticles />} />
-          <Route path="articles/new" element={<AdminArticleEditor />} />
-          <Route path="articles/:id" element={<AdminArticleEditor />} />
-          <Route path="authors" element={<AdminAuthors />} />
-          <Route path="comments" element={<AdminComments />} />
-        </Route>
-      </Routes>
+      <PortalUserProvider>
+        <Routes>
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminGuard>
+                <InternalGuard>
+                  <AdminLayout />
+                </InternalGuard>
+              </AdminGuard>
+            }
+          >
+            <Route index element={<Navigate to="/admin/articles" replace />} />
+            <Route path="articles" element={<AdminArticles />} />
+            <Route path="articles/new" element={<AdminArticleEditor />} />
+            <Route path="articles/:id" element={<AdminArticleEditor />} />
+            <Route path="authors" element={<AdminAuthors />} />
+            <Route path="comments" element={<AdminComments />} />
+            <Route path="portal" element={<Outlet />}>
+              <Route index element={<Navigate to="/admin/portal/accounts" replace />} />
+              <Route path="accounts" element={<AdminAccounts />} />
+              <Route path="accounts/:id" element={<AdminAccountWorkspace />} />
+              <Route path="team" element={<AdminPortalTeam />} />
+              <Route path="feedback" element={<AdminPortalFeedback />} />
+            </Route>
+          </Route>
+        </Routes>
+      </PortalUserProvider>
     );
   }
 

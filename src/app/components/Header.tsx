@@ -69,6 +69,16 @@ export const Header: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+            <Link
+              to="/portal"
+              className={`ml-2 px-4 py-2 rounded-lg border transition-colors ${
+                scrolled
+                  ? 'border-[#F9EDBD] text-[#F9EDBD] hover:bg-white hover:text-violet hover:border-white'
+                  : 'border-violet text-violet hover:bg-violet hover:text-white'
+              }`}
+            >
+              Client Portal
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -110,6 +120,13 @@ export const Header: React.FC = () => {
                 {item.name}
               </Link>
             ))}
+            <Link
+              to="/portal"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block px-4 py-3 rounded-lg border border-violet text-violet transition-colors hover:bg-violet hover:text-white"
+            >
+              Client Portal
+            </Link>
           </nav>
         </motion.div>
       )}

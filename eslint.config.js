@@ -8,7 +8,8 @@ import tseslint from "typescript-eslint";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "scripts/**"],
+    // portal-design/ holds the design deliverables (docx generators + HTML mockups), not app source.
+    ignores: ["dist/**", "node_modules/**", "scripts/**", "portal-design/**"],
   },
 
   js.configs.recommended,

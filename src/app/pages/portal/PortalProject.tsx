@@ -82,22 +82,27 @@ export const PortalProject: React.FC = () => {
   return (
     <div className="space-y-5">
       {projects.length > 1 && (
-        <div className="flex flex-wrap gap-1 border-b border-border-color">
-          {projects.map((entry) => (
-            <button
-              key={entry.project.id}
-              onClick={() => setSelectedId(entry.project.id)}
-              className={cn(
-                'whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors',
-                entry.project.id === project.id
-                  ? 'border-violet font-medium text-violet'
-                  : 'border-transparent text-grey hover:text-foreground',
-              )}
-            >
-              {entry.project.name}
-            </button>
-          ))}
-        </div>
+        <PortalCard title="Your projects" description="Pick a project to see its milestones, hours and team.">
+          <div className="flex flex-wrap gap-2">
+            {projects.map((entry) => (
+              <button
+                key={entry.project.id}
+                onClick={() => setSelectedId(entry.project.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  entry.project.id === project.id
+                    ? 'border-violet bg-portal-tint text-violet'
+                    : 'border-border-color hover:border-violet/50',
+                )}
+              >
+                <div className="font-medium">{entry.project.name}</div>
+                <div className="mt-0.5">
+                  <StatusTag tone={toneFor(entry.project.health)}>{HEALTH_LABELS[entry.project.health]}</StatusTag>
+                </div>
+              </button>
+            ))}
+          </div>
+        </PortalCard>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">

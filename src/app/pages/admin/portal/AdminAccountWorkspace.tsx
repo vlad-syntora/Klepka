@@ -9,7 +9,6 @@ import { cn } from '@/app/components/ui/utils';
 import { prettyName } from '@/app/lib/portal-format';
 import { WorkspaceOverview } from '@/app/components/admin/portal/WorkspaceOverview';
 import { WorkspaceResources } from '@/app/components/admin/portal/WorkspaceResources';
-import { WorkspaceIntake } from '@/app/components/admin/portal/WorkspaceIntake';
 import { WorkspacePipeline } from '@/app/components/admin/portal/WorkspacePipeline';
 import { WorkspaceDocuments } from '@/app/components/admin/portal/WorkspaceDocuments';
 import { WorkspaceDrive } from '@/app/components/admin/portal/WorkspaceDrive';
@@ -21,7 +20,6 @@ import { WorkspaceUsers } from '@/app/components/admin/portal/WorkspaceUsers';
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'resources', label: 'Getting started' },
-  { key: 'intake', label: 'Information gathering' },
   { key: 'pipeline', label: 'Pipeline & Offers' },
   { key: 'documents', label: 'Contracts & Documents' },
   { key: 'payments', label: 'Payments' },
@@ -113,7 +111,6 @@ export const AdminAccountWorkspace: React.FC = () => {
       <CollapsibleCards scope={`${account.id}:${tab}`}>
         {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} />}
         {tab === 'resources' && <WorkspaceResources account={account} />}
-        {tab === 'intake' && <WorkspaceIntake account={account} />}
         {tab === 'pipeline' && <WorkspacePipeline account={account} onChange={load} />}
         {tab === 'documents' && (
           <div className="space-y-5">

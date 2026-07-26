@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 // Numeric columns come back from PostgREST as strings; normalise them once here.
 const numeric = z.union([z.number(), z.string()]).transform((value) => Number(value));
+// Same, but keeps SQL NULL as null instead of coercing it to 0.
+const numericNullable = z.union([z.number(), z.string()]).transform((value) => Number(value)).nullable();
 
 export const PortalRoleSchema = z.enum([
   'prospect',
@@ -198,6 +200,10 @@ export const OpportunitySchema = z.object({
   amount: numeric.nullable(),
   close_date: z.string().nullable(),
   updated_at: z.string(),
+  intake_published: z.boolean().optional(),
+  drive_folder_id: z.string().nullable().optional(),
+  drive_web_link: z.string().nullable().optional(),
+  drive_folders: z.record(z.string(), z.string()).catch({}).optional(),
 });
 export type Opportunity = z.infer<typeof OpportunitySchema>;
 
@@ -220,13 +226,28 @@ export const OFFER_STATUS_LABELS: Record<OfferStatus, string> = {
   superseded: 'Superseded',
 };
 
+export const OfferBillingTypeSchema = z.enum(['fixed_price', 'time_materials']);
+export type OfferBillingType = z.infer<typeof OfferBillingTypeSchema>;
+
+export const OFFER_BILLING_LABELS: Record<OfferBillingType, string> = {
+  fixed_price: 'Fixed price',
+  time_materials: 'Time & materials',
+};
+
 export const OfferItemSchema = z.object({
   id: z.guid(),
   offer_id: z.guid(),
   position: z.number(),
   name: z.string(),
   detail: z.string(),
+  // Fixed-price line: the fixed sum charged per month for `monthly_hours` hours.
+  // Time & materials line: the quoted hourly rate (T&M lines are purely hourly).
   amount: numeric,
+  billing_type: OfferBillingTypeSchema.default('time_materials'),
+  overtime_rate: numericNullable.optional().default(null),
+  // Fixed-price only: hours per month covered by the fixed sum. The effective hourly rate is
+  // derived (amount / monthly_hours) wherever it is displayed.
+  monthly_hours: numericNullable.optional().default(null),
 });
 export type OfferItem = z.infer<typeof OfferItemSchema>;
 
@@ -400,6 +421,7 @@ export const CANDIDATE_STATUS_LABELS: Record<CandidateStatus, string> = {
 export const CandidateSchema = z.object({
   id: z.guid(),
   account_id: z.guid(),
+  opportunity_id: z.guid(),
   user_id: z.guid(),
   title: z.string().nullable(),
   cv_url: z.string().nullable(),
@@ -509,6 +531,9 @@ export const ProjectSchema = z.object({
   target_date: z.string().nullable(),
   published: z.boolean(),
   created_at: z.string(),
+  drive_folder_id: z.string().nullable().optional(),
+  drive_web_link: z.string().nullable().optional(),
+  drive_folders: z.record(z.string(), z.string()).catch({}).optional(),
 });
 export type Project = z.infer<typeof ProjectSchema>;
 
@@ -615,6 +640,7 @@ export const INTAKE_STATUS_LABELS: Record<IntakeStatus, string> = {
 export const IntakeItemSchema = z.object({
   id: z.guid(),
   account_id: z.guid(),
+  opportunity_id: z.guid(),
   name: z.string(),
   description: z.string(),
   owner_side: z.enum(['client', 'klepka']),

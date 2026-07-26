@@ -74,11 +74,11 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
 
   const allEntries: NavEntry[] = [
     { to: path(''), label: 'Dashboard', icon: LayoutDashboard, section: 'start' },
+    { to: path('project'), label: MODULE_LABELS.project, icon: Gauge, section: 'project' },
+    { to: path('payments'), label: MODULE_LABELS.payments, icon: Wallet, section: 'payments' },
     { to: path('pipeline'), label: MODULE_LABELS.pipeline, icon: Handshake, section: 'pipeline', badge: openOffers },
     { to: path('intake'), label: 'Information gathering', icon: ClipboardList, section: 'intake', badge: intakeOpen },
     { to: path('start'), label: 'Getting started', icon: Sparkles, section: 'start' },
-    { to: path('payments'), label: MODULE_LABELS.payments, icon: Wallet, section: 'payments' },
-    { to: path('project'), label: MODULE_LABELS.project, icon: Gauge, section: 'project' },
     { to: path('notifications'), label: 'Notifications', icon: Bell, section: 'notifications', badge: unread, hidden: true },
     { to: path('settings'), label: 'Account Settings', icon: Settings, section: 'settings' },
   ];

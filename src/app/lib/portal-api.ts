@@ -67,13 +67,13 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase.from('portal_accounts').select(ACCOUNT_COLUMNS).eq('id', accountId).single(),
       supabase
         .from('portal_opportunities')
-        .select('id, account_id, name, stage, amount, close_date, updated_at')
+        .select('id, account_id, name, stage, amount, close_date, updated_at, intake_published')
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
       supabase
         .from('portal_offers')
         .select(
-          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount)',
+          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)',
         )
         .eq('account_id', accountId)
         .order('version', { ascending: false }),
@@ -129,7 +129,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_intake_items')
         .select(
-          'id, account_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at',
+          'id, account_id, opportunity_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at',
         )
         .eq('account_id', accountId)
         .order('position'),
@@ -147,7 +147,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_candidates')
         .select(
-          'id, account_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)',
+          'id, account_id, opportunity_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)',
         )
         .eq('account_id', accountId)
         .order('created_at'),
@@ -239,6 +239,12 @@ export function filterSnapshotForClient(snapshot: PortalSnapshot): PortalSnapsho
   const documents = snapshot.documents.filter((doc) => doc.status !== 'draft');
   const resources = snapshot.resources.filter((resource) => resource.published);
   const activity = snapshot.activity.filter((entry) => entry.client_visible);
+  // Intake is hidden until the team publishes its opportunity's checklist (RLS enforces the same
+  // for real clients; this keeps the admin "View as client" preview honest).
+  const publishedOppIds = new Set(
+    snapshot.opportunities.filter((opp) => opp.intake_published).map((opp) => opp.id),
+  );
+  const intake = snapshot.intake.filter((item) => publishedOppIds.has(item.opportunity_id));
   const projects = snapshot.projects
     .filter((bundle) => bundle.project.published)
     .map((bundle) => ({
@@ -254,6 +260,7 @@ export function filterSnapshotForClient(snapshot: PortalSnapshot): PortalSnapsho
     documents,
     resources,
     activity,
+    intake,
     projects,
     project: first?.project ?? null,
     milestones: first?.milestones ?? [],
@@ -392,7 +399,7 @@ export async function uploadClientDocument(
   accountId: string,
   file: File,
   name: string,
-  options?: { intakeItemId?: string; folderKey?: string },
+  options?: { intakeItemId?: string; opportunityId?: string; folderKey?: string },
 ): Promise<void> {
   const supabase = getSupabase();
   const extension = file.name.split('.').pop()?.toLowerCase() || 'bin';
@@ -420,6 +427,7 @@ export async function uploadClientDocument(
     try {
       await driveUploadFromStorage({
         accountId,
+        opportunityId: options?.opportunityId,
         storagePath: path,
         folderKey: options?.folderKey ?? driveFolderForDocType(docType),
         name: name || file.name,

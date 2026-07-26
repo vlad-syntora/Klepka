@@ -759,27 +759,33 @@ export const WorkspaceProject: React.FC<{ account: PortalAccount }> = ({ account
           </PortalButton>
         }
       >
-        <div className="flex flex-wrap gap-2">
-          {list.map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => setSelectedId(entry.id)}
-              className={cn(
-                'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                entry.id === project?.id
-                  ? 'border-violet bg-portal-tint text-violet'
-                  : 'border-border-color hover:border-violet/50',
-              )}
-            >
-              <div className="font-medium">{entry.name}</div>
-              <div className="mt-0.5">
-                <StatusTag tone={entry.published ? 'green' : 'grey'}>
-                  {entry.published ? 'Live' : 'Draft'}
-                </StatusTag>
-              </div>
-            </button>
-          ))}
-        </div>
+        {list.length === 1 ? (
+          <p className="text-sm text-grey">
+            One project — <span className="font-medium text-foreground">{list[0].name}</span>.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {list.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => setSelectedId(entry.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  entry.id === project?.id
+                    ? 'border-violet bg-portal-tint text-violet'
+                    : 'border-border-color hover:border-violet/50',
+                )}
+              >
+                <div className="font-medium">{entry.name}</div>
+                <div className="mt-0.5">
+                  <StatusTag tone={entry.published ? 'green' : 'grey'}>
+                    {entry.published ? 'Live' : 'Draft'}
+                  </StatusTag>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </PortalCard>
 
       {showCreate && (

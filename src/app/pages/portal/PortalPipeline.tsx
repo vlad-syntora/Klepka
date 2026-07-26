@@ -6,8 +6,9 @@ import { BookCallButton } from '@/app/components/portal/BookCallButton';
 import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
 import { resolveFileView } from '@/app/lib/file-view';
 import { getDocumentUrl, respondToOffer } from '@/app/lib/portal-api';
-import { formatDate, formatMoney } from '@/app/lib/portal-format';
+import { formatDate, formatMoney, formatOfferTotal, offerTotals } from '@/app/lib/portal-format';
 import {
+  OFFER_BILLING_LABELS,
   OFFER_STATUS_LABELS,
   OPPORTUNITY_STAGES,
   STAGE_LABELS,
@@ -28,6 +29,7 @@ import {
   inputClass,
   toneFor,
 } from '@/app/components/portal/PortalUi';
+import { cn } from '@/app/components/ui/utils';
 
 const STAGES = OPPORTUNITY_STAGES.map((key) => ({ key, label: STAGE_LABELS[key] }));
 
@@ -91,7 +93,7 @@ const OfferDetail: React.FC<{ offer: Offer; documents: PortalDocument[]; onRespo
       description={[
         offer.sent_at ? `Sent ${formatDate(offer.sent_at)}` : null,
         offer.expires_on ? `Valid through ${formatDate(offer.expires_on)}` : null,
-        `Total ${formatMoney(offer.total, offer.currency)}`,
+        `Total ${formatOfferTotal(offer.items, offer.currency)}`,
       ]
         .filter(Boolean)
         .join(' · ')}
@@ -102,20 +104,57 @@ const OfferDetail: React.FC<{ offer: Offer; documents: PortalDocument[]; onRespo
         <PortalTable head={['Line item', 'Detail', 'Amount']}>
           {[...offer.items]
             .sort((a, b) => a.position - b.position)
-            .map((item) => (
-              <Row key={item.id}>
-                <Cell className="font-medium">{item.name}</Cell>
-                <Cell className="text-grey">{item.detail}</Cell>
-                <Cell className="whitespace-nowrap font-medium">{formatMoney(item.amount, offer.currency)}</Cell>
-              </Row>
-            ))}
-          <Row className="bg-portal-tint/50">
-            <Cell className="font-semibold">Total</Cell>
-            <Cell />
-            <Cell className="whitespace-nowrap font-semibold text-violet">
-              {formatMoney(offer.total, offer.currency)}
-            </Cell>
-          </Row>
+            .map((item) => {
+              const isFixed = item.billing_type === 'fixed_price';
+              // Effective hourly rate for a fixed-price line, derived from its monthly sum and hours.
+              const fixedRate =
+                isFixed && item.monthly_hours && item.monthly_hours > 0 ? item.amount / item.monthly_hours : null;
+              return (
+                <Row key={item.id}>
+                  <Cell className="font-medium">{item.name}</Cell>
+                  <Cell className="text-grey">
+                    {item.detail}
+                    <div className="text-xs">
+                      {OFFER_BILLING_LABELS[item.billing_type]}
+                      {isFixed && item.monthly_hours != null && <> · {item.monthly_hours}h/month</>}
+                      {fixedRate != null && <> · {formatMoney(fixedRate, offer.currency)}/h</>}
+                      {item.overtime_rate != null && <> · OT {formatMoney(item.overtime_rate, offer.currency)}/h</>}
+                    </div>
+                  </Cell>
+                  <Cell className="whitespace-nowrap font-medium">
+                    {formatMoney(item.amount, offer.currency)}
+                    <span className="text-grey">{isFixed ? '/mo' : '/h'}</span>
+                  </Cell>
+                </Row>
+              );
+            })}
+          {(() => {
+            const totals = offerTotals(offer.items);
+            return (
+              <>
+                {totals.hasFixed && (
+                  <Row className="bg-portal-tint/50">
+                    <Cell className="font-semibold">Total (fixed price)</Cell>
+                    <Cell />
+                    <Cell className="whitespace-nowrap font-semibold text-violet">
+                      {formatMoney(totals.fixed, offer.currency)}
+                      <span className="text-grey">/mo</span>
+                    </Cell>
+                  </Row>
+                )}
+                {totals.hasHourly && (
+                  <Row className="bg-portal-tint/50">
+                    <Cell className="font-semibold">Total (hourly)</Cell>
+                    <Cell />
+                    <Cell className="whitespace-nowrap font-semibold text-violet">
+                      {formatMoney(totals.hourly, offer.currency)}
+                      <span className="text-grey">/h</span>
+                    </Cell>
+                  </Row>
+                )}
+              </>
+            );
+          })()}
         </PortalTable>
       )}
 
@@ -245,7 +284,7 @@ const OpportunityBlock: React.FC<{
                 <Cell className="font-medium">v{offer.version}</Cell>
                 <Cell className="whitespace-nowrap text-grey">{formatDate(offer.sent_at ?? offer.created_at)}</Cell>
                 <Cell className="text-grey">{offer.change_note ?? '—'}</Cell>
-                <Cell className="whitespace-nowrap">{formatMoney(offer.total, offer.currency)}</Cell>
+                <Cell className="whitespace-nowrap">{formatOfferTotal(offer.items, offer.currency)}</Cell>
                 <Cell>
                   <StatusTag tone={toneFor(offer.status)}>{OFFER_STATUS_LABELS[offer.status]}</StatusTag>
                 </Cell>
@@ -260,28 +299,42 @@ const OpportunityBlock: React.FC<{
 
 export const PortalPipeline: React.FC = () => {
   const { snapshot, reload } = usePortalData();
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
   if (!snapshot) return null;
 
   const { opportunities, offers, documents } = snapshot;
-  // Fall back to a single unnamed block so legacy accounts with offers but no opportunity still render.
-  const blocks = opportunities.length > 0 ? opportunities : [null];
+  // With several opportunities the client picks one from a list; with one (or a legacy account that
+  // has offers but no opportunity) its detail shows directly.
+  const selected = opportunities.find((opp) => opp.id === selectedId) ?? opportunities[0] ?? null;
+  const oppOffers = selected ? offers.filter((offer) => offer.opportunity_id === selected.id) : offers;
 
   return (
-    <div className="space-y-8">
-      {blocks.map((opp) => {
-        const oppOffers = opp ? offers.filter((offer) => offer.opportunity_id === opp.id) : offers;
-        return (
-          <section key={opp?.id ?? 'none'} className="space-y-5">
-            {opportunities.length > 1 && opp && (
-              <div className="flex items-center gap-2 border-b border-border-color pb-2">
-                <h2 className="text-sm font-semibold">{opp.name}</h2>
-                <StatusTag tone={toneFor(opp.stage)}>{STAGE_LABELS[opp.stage]}</StatusTag>
-              </div>
-            )}
-            <OpportunityBlock opportunity={opp} offers={oppOffers} documents={documents} onReload={reload} />
-          </section>
-        );
-      })}
+    <div className="space-y-5">
+      {opportunities.length > 1 && (
+        <PortalCard title="Your opportunities" description="Pick a deal to see its stage, offers and documents.">
+          <div className="flex flex-wrap gap-2">
+            {opportunities.map((opp) => (
+              <button
+                key={opp.id}
+                onClick={() => setSelectedId(opp.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  opp.id === selected?.id
+                    ? 'border-violet bg-portal-tint text-violet'
+                    : 'border-border-color hover:border-violet/50',
+                )}
+              >
+                <div className="font-medium">{opp.name}</div>
+                <div className="mt-0.5">
+                  <StatusTag tone={toneFor(opp.stage)}>{STAGE_LABELS[opp.stage]}</StatusTag>
+                </div>
+              </button>
+            ))}
+          </div>
+        </PortalCard>
+      )}
+
+      <OpportunityBlock opportunity={selected} offers={oppOffers} documents={documents} onReload={reload} />
     </div>
   );
 };

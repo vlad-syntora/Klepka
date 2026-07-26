@@ -15,6 +15,7 @@ import {
   CANDIDATE_STATUS_LABELS,
   ROLE_LABELS,
   type Candidate,
+  type Opportunity,
   type PortalAccount,
 } from '@/app/lib/portal-types';
 import {
@@ -196,13 +197,16 @@ const CandidateAdminRow: React.FC<{ candidate: Candidate; onReload: () => Promis
 };
 
 /**
- * Candidates — internal staff proposed to the client for this account, each with a position title,
- * a CV link and an optional hourly rate. Works like the Klepka team widget (pick an internal user),
- * but the client reviews each one and confirms or declines; that decision lands back here. The
- * hourly rate is shown to the client only when set.
+ * Candidates — internal staff proposed to the client for one opportunity, each with a position
+ * title, a CV link and an optional hourly rate. Works like the Klepka team widget (pick an internal
+ * user), but the client reviews each one and confirms or declines; that decision lands back here.
+ * The hourly rate is shown to the client only when set.
  */
-export const WorkspaceCandidates: React.FC<{ account: PortalAccount }> = ({ account }) => {
-  const candidates = useAsync(() => adminListCandidates(account.id), [account.id]);
+export const WorkspaceCandidates: React.FC<{ account: PortalAccount; opportunity: Opportunity }> = ({
+  account,
+  opportunity,
+}) => {
+  const candidates = useAsync(() => adminListCandidates(opportunity.id), [opportunity.id]);
   const staff = useAsync(() => adminListInternalUsers(), []);
 
   const [userId, setUserId] = React.useState('');
@@ -225,6 +229,7 @@ export const WorkspaceCandidates: React.FC<{ account: PortalAccount }> = ({ acco
     try {
       await adminCreateCandidate({
         account_id: account.id,
+        opportunity_id: opportunity.id,
         user_id: userId,
         title: title.trim() || null,
         cv_url: cvUrl.trim() || null,
@@ -249,7 +254,7 @@ export const WorkspaceCandidates: React.FC<{ account: PortalAccount }> = ({ acco
   return (
     <PortalCard
       title="Candidates"
-      description="Internal staff proposed to the client for this account. The client confirms or declines each — the hourly rate is only shown when set."
+      description="Internal staff proposed to the client for this opportunity. The client confirms or declines each — the hourly rate is only shown when set."
       action={
         <PortalButton onClick={() => void candidates.reload()} variant="ghost">
           Refresh

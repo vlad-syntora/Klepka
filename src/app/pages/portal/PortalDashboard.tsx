@@ -24,7 +24,7 @@ interface ActionItem {
 export const PortalDashboard: React.FC = () => {
   const { snapshot, reload } = usePortalData();
   const { user } = usePortalUser();
-  const { phase } = usePortalPhase();
+  const { phase, can } = usePortalPhase();
   const [markingId, setMarkingId] = React.useState<string | null>(null);
 
   const markRead = async (id: string) => {
@@ -67,27 +67,34 @@ export const PortalDashboard: React.FC = () => {
           } as ActionItem,
         ]
       : []),
-    // Information gathering: stages that still need the client's input.
-    ...intake
-      .filter(
-        (item) =>
-          item.owner_side === 'client' &&
-          ['not_started', 'in_progress', 'blocked'].includes(item.status),
-      )
-      .map<ActionItem>((item) => ({
-        label: `Information gathering: ${item.name}`,
-        to: '/portal/intake',
-        tag: isOverdue(item.due_date) ? 'Overdue' : 'Needs input',
-        tone: isOverdue(item.due_date) ? 'red' : 'amber',
-      })),
-    ...offers
-      .filter((offer) => offer.status === 'sent')
-      .map<ActionItem>((offer) => ({
-        label: `Review ${offer.title} (v${offer.version})`,
-        to: '/portal/pipeline',
-        tag: 'Needs review',
-        tone: 'amber',
-      })),
+    // Information gathering: stages that still need the client's input — only while the
+    // Information gathering tab is actually visible (same gating as the welcome widget).
+    ...(can('intake')
+      ? intake
+          .filter(
+            (item) =>
+              item.owner_side === 'client' &&
+              ['not_started', 'in_progress', 'blocked'].includes(item.status),
+          )
+          .map<ActionItem>((item) => ({
+            label: `Information gathering: ${item.name}`,
+            to: '/portal/intake',
+            tag: isOverdue(item.due_date) ? 'Overdue' : 'Needs input',
+            tone: isOverdue(item.due_date) ? 'red' : 'amber',
+          }))
+      : []),
+    // Offer/SOW review: only surfaced once the opportunity (pipeline) tab is visible to the
+    // client — the action item links there, so it must not appear before the tab does.
+    ...(can('pipeline')
+      ? offers
+          .filter((offer) => offer.status === 'sent')
+          .map<ActionItem>((offer) => ({
+            label: `Review ${offer.title} (v${offer.version})`,
+            to: '/portal/pipeline',
+            tag: 'Needs review',
+            tone: 'amber',
+          }))
+      : []),
     ...invoices
       .filter((invoice) => invoice.status === 'overdue' || invoice.status === 'due')
       .map<ActionItem>((invoice) => ({
@@ -118,7 +125,7 @@ export const PortalDashboard: React.FC = () => {
           <BookCallButton variant="primary" className="bg-white text-violet hover:bg-accent-yellow">
             <CalendarPlus className="h-4 w-4" /> Book an intro call
           </BookCallButton>
-          {openIntake.length > 0 && (
+          {can('intake') && openIntake.length > 0 && (
             <Link to="/portal/intake">
               <PortalButton className="border border-white/60 bg-transparent text-white hover:bg-white/15">
                 {openIntake.length} item{openIntake.length > 1 ? 's' : ''} need your input

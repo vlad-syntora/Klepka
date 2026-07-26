@@ -5,7 +5,7 @@ import { usePortalData } from '@/app/hooks/use-portal-data';
 import { getDocumentUrl, updateIntakeItem, uploadClientDocument } from '@/app/lib/portal-api';
 import { resolveFileView } from '@/app/lib/file-view';
 import { formatDate } from '@/app/lib/portal-format';
-import { INTAKE_STATUS_LABELS, type IntakeItem, type PortalDocument } from '@/app/lib/portal-types';
+import { INTAKE_STATUS_LABELS, STAGE_LABELS, type IntakeItem, type PortalDocument } from '@/app/lib/portal-types';
 import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
 import { cn } from '@/app/components/ui/utils';
 import { EmptyState, Field, InfoNote, PortalButton, PortalCard, StatusTag, Tone, inputClass, toneFor } from '@/app/components/portal/PortalUi';
@@ -102,7 +102,11 @@ const Item: React.FC<{
     if (!file) return;
     setUploading(true);
     try {
-      await uploadClientDocument(accountId, file, file.name, { intakeItemId: item.id, folderKey: DISCOVERY_FOLDER });
+      await uploadClientDocument(accountId, file, file.name, {
+        intakeItemId: item.id,
+        opportunityId: item.opportunity_id,
+        folderKey: DISCOVERY_FOLDER,
+      });
       toast.success('File attached.');
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
@@ -269,9 +273,16 @@ const Item: React.FC<{
 export const PortalIntake: React.FC = () => {
   const { snapshot, reload } = usePortalData();
   const [viewerFile, setViewerFile] = React.useState<FileViewerFile | null>(null);
+  const [selectedOppId, setSelectedOppId] = React.useState<string | null>(null);
   if (!snapshot) return null;
 
-  const { intake, documents, account } = snapshot;
+  const { documents, account, opportunities } = snapshot;
+  // Intake is per-opportunity; with several deals the client picks which checklist to see.
+  const selectedOpp = opportunities.find((opp) => opp.id === selectedOppId) ?? opportunities[0] ?? null;
+  const intake = selectedOpp
+    ? snapshot.intake.filter((item) => item.opportunity_id === selectedOpp.id)
+    : snapshot.intake;
+
   const docsFor = (itemId: string) => documents.filter((doc) => doc.intake_item_id === itemId);
   const mine = intake.filter((item) => item.owner_side === 'client');
   const theirs = intake.filter((item) => item.owner_side === 'klepka');
@@ -285,6 +296,30 @@ export const PortalIntake: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {opportunities.length > 1 && (
+        <PortalCard title="Your opportunities" description="Pick a deal to see its information-gathering checklist.">
+          <div className="flex flex-wrap gap-2">
+            {opportunities.map((opp) => (
+              <button
+                key={opp.id}
+                onClick={() => setSelectedOppId(opp.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  opp.id === selectedOpp?.id
+                    ? 'border-violet bg-portal-tint text-violet'
+                    : 'border-border-color hover:border-violet/50',
+                )}
+              >
+                <div className="font-medium">{opp.name}</div>
+                <div className="mt-0.5">
+                  <StatusTag tone={toneFor(opp.stage)}>{STAGE_LABELS[opp.stage]}</StatusTag>
+                </div>
+              </button>
+            ))}
+          </div>
+        </PortalCard>
+      )}
+
       {/* Progress header — one glance tells the client where they stand. */}
       <div className="rounded-xl border border-border-color bg-card px-5 py-4 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">

@@ -1,11 +1,12 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Paperclip, Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Paperclip, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminDeleteIntakeItem,
   adminListDocuments,
   adminListIntake,
+  adminSetIntakePublished,
   adminUploadDocument,
   adminUpsertIntakeItem,
 } from '@/app/lib/portal-admin-api';
@@ -15,6 +16,7 @@ import {
   INTAKE_STATUSES,
   INTAKE_STATUS_LABELS,
   type IntakeItem,
+  type Opportunity,
   type PortalAccount,
   type PortalDocument,
 } from '@/app/lib/portal-types';
@@ -45,10 +47,17 @@ const TEMPLATE: { name: string; description: string; owner_side: IntakeItem['own
   { name: 'Effort estimate', description: 'Sizing per workstream ahead of the proposal.', owner_side: 'klepka' },
 ];
 
-export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account }) => {
-  const items = useAsync(() => adminListIntake(account.id), [account.id]);
+export const WorkspaceIntake: React.FC<{
+  account: PortalAccount;
+  opportunity: Opportunity;
+  /** Called after publish/unpublish so the parent can refresh the opportunity. */
+  onOpportunityChange?: () => Promise<void> | void;
+}> = ({ account, opportunity, onOpportunityChange }) => {
+  const items = useAsync(() => adminListIntake(opportunity.id), [opportunity.id]);
   const documents = useAsync(() => adminListDocuments(account.id), [account.id]);
   const [showForm, setShowForm] = React.useState(false);
+  const [publishing, setPublishing] = React.useState(false);
+  const published = Boolean(opportunity.intake_published);
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [ownerSide, setOwnerSide] = React.useState<IntakeItem['owner_side']>('client');
@@ -72,12 +81,13 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
     }
   };
 
-  // Attach a file straight under an intake item — lands in the account's "01 Discovery" Drive folder.
+  // Attach a file straight under an intake item — lands in the opportunity's "01 Discovery" folder.
   const attach = async (item: IntakeItem, file: File) => {
     setAttachingId(item.id);
     try {
       await adminUploadDocument({
         account_id: account.id,
+        opportunity_id: item.opportunity_id,
         name: file.name,
         doc_type: 'reference',
         status: 'acknowledged',
@@ -94,12 +104,26 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
     }
   };
 
+  const publish = async (next: boolean) => {
+    setPublishing(true);
+    try {
+      await adminSetIntakePublished(opportunity.id, next);
+      toast.success(next ? 'Checklist published — the client can see it now.' : 'Checklist hidden from the client.');
+      await onOpportunityChange?.();
+    } catch (cause) {
+      toast.error('Could not update visibility', { description: cause instanceof Error ? cause.message : undefined });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
     try {
       await adminUpsertIntakeItem({
         account_id: account.id,
+        opportunity_id: opportunity.id,
         name: name.trim(),
         description: description.trim(),
         owner_side: ownerSide,
@@ -126,6 +150,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       for (const [index, item] of TEMPLATE.entries()) {
         await adminUpsertIntakeItem({
           account_id: account.id,
+          opportunity_id: opportunity.id,
           ...item,
           status: 'not_started',
           due_date: null,
@@ -148,6 +173,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       await adminUpsertIntakeItem({
         id: item.id,
         account_id: item.account_id,
+        opportunity_id: item.opportunity_id,
         name: changes.name ?? item.name,
         description: changes.description ?? item.description,
         owner_side: changes.owner_side ?? item.owner_side,
@@ -169,7 +195,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
     await items.reload();
   };
 
-  // Only blank the tab on the very first load — reloads keep the table on screen (no flash).
+  // Only blank on the very first load — reloads keep the table on screen (no flash).
   if (items.loading && !items.data) return <PortalSpinner />;
   if (items.error) return <ErrorNote>{items.error}</ErrorNote>;
 
@@ -186,9 +212,21 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
 
       <PortalCard
         title="Information gathering"
-        description="Drives the client's checklist — due dates, owners and review verdicts."
+        description="Drives the client's checklist — due dates, owners and review verdicts. Build it here, then make it available to the client when it's ready."
         action={
           <>
+            <StatusTag tone={published ? 'green' : 'grey'}>
+              {published ? 'Visible to client' : 'Hidden from client'}
+            </StatusTag>
+            {published ? (
+              <PortalButton variant="secondary" onClick={() => publish(false)} disabled={publishing}>
+                <EyeOff className="h-4 w-4" /> Hide from client
+              </PortalButton>
+            ) : (
+              <PortalButton onClick={() => publish(true)} disabled={publishing || rows.length === 0}>
+                <Eye className="h-4 w-4" /> Make available to client
+              </PortalButton>
+            )}
             <PortalButton variant="secondary" onClick={seed} disabled={busy}>
               Use standard checklist
             </PortalButton>
@@ -385,8 +423,8 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       </PortalCard>
 
       <InfoNote>
-        The client only sees this page once the account reaches <strong>Qualified</strong>. Move the lifecycle stage on
-        the Overview tab to open it up.
+        The client sees this checklist only after you <strong>make it available</strong> above — build it fully first,
+        then publish. (They also need the account to have reached <strong>Qualified</strong> for the section to appear.)
       </InfoNote>
     </div>
   );

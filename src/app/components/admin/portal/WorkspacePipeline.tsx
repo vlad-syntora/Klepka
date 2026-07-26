@@ -1,10 +1,12 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Download, Plus, Send, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Paperclip, Plus, Send, Trash2, Upload, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminCreateOfferVersion,
   adminDeleteDocument,
+  adminDeleteOpportunity,
+  adminListCandidates,
   adminListDocuments,
   adminListOffers,
   adminListOpportunities,
@@ -14,7 +16,7 @@ import {
   type OfferItemInput,
 } from '@/app/lib/portal-admin-api';
 import { getDocumentUrl } from '@/app/lib/portal-api';
-import { formatDate, formatMoney } from '@/app/lib/portal-format';
+import { formatDate, formatMoney, prettyName } from '@/app/lib/portal-format';
 import {
   DOC_TYPES,
   DOC_TYPE_LABELS,
@@ -52,8 +54,10 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const opportunities = useAsync(() => adminListOpportunities(account.id), [account.id]);
   const offers = useAsync(() => adminListOffers(account.id), [account.id]);
   const documents = useAsync(() => adminListDocuments(account.id), [account.id]);
+  const candidates = useAsync(() => adminListCandidates(account.id), [account.id]);
 
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [expandedOfferId, setExpandedOfferId] = React.useState<string | null>(null);
 
   // Offer builder state
   const [showBuilder, setShowBuilder] = React.useState(false);
@@ -70,12 +74,30 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const [docFile, setDocFile] = React.useState<File | null>(null);
   const [docBusy, setDocBusy] = React.useState(false);
 
+  // Per-offer document attach (hidden file input, reused across rows)
+  const offerFileInputRef = React.useRef<HTMLInputElement>(null);
+  const attachTargetOfferId = React.useRef<string | null>(null);
+  const [attachingOfferId, setAttachingOfferId] = React.useState<string | null>(null);
+
   const opps = opportunities.data ?? [];
   const selected: Opportunity | null = opps.find((entry) => entry.id === selectedId) ?? opps[0] ?? null;
   const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   const oppOffers = (offers.data ?? []).filter((offer) => offer.opportunity_id === selected?.id);
   const oppDocs = (documents.data ?? []).filter((doc) => doc.opportunity_id === selected?.id);
+  const offerVersionById = new Map(oppOffers.map((offer) => [offer.id, offer.version]));
+  const confirmedCandidates = (candidates.data ?? []).filter((candidate) => candidate.status === 'confirmed');
+
+  // A confirmed candidate becomes an offer line: their role as the name, their rate as the amount.
+  const candidateLine = (candidate: (typeof confirmedCandidates)[number]): OfferItemInput => {
+    const name = prettyName(candidate.user?.full_name ?? 'Team member');
+    const role = candidate.title ?? candidate.user?.title ?? null;
+    return {
+      name: role ? `${name} — ${role}` : name,
+      detail: candidate.hourly_rate != null ? `${formatMoney(candidate.hourly_rate)}/h` : '',
+      amount: candidate.hourly_rate ?? 0,
+    };
+  };
 
   const setStage = async (stage: Opportunity['stage']) => {
     if (!selected) return;
@@ -113,6 +135,51 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
         description: cause instanceof Error ? cause.message : undefined,
       });
     }
+  };
+
+  const removeOpportunity = async () => {
+    if (!selected) return;
+    if (
+      !window.confirm(
+        `Delete "${selected.name}"? Its offers and documents stay in the account but are unlinked from this opportunity. This can't be undone.`,
+      )
+    )
+      return;
+    try {
+      await adminDeleteOpportunity(selected.id);
+      toast.success('Opportunity deleted.');
+      setSelectedId(null); // fall back to the newest remaining opportunity
+      await opportunities.reload();
+      await offers.reload();
+      await documents.reload();
+      await onChange();
+    } catch (cause) {
+      toast.error('Could not delete the opportunity', {
+        description: cause instanceof Error ? cause.message : undefined,
+      });
+    }
+  };
+
+  const toggleBuilder = () => {
+    setShowBuilder((open) => {
+      const next = !open;
+      // Opening a fresh builder pre-fills the lines from confirmed candidates.
+      if (next && confirmedCandidates.length > 0) {
+        setItems((current) =>
+          current.some((item) => item.name.trim().length > 0)
+            ? current
+            : confirmedCandidates.map(candidateLine),
+        );
+      }
+      return next;
+    });
+  };
+
+  const addCandidateLine = (candidate: (typeof confirmedCandidates)[number]) => {
+    setItems((current) => {
+      const seeded = current.filter((item) => item.name.trim().length > 0);
+      return [...seeded, candidateLine(candidate)];
+    });
   };
 
   const submitOffer = async (send: boolean) => {
@@ -155,6 +222,37 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
       await offers.reload();
     } catch (cause) {
       toast.error('Could not send', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
+  const pickOfferDoc = (offerId: string) => {
+    attachTargetOfferId.current = offerId;
+    offerFileInputRef.current?.click();
+  };
+
+  const attachOfferDoc = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = ''; // allow re-picking the same file later
+    const offerId = attachTargetOfferId.current;
+    if (!file || !offerId || !selected) return;
+    setAttachingOfferId(offerId);
+    try {
+      await adminUploadDocument({
+        account_id: account.id,
+        name: file.name,
+        doc_type: 'proposal',
+        status: 'sent',
+        file,
+        // Link to both the offer and its opportunity so it shows under either.
+        opportunity_id: selected.id,
+        related_offer_id: offerId,
+      });
+      toast.success('Document attached to the offer.');
+      await documents.reload();
+    } catch (cause) {
+      toast.error('Could not attach', { description: cause instanceof Error ? cause.message : undefined });
+    } finally {
+      setAttachingOfferId(null);
     }
   };
 
@@ -252,17 +350,22 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
             title="Stage"
             description={selected.name}
             action={
-              <select
-                className={`${inputClass} w-auto py-1.5 text-xs`}
-                value={selected.stage}
-                onChange={(event) => setStage(event.target.value as Opportunity['stage'])}
-              >
-                {[...OPPORTUNITY_STAGES, 'closed_lost'].map((stage) => (
-                  <option key={stage} value={stage}>
-                    {STAGE_LABELS[stage]}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  className={`${inputClass} w-auto py-1.5 text-xs`}
+                  value={selected.stage}
+                  onChange={(event) => setStage(event.target.value as Opportunity['stage'])}
+                >
+                  {[...OPPORTUNITY_STAGES, 'closed_lost'].map((stage) => (
+                    <option key={stage} value={stage}>
+                      {STAGE_LABELS[stage]}
+                    </option>
+                  ))}
+                </select>
+                <PortalButton variant="ghost" onClick={removeOpportunity} aria-label="Delete opportunity">
+                  <Trash2 className="h-4 w-4" />
+                </PortalButton>
+              </div>
             }
           >
             <div className="px-2 pt-2 pb-1">
@@ -274,7 +377,7 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
             title="Offers"
             description="Revisions create a new version for this opportunity; the previous one is superseded."
             action={
-              <PortalButton onClick={() => setShowBuilder((open) => !open)}>
+              <PortalButton onClick={toggleBuilder}>
                 <Plus className="h-4 w-4" /> New offer version
               </PortalButton>
             }
@@ -363,6 +466,26 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                   >
                     <Plus className="h-4 w-4" /> Add line item
                   </PortalButton>
+
+                  {confirmedCandidates.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border-color pt-2">
+                      <span className="text-xs font-medium text-grey">Add confirmed candidate:</span>
+                      {confirmedCandidates.map((candidate) => (
+                        <button
+                          key={candidate.id}
+                          type="button"
+                          onClick={() => addCandidateLine(candidate)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border-color px-2.5 py-1 text-xs font-medium text-violet transition-colors hover:bg-portal-tint"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          {prettyName(candidate.user?.full_name ?? 'Team member')}
+                          {candidate.hourly_rate != null && (
+                            <span className="text-grey">· {formatMoney(candidate.hourly_rate)}/h</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 border-t border-border-color pt-3">
@@ -382,28 +505,130 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
             {oppOffers.length === 0 ? (
               <EmptyState title="No offers yet" />
             ) : (
-              <PortalTable head={['Version', 'Title', 'Total', 'Status', 'Sent', 'Client note', '']}>
-                {oppOffers.map((offer) => (
-                  <Row key={offer.id}>
-                    <Cell className="font-medium">v{offer.version}</Cell>
-                    <Cell>{offer.title}</Cell>
-                    <Cell className="whitespace-nowrap">{formatMoney(offer.total, offer.currency)}</Cell>
-                    <Cell>
-                      <StatusTag tone={toneFor(offer.status)}>{OFFER_STATUS_LABELS[offer.status]}</StatusTag>
-                    </Cell>
-                    <Cell className="whitespace-nowrap text-grey">{formatDate(offer.sent_at)}</Cell>
-                    <Cell className="max-w-xs text-grey">{offer.client_note ?? '—'}</Cell>
-                    <Cell className="text-right">
-                      {offer.status === 'draft' && (
-                        <PortalButton onClick={() => send(offer.id, `${offer.title} (v${offer.version})`)}>
-                          <Send className="h-4 w-4" /> Send
-                        </PortalButton>
+              <PortalTable head={['', 'Version', 'Title', 'Total', 'Status', 'Sent', 'Client note', '']}>
+                {oppOffers.map((offer) => {
+                  const expanded = expandedOfferId === offer.id;
+                  const offerDocs = (documents.data ?? []).filter((doc) => doc.related_offer_id === offer.id);
+                  return (
+                    <React.Fragment key={offer.id}>
+                      <Row>
+                        <Cell>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedOfferId(expanded ? null : offer.id)}
+                            aria-label={expanded ? 'Hide details' : 'Show details'}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint hover:text-violet"
+                          >
+                            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        </Cell>
+                        <Cell className="font-medium">v{offer.version}</Cell>
+                        <Cell>{offer.title}</Cell>
+                        <Cell className="whitespace-nowrap">{formatMoney(offer.total, offer.currency)}</Cell>
+                        <Cell>
+                          <StatusTag tone={toneFor(offer.status)}>{OFFER_STATUS_LABELS[offer.status]}</StatusTag>
+                        </Cell>
+                        <Cell className="whitespace-nowrap text-grey">{formatDate(offer.sent_at)}</Cell>
+                        <Cell className="max-w-xs text-grey">{offer.client_note ?? '—'}</Cell>
+                        <Cell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <PortalButton
+                              variant="ghost"
+                              onClick={() => pickOfferDoc(offer.id)}
+                              disabled={attachingOfferId === offer.id}
+                              aria-label="Attach document to this offer"
+                              title="Attach document"
+                            >
+                              <Paperclip className="h-4 w-4" />
+                            </PortalButton>
+                            {offer.status === 'draft' && (
+                              <PortalButton onClick={() => send(offer.id, `${offer.title} (v${offer.version})`)}>
+                                <Send className="h-4 w-4" /> Send
+                              </PortalButton>
+                            )}
+                          </div>
+                        </Cell>
+                      </Row>
+                      {expanded && (
+                        <Row className="bg-off-white">
+                          <Cell />
+                          <Cell colSpan={7}>
+                            <div className="space-y-4 py-1">
+                              {offer.summary && <p className="text-sm text-grey">{offer.summary}</p>}
+
+                              <div>
+                                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-grey">
+                                  Line items
+                                </div>
+                                {offer.items.length === 0 ? (
+                                  <p className="text-sm text-grey">No line items.</p>
+                                ) : (
+                                  <table className="w-full text-sm">
+                                    <tbody>
+                                      {[...offer.items]
+                                        .sort((a, b) => a.position - b.position)
+                                        .map((item) => (
+                                          <tr key={item.id} className="border-b border-border-color/60 last:border-0">
+                                            <td className="py-1.5 pr-3 font-medium">{item.name}</td>
+                                            <td className="py-1.5 pr-3 text-grey">{item.detail}</td>
+                                            <td className="whitespace-nowrap py-1.5 text-right font-medium">
+                                              {formatMoney(item.amount, offer.currency)}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+
+                              <div>
+                                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-grey">
+                                  Attached documents
+                                </div>
+                                {offerDocs.length === 0 ? (
+                                  <p className="text-sm text-grey">No documents attached to this offer yet.</p>
+                                ) : (
+                                  <ul className="space-y-1">
+                                    {offerDocs.map((doc) => (
+                                      <li key={doc.id} className="flex items-center justify-between gap-2 text-sm">
+                                        <span className="flex min-w-0 items-center gap-2">
+                                          <Paperclip className="h-3.5 w-3.5 shrink-0 text-grey" />
+                                          <span className="truncate">{doc.name}</span>
+                                        </span>
+                                        <div className="flex shrink-0 gap-1">
+                                          {doc.file_url && (
+                                            <PortalButton
+                                              variant="ghost"
+                                              onClick={() => openDoc(doc.file_url)}
+                                              aria-label="Download"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                            </PortalButton>
+                                          )}
+                                          <PortalButton
+                                            variant="ghost"
+                                            onClick={() => removeDoc(doc.id, doc.name)}
+                                            aria-label="Remove"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </PortalButton>
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          </Cell>
+                        </Row>
                       )}
-                    </Cell>
-                  </Row>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </PortalTable>
             )}
+
+            <input ref={offerFileInputRef} type="file" className="hidden" onChange={attachOfferDoc} />
           </PortalCard>
 
           <PortalCard
@@ -443,7 +668,14 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
               <PortalTable head={['Name', 'Type', 'Version', 'Updated', '']}>
                 {oppDocs.map((doc) => (
                   <Row key={doc.id}>
-                    <Cell className="font-medium">{doc.name}</Cell>
+                    <Cell className="font-medium">
+                      <span className="flex items-center gap-2">
+                        {doc.name}
+                        {doc.related_offer_id && offerVersionById.has(doc.related_offer_id) && (
+                          <StatusTag tone="violet">Offer v{offerVersionById.get(doc.related_offer_id)}</StatusTag>
+                        )}
+                      </span>
+                    </Cell>
                     <Cell className="text-grey">{DOC_TYPE_LABELS[doc.doc_type]}</Cell>
                     <Cell className="text-grey">v{doc.version}</Cell>
                     <Cell className="whitespace-nowrap text-grey">{formatDate(doc.updated_at)}</Cell>

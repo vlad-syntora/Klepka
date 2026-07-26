@@ -349,6 +349,7 @@ export const DocumentSchema = z.object({
   opportunity_id: z.guid().nullable().optional(),
   related_offer_id: z.guid().nullable(),
   related_project_id: z.guid().nullable(),
+  intake_item_id: z.guid().nullable().optional(),
   uploaded_by_client: z.boolean(),
   updated_at: z.string(),
 });
@@ -459,12 +460,14 @@ export const ProjectTeamMemberSchema = z.object({
   project_role: z.string(),
   assigned_at: z.string(),
   active: z.boolean(),
+  is_public: z.boolean().optional(),
   user: z
     .object({
       id: z.guid(),
       full_name: z.string(),
       title: z.string().nullable(),
       email: z.string(),
+      calendly_url: z.string().nullable().optional(),
       photo_url: z.string().nullable().optional(),
     })
     .nullable()
@@ -478,6 +481,7 @@ export const AccountTeamMemberSchema = z.object({
   user_id: z.guid(),
   team_role: z.string(),
   active: z.boolean(),
+  is_public: z.boolean().optional(),
   added_at: z.string(),
   user: z
     .object({

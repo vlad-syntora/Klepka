@@ -1,13 +1,18 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Check, FileText, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, FileText, X } from 'lucide-react';
 import { decideCandidate } from '@/app/lib/portal-api';
 import { usePortalData } from '@/app/hooks/use-portal-data';
+import { resolveFileView } from '@/app/lib/file-view';
 import { formatMoney, initialsOf, prettyName } from '@/app/lib/portal-format';
 import { CANDIDATE_STATUS_LABELS, type Candidate } from '@/app/lib/portal-types';
+import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
 import { PortalButton, PortalCard, StatusTag, toneFor } from '@/app/components/portal/PortalUi';
 
-const CandidateRow: React.FC<{ candidate: Candidate }> = ({ candidate }) => {
+const CandidateCard: React.FC<{ candidate: Candidate; onView: (file: FileViewerFile) => void }> = ({
+  candidate,
+  onView,
+}) => {
   const { reload } = usePortalData();
   const [busy, setBusy] = React.useState<null | 'confirmed' | 'declined'>(null);
 
@@ -29,53 +34,61 @@ const CandidateRow: React.FC<{ candidate: Candidate }> = ({ candidate }) => {
   };
 
   return (
-    <li className="flex flex-col gap-3 py-3">
+    <div className="flex w-[266px] shrink-0 snap-start flex-col rounded-xl border border-border-color bg-card p-4">
       <div className="flex items-center gap-3">
         {photo ? (
-          <img src={photo} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          <img src={photo} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
         ) : (
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-portal-tint text-xs font-semibold text-violet">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-portal-tint text-sm font-semibold text-violet">
             {initialsOf(name)}
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-sm font-medium">{prettyName(name)}</span>
-            {!pending && (
-              <StatusTag tone={toneFor(candidate.status)}>{CANDIDATE_STATUS_LABELS[candidate.status]}</StatusTag>
-            )}
-          </div>
+          <div className="truncate text-sm font-medium">{prettyName(name)}</div>
           {title && <div className="truncate text-xs text-grey">{title}</div>}
         </div>
-        {/* Rate is shown only when Klepka set one. */}
-        {candidate.hourly_rate != null && (
-          <span className="shrink-0 text-xs font-medium text-grey">{formatMoney(candidate.hourly_rate)}/h</span>
-        )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 pl-[52px]">
-        {candidate.cv_url && (
-          <a
-            href={candidate.cv_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-violet hover:underline"
-          >
-            <FileText className="h-4 w-4" /> View CV
-          </a>
-        )}
-        {pending && (
-          <div className="ml-auto flex items-center gap-2">
-            <PortalButton onClick={() => decide('confirmed')} disabled={busy !== null}>
-              <Check className="h-4 w-4" /> Confirm
-            </PortalButton>
-            <PortalButton variant="danger" onClick={() => decide('declined')} disabled={busy !== null}>
-              <X className="h-4 w-4" /> Decline
-            </PortalButton>
+      <dl className="mt-4 space-y-2.5 border-t border-border-color pt-3 text-sm">
+        {candidate.hourly_rate != null && (
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-xs uppercase tracking-wide text-grey">Rate</dt>
+            <dd className="font-medium text-foreground">{formatMoney(candidate.hourly_rate)}/h</dd>
           </div>
         )}
-      </div>
-    </li>
+        <div className="flex items-center justify-between gap-2">
+          <dt className="text-xs uppercase tracking-wide text-grey">Status</dt>
+          <dd>
+            <StatusTag tone={toneFor(candidate.status)}>{CANDIDATE_STATUS_LABELS[candidate.status]}</StatusTag>
+          </dd>
+        </div>
+        {candidate.cv_url && (
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-xs uppercase tracking-wide text-grey">CV</dt>
+            <dd>
+              <button
+                type="button"
+                onClick={() => onView({ title: `${prettyName(name)} — CV`, ...resolveFileView(candidate.cv_url!) })}
+                className="inline-flex items-center gap-1.5 font-medium text-violet hover:underline"
+              >
+                <FileText className="h-4 w-4" /> View
+              </button>
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      {pending && (
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <PortalButton className="flex-1" onClick={() => decide('confirmed')} disabled={busy !== null}>
+            <Check className="h-4 w-4" /> Confirm
+          </PortalButton>
+          <PortalButton variant="danger" className="flex-1" onClick={() => decide('declined')} disabled={busy !== null}>
+            <X className="h-4 w-4" /> Decline
+          </PortalButton>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -86,6 +99,9 @@ const CandidateRow: React.FC<{ candidate: Candidate }> = ({ candidate }) => {
  * already-staffed people. Hidden entirely when nobody has been proposed.
  */
 export const CandidatesWidget: React.FC<{ candidates: Candidate[] }> = ({ candidates }) => {
+  const scrollerRef = React.useRef<HTMLDivElement>(null);
+  const [viewerFile, setViewerFile] = React.useState<FileViewerFile | null>(null);
+
   if (candidates.length === 0) return null;
 
   // Awaiting-review first, then the settled ones.
@@ -93,16 +109,51 @@ export const CandidatesWidget: React.FC<{ candidates: Candidate[] }> = ({ candid
   const decided = candidates.filter((candidate) => candidate.status !== 'proposed');
   const ordered = [...pending, ...decided];
 
+  const scroll = (direction: 1 | -1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.85, behavior: 'smooth' });
+  };
+
+  const showControls = ordered.length > 1;
+
   return (
     <PortalCard
       title="Candidates for your review"
       description="People we’ve proposed for your project — review each CV, then confirm or decline."
+      action={
+        showControls ? (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => scroll(-1)}
+              aria-label="Previous candidates"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-color text-grey transition-colors hover:bg-portal-tint hover:text-violet"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scroll(1)}
+              aria-label="Next candidates"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-color text-grey transition-colors hover:bg-portal-tint hover:text-violet"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : undefined
+      }
     >
-      <ul className="divide-y divide-border-color">
+      <div
+        ref={scrollerRef}
+        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {ordered.map((candidate) => (
-          <CandidateRow key={candidate.id} candidate={candidate} />
+          <CandidateCard key={candidate.id} candidate={candidate} onView={setViewerFile} />
         ))}
-      </ul>
+      </div>
+
+      <FileViewer file={viewerFile} onClose={() => setViewerFile(null)} />
     </PortalCard>
   );
 };

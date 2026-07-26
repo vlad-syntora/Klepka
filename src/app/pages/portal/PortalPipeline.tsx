@@ -1,8 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CalendarPlus, Download } from 'lucide-react';
+import { CalendarPlus, Eye, FileText } from 'lucide-react';
 import { usePortalData } from '@/app/hooks/use-portal-data';
+import { BookCallButton } from '@/app/components/portal/BookCallButton';
+import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
+import { resolveFileView } from '@/app/lib/file-view';
 import { getDocumentUrl, respondToOffer } from '@/app/lib/portal-api';
 import { formatDate, formatMoney } from '@/app/lib/portal-format';
 import {
@@ -10,6 +12,7 @@ import {
   OPPORTUNITY_STAGES,
   STAGE_LABELS,
   type Offer,
+  type PortalDocument,
 } from '@/app/lib/portal-types';
 import {
   Cell,
@@ -28,11 +31,27 @@ import {
 
 const STAGES = OPPORTUNITY_STAGES.map((key) => ({ key, label: STAGE_LABELS[key] }));
 
-const OfferDetail: React.FC<{ offer: Offer; onResponded: () => Promise<void> }> = ({ offer, onResponded }) => {
+const OfferDetail: React.FC<{ offer: Offer; documents: PortalDocument[]; onResponded: () => Promise<void> }> = ({
+  offer,
+  documents,
+  onResponded,
+}) => {
   const [changeMode, setChangeMode] = React.useState(false);
   const [note, setNote] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [viewerFile, setViewerFile] = React.useState<FileViewerFile | null>(null);
   const open = offer.status === 'sent' || offer.status === 'changes_requested';
+  const offerDocs = documents.filter((doc) => doc.related_offer_id === offer.id);
+
+  const viewDoc = async (doc: PortalDocument) => {
+    if (!doc.file_url) return;
+    try {
+      const resolved = await getDocumentUrl(doc.file_url);
+      setViewerFile({ title: doc.name, ...resolveFileView(resolved, doc.drive_file_id) });
+    } catch (cause) {
+      toast.error('Could not open the document', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
 
   const respond = async (decision: 'accepted' | 'changes_requested') => {
     if (decision === 'changes_requested' && note.trim().length === 0) {
@@ -55,10 +74,11 @@ const OfferDetail: React.FC<{ offer: Offer; onResponded: () => Promise<void> }> 
     }
   };
 
-  const openPdf = async () => {
+  const viewPdf = async () => {
     if (!offer.pdf_url) return;
     try {
-      window.open(await getDocumentUrl(offer.pdf_url), '_blank', 'noopener');
+      const resolved = await getDocumentUrl(offer.pdf_url);
+      setViewerFile({ title: `${offer.title} — v${offer.version}`, ...resolveFileView(resolved) });
     } catch (cause) {
       toast.error('Could not open the PDF', { description: cause instanceof Error ? cause.message : undefined });
     }
@@ -106,6 +126,27 @@ const OfferDetail: React.FC<{ offer: Offer; onResponded: () => Promise<void> }> 
         </div>
       )}
 
+      {offerDocs.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-grey">Documents</div>
+          <ul className="divide-y divide-border-color rounded-lg border border-border-color">
+            {offerDocs.map((doc) => (
+              <li key={doc.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <FileText className="h-4 w-4 shrink-0 text-grey" />
+                  <span className="truncate font-medium">{doc.name}</span>
+                </span>
+                {doc.file_url && (
+                  <PortalButton variant="ghost" onClick={() => viewDoc(doc)}>
+                    <Eye className="h-4 w-4" /> View
+                  </PortalButton>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {changeMode && (
         <div className="mt-4 space-y-3 rounded-lg border border-border-color bg-off-white p-4">
           <Field label="What should change?" hint="Reference specific line items so we can revise precisely.">
@@ -140,25 +181,24 @@ const OfferDetail: React.FC<{ offer: Offer; onResponded: () => Promise<void> }> 
           </>
         )}
         {offer.pdf_url && (
-          <PortalButton variant="secondary" onClick={openPdf}>
-            <Download className="h-4 w-4" /> Download PDF
+          <PortalButton variant="secondary" onClick={viewPdf}>
+            <Eye className="h-4 w-4" /> View PDF
           </PortalButton>
         )}
-        <Link to="/portal/calls">
-          <PortalButton variant="ghost">
-            <CalendarPlus className="h-4 w-4" /> Book a call about this
-          </PortalButton>
-        </Link>
+        <BookCallButton variant="ghost">
+          <CalendarPlus className="h-4 w-4" /> Book a call about this
+        </BookCallButton>
       </div>
 
       {offer.status === 'accepted' && (
         <div className="mt-4">
           <InfoNote>
-            Accepted on {formatDate(offer.responded_at)}. Your contract appears under Contracts &amp; Documents once
-            it’s ready to sign.
+            Accepted on {formatDate(offer.responded_at)}. We’ll share your contract once it’s ready to sign.
           </InfoNote>
         </div>
       )}
+
+      <FileViewer file={viewerFile} onClose={() => setViewerFile(null)} />
     </PortalCard>
   );
 };
@@ -166,8 +206,9 @@ const OfferDetail: React.FC<{ offer: Offer; onResponded: () => Promise<void> }> 
 const OpportunityBlock: React.FC<{
   opportunity: { id: string; name: string; stage: string } | null;
   offers: Offer[];
+  documents: PortalDocument[];
   onReload: () => Promise<void>;
-}> = ({ opportunity, offers, onReload }) => {
+}> = ({ opportunity, offers, documents, onReload }) => {
   const currentStage = opportunity?.stage ?? 'discovery';
   const currentOffer =
     offers.find((offer) => ['sent', 'changes_requested', 'accepted'].includes(offer.status)) ?? offers[0];
@@ -186,7 +227,7 @@ const OpportunityBlock: React.FC<{
       </PortalCard>
 
       {currentOffer ? (
-        <OfferDetail offer={currentOffer} onResponded={onReload} />
+        <OfferDetail offer={currentOffer} documents={documents} onResponded={onReload} />
       ) : (
         <PortalCard title="Offers">
           <EmptyState
@@ -221,7 +262,7 @@ export const PortalPipeline: React.FC = () => {
   const { snapshot, reload } = usePortalData();
   if (!snapshot) return null;
 
-  const { opportunities, offers } = snapshot;
+  const { opportunities, offers, documents } = snapshot;
   // Fall back to a single unnamed block so legacy accounts with offers but no opportunity still render.
   const blocks = opportunities.length > 0 ? opportunities : [null];
 
@@ -237,7 +278,7 @@ export const PortalPipeline: React.FC = () => {
                 <StatusTag tone={toneFor(opp.stage)}>{STAGE_LABELS[opp.stage]}</StatusTag>
               </div>
             )}
-            <OpportunityBlock opportunity={opp} offers={oppOffers} onReload={reload} />
+            <OpportunityBlock opportunity={opp} offers={oppOffers} documents={documents} onReload={reload} />
           </section>
         );
       })}

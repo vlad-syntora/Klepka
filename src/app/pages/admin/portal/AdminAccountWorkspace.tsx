@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, FolderOpen } from 'lucide-react';
+import { ChevronRight, Eye, FolderOpen } from 'lucide-react';
 import { adminGetAccount } from '@/app/lib/portal-admin-api';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { HEALTH_LABELS, LIFECYCLE_LABELS, canViewPayments, type PortalAccount } from '@/app/lib/portal-types';
@@ -75,6 +75,12 @@ export const AdminAccountWorkspace: React.FC = () => {
         <StatusTag tone="violet">{LIFECYCLE_LABELS[account.lifecycle]}</StatusTag>
         <StatusTag tone={toneFor(account.health)}>{HEALTH_LABELS[account.health]}</StatusTag>
         <span className="text-sm text-grey">Owner: {account.owner ? prettyName(account.owner.full_name) : 'Unassigned'}</span>
+        <Link
+          to={`/admin/portal/accounts/${account.id}/preview`}
+          className="inline-flex items-center gap-1 text-sm text-violet hover:underline"
+        >
+          <Eye className="h-4 w-4" /> View as client
+        </Link>
         {account.drive_web_link && (
           <a
             href={account.drive_web_link}
@@ -104,7 +110,7 @@ export const AdminAccountWorkspace: React.FC = () => {
         ))}
       </div>
 
-      <CollapsibleCards>
+      <CollapsibleCards scope={`${account.id}:${tab}`}>
         {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} />}
         {tab === 'resources' && <WorkspaceResources account={account} />}
         {tab === 'intake' && <WorkspaceIntake account={account} />}

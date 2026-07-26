@@ -18,6 +18,7 @@ import {
   adminListProjectTeam,
   adminListProjects,
   adminRemoveProjectTeamMember,
+  adminSetProjectTeamPublic,
   adminUpdateProject,
   adminUploadDocument,
   adminUpsertMilestone,
@@ -467,6 +468,7 @@ const TeamPanel: React.FC<{ project: Project }> = ({ project }) => {
   const staff = useAsync(() => adminListInternalUsers(), []);
   const [userId, setUserId] = React.useState('');
   const [projectRole, setProjectRole] = React.useState(PROJECT_ROLES[2]);
+  const [isPublic, setIsPublic] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
 
   const add = async (event: React.FormEvent) => {
@@ -474,7 +476,7 @@ const TeamPanel: React.FC<{ project: Project }> = ({ project }) => {
     if (!userId) return;
     setBusy(true);
     try {
-      await adminAddProjectTeamMember({ project_id: project.id, user_id: userId, project_role: projectRole });
+      await adminAddProjectTeamMember({ project_id: project.id, user_id: userId, project_role: projectRole, is_public: isPublic });
       toast.success('Added — they now appear on the client’s roster and feedback dropdown.');
       setUserId('');
       await team.reload();
@@ -482,6 +484,15 @@ const TeamPanel: React.FC<{ project: Project }> = ({ project }) => {
       toast.error('Could not add', { description: cause instanceof Error ? cause.message : undefined });
     } finally {
       setBusy(false);
+    }
+  };
+
+  const togglePublic = async (id: string, next: boolean) => {
+    try {
+      await adminSetProjectTeamPublic(id, next);
+      await team.reload();
+    } catch (cause) {
+      toast.error('Could not update', { description: cause instanceof Error ? cause.message : undefined });
     }
   };
 
@@ -501,12 +512,23 @@ const TeamPanel: React.FC<{ project: Project }> = ({ project }) => {
       {active.length === 0 ? (
         <EmptyState title="Nobody staffed yet" />
       ) : (
-        <PortalTable head={['Name', 'Role on project', 'Since', '']}>
+        <PortalTable head={['Name', 'Role on project', 'Since', 'Public', '']}>
           {active.map((member) => (
             <Row key={member.id}>
               <Cell className="font-medium">{member.user ? prettyName(member.user.full_name) : '—'}</Cell>
               <Cell className="text-grey">{member.project_role}</Cell>
               <Cell className="whitespace-nowrap text-grey">{formatDate(member.assigned_at)}</Cell>
+              <Cell>
+                <label className="flex items-center gap-2 text-xs text-grey" title="Show this person to the client">
+                  <input
+                    type="checkbox"
+                    checked={member.is_public ?? true}
+                    onChange={(event) => togglePublic(member.id, event.target.checked)}
+                    className="h-4 w-4 accent-[color:var(--violet)]"
+                  />
+                  {(member.is_public ?? true) ? 'Shown' : 'Hidden'}
+                </label>
+              </Cell>
               <Cell className="text-right">
                 <PortalButton variant="ghost" onClick={() => remove(member.id)}>
                   Remove
@@ -542,6 +564,15 @@ const TeamPanel: React.FC<{ project: Project }> = ({ project }) => {
         <PortalButton type="submit" disabled={busy}>
           <UserPlus className="h-4 w-4" /> Add to project
         </PortalButton>
+        <label className="flex w-full items-center gap-2 text-sm text-grey">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(event) => setIsPublic(event.target.checked)}
+            className="h-4 w-4 accent-[color:var(--violet)]"
+          />
+          Public member — show on the client’s roster and allow feedback about them
+        </label>
       </form>
     </PortalCard>
   );

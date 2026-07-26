@@ -1,8 +1,10 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Download, Link2, PenLine, Upload } from 'lucide-react';
+import { Eye, Link2, PenLine, Upload } from 'lucide-react';
 import { usePortalData } from '@/app/hooks/use-portal-data';
 import { getDocumentUrl, uploadClientDocument } from '@/app/lib/portal-api';
+import { resolveFileView } from '@/app/lib/file-view';
+import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
 import { formatDate } from '@/app/lib/portal-format';
 import { DOC_STATUS_LABELS, DOC_TYPES, DOC_TYPE_LABELS, type DocType } from '@/app/lib/portal-types';
 import {
@@ -26,12 +28,14 @@ export const PortalDocuments: React.FC = () => {
   const [showUpload, setShowUpload] = React.useState(false);
   const [name, setName] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
+  const [viewerFile, setViewerFile] = React.useState<FileViewerFile | null>(null);
 
   if (!snapshot) return null;
 
   const documents = snapshot.documents.filter((doc) => filter === 'all' || doc.doc_type === filter);
   const presentTypes = Array.from(new Set(snapshot.documents.map((doc) => doc.doc_type)));
 
+  // Signature docs still open in the e-signature provider; everything else previews inside the portal.
   const openDocument = async (path: string | null) => {
     if (!path) {
       toast.error('This document has no file attached yet.');
@@ -39,6 +43,19 @@ export const PortalDocuments: React.FC = () => {
     }
     try {
       window.open(await getDocumentUrl(path), '_blank', 'noopener');
+    } catch (cause) {
+      toast.error('Could not open the document', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
+  const viewDocument = async (doc: (typeof documents)[number]) => {
+    if (!doc.file_url) {
+      toast.error('This document has no file attached yet.');
+      return;
+    }
+    try {
+      const resolved = await getDocumentUrl(doc.file_url);
+      setViewerFile({ title: doc.name, ...resolveFileView(resolved, doc.drive_file_id) });
     } catch (cause) {
       toast.error('Could not open the document', { description: cause instanceof Error ? cause.message : undefined });
     }
@@ -171,8 +188,8 @@ export const PortalDocuments: React.FC = () => {
                         <PenLine className="h-4 w-4" /> Sign
                       </PortalButton>
                     ) : doc.file_url ? (
-                      <PortalButton variant="ghost" onClick={() => openDocument(doc.file_url)}>
-                        <Download className="h-4 w-4" /> Open
+                      <PortalButton variant="ghost" onClick={() => viewDocument(doc)}>
+                        <Eye className="h-4 w-4" /> View
                       </PortalButton>
                     ) : (
                       <span className="text-xs text-grey">—</span>
@@ -189,6 +206,8 @@ export const PortalDocuments: React.FC = () => {
         Documents marked <strong>Signature required</strong> open in our e-signature provider. Every revision is kept —
         earlier versions stay available and are marked <em>Superseded</em>.
       </InfoNote>
+
+      <FileViewer file={viewerFile} onClose={() => setViewerFile(null)} />
     </div>
   );
 };

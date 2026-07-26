@@ -25,6 +25,7 @@ import { AdminAuthors } from './pages/admin/AdminAuthors';
 import { AdminComments } from './pages/admin/AdminComments';
 import { AdminAccounts } from './pages/admin/portal/AdminAccounts';
 import { AdminAccountWorkspace } from './pages/admin/portal/AdminAccountWorkspace';
+import { ClientPreview } from './pages/admin/portal/ClientPreview';
 import { AdminPortalTeam } from './pages/admin/portal/AdminPortalTeam';
 import { AdminPortalFeedback } from './pages/admin/portal/AdminPortalFeedback';
 import { PortalUserProvider } from './components/portal/PortalUserProvider';
@@ -35,11 +36,8 @@ import { PortalDashboard } from './pages/portal/PortalDashboard';
 import { PortalStart } from './pages/portal/PortalStart';
 import { PortalIntake } from './pages/portal/PortalIntake';
 import { PortalPipeline } from './pages/portal/PortalPipeline';
-import { PortalCalls } from './pages/portal/PortalCalls';
-import { PortalDocuments } from './pages/portal/PortalDocuments';
 import { PortalPayments } from './pages/portal/PortalPayments';
 import { PortalProject } from './pages/portal/PortalProject';
-import { PortalFeedback } from './pages/portal/PortalFeedback';
 import { PortalNotifications } from './pages/portal/PortalNotifications';
 import { PortalSettings } from './pages/portal/PortalSettings';
 
@@ -82,11 +80,8 @@ function AppLayout() {
             <Route path="start" element={<PortalStart />} />
             <Route path="intake" element={<PortalIntake />} />
             <Route path="pipeline" element={<PortalPipeline />} />
-            <Route path="calls" element={<PortalCalls />} />
-            <Route path="documents" element={<PortalDocuments />} />
             <Route path="payments" element={<PortalPayments />} />
             <Route path="project" element={<PortalProject />} />
-            <Route path="feedback" element={<PortalFeedback />} />
             <Route path="notifications" element={<PortalNotifications />} />
             <Route path="settings" element={<PortalSettings />} />
             <Route path="*" element={<Navigate to="/portal" replace />} />
@@ -101,6 +96,18 @@ function AppLayout() {
       <PortalUserProvider>
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
+          {/* Full-screen client preview — internal-guarded, but outside AdminLayout so it renders
+              as the real portal for screen-sharing on demo calls. */}
+          <Route
+            path="/admin/portal/accounts/:id/preview/*"
+            element={
+              <AdminGuard>
+                <InternalGuard>
+                  <ClientPreview />
+                </InternalGuard>
+              </AdminGuard>
+            }
+          />
           <Route
             path="/admin"
             element={

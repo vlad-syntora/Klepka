@@ -26,11 +26,8 @@ export type PortalSection =
   | 'start'
   | 'intake'
   | 'pipeline'
-  | 'calls'
-  | 'documents'
   | 'payments'
   | 'project'
-  | 'feedback'
   | 'notifications'
   | 'settings';
 
@@ -39,18 +36,15 @@ export type PortalSection =
  * material and their intake checklist, they just gain the offer on top.
  */
 export const PHASE_SECTIONS: Record<PortalPhase, PortalSection[]> = {
-  onboarding: ['start', 'calls', 'documents', 'feedback', 'notifications', 'settings'],
-  discovery: ['start', 'intake', 'calls', 'documents', 'feedback', 'notifications', 'settings'],
-  proposal: ['start', 'intake', 'pipeline', 'calls', 'documents', 'feedback', 'notifications', 'settings'],
+  onboarding: ['start', 'notifications', 'settings'],
+  discovery: ['start', 'intake', 'notifications', 'settings'],
+  proposal: ['start', 'intake', 'pipeline', 'notifications', 'settings'],
   delivery: [
     'start',
     'intake',
     'pipeline',
-    'calls',
-    'documents',
     'payments',
     'project',
-    'feedback',
     'notifications',
     'settings',
   ],
@@ -83,7 +77,7 @@ function roleAllows(role: PortalRole, section: PortalSection, moduleAccess: stri
   if (role === 'client_admin') return true;
   if (role === 'prospect') return section !== 'payments';
   if (role === 'client_collaborator') {
-    if (['start', 'intake', 'pipeline', 'calls', 'feedback', 'notifications'].includes(section)) return true;
+    if (['start', 'intake', 'pipeline', 'notifications'].includes(section)) return true;
     return moduleAccess.includes(section);
   }
   return true;

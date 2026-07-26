@@ -1,8 +1,11 @@
 import React from 'react';
-import { Mail, Phone } from 'lucide-react';
+import { CalendarPlus, ChevronDown, Mail, MessageSquareHeart } from 'lucide-react';
 import { initialsOf, prettyName } from '@/app/lib/portal-format';
+import { usePortalUser } from '@/app/hooks/use-portal-user';
 import type { AccountTeamMember, ProjectBundle } from '@/app/lib/portal-types';
-import { PortalCard } from '@/app/components/portal/PortalUi';
+import { PortalButton, PortalCard } from '@/app/components/portal/PortalUi';
+import { CalendlyButton } from '@/app/components/portal/CalendlyButton';
+import { FeedbackDialog } from '@/app/components/portal/FeedbackDialog';
 
 interface Person {
   id: string;
@@ -10,7 +13,10 @@ interface Person {
   title: string | null;
   email: string | null;
   photoUrl: string | null;
+  calendlyUrl: string | null;
 }
+
+type Prefill = { name?: string; email?: string } | undefined;
 
 type OwnerEmbed = {
   id: string;
@@ -18,6 +24,7 @@ type OwnerEmbed = {
   title: string | null;
   email?: string;
   photo_url?: string | null;
+  calendly_url?: string | null;
 } | null | undefined;
 
 interface Section {
@@ -25,6 +32,40 @@ interface Section {
   title: string;
   people: Person[];
 }
+
+// Remember which team groups the client has collapsed, across reloads. Absent = expanded,
+// so every group starts open by default (only explicit collapses are stored).
+const COLLAPSE_STORAGE_KEY = 'klepka-team-collapsed';
+
+const readCollapsed = (): Set<string> => {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const useCollapsedSections = () => {
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(readCollapsed);
+
+  const toggle = React.useCallback((key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...next]));
+      } catch {
+        /* ignore storage failures (private mode, quota) */
+      }
+      return next;
+    });
+  }, []);
+
+  return { collapsed, toggle };
+};
 
 const Avatar: React.FC<{ person: Person }> = ({ person }) =>
   person.photoUrl ? (
@@ -37,7 +78,7 @@ const Avatar: React.FC<{ person: Person }> = ({ person }) =>
 
 const IconButton: React.FC<{ children: React.ReactNode; label: string }> = ({ children, label }) => (
   <span
-    className="flex h-8 w-8 items-center justify-center rounded-full border border-border-color text-grey"
+    className="flex h-8 w-8 items-center justify-center rounded-full border border-border-color text-grey transition-colors group-hover:bg-portal-tint group-hover:text-violet"
     aria-hidden
     title={label}
   >
@@ -45,7 +86,11 @@ const IconButton: React.FC<{ children: React.ReactNode; label: string }> = ({ ch
   </span>
 );
 
-const PersonRow: React.FC<{ person: Person }> = ({ person }) => (
+const PersonRow: React.FC<{ person: Person; prefill: Prefill; onLeaveFeedback: (personId: string) => void }> = ({
+  person,
+  prefill,
+  onLeaveFeedback,
+}) => (
   <li className="flex items-center gap-3 py-3">
     <Avatar person={person} />
     <div className="min-w-0 flex-1">
@@ -53,19 +98,35 @@ const PersonRow: React.FC<{ person: Person }> = ({ person }) => (
       {person.title && <div className="truncate text-xs text-grey">{person.title}</div>}
     </div>
     <div className="flex shrink-0 items-center gap-1.5">
-      {/* Phone is UI-only for now — behaviour comes later. */}
-      <button type="button" aria-label={`Call ${prettyName(person.name)}`} className="transition-opacity hover:opacity-70">
-        <IconButton label="Phone">
-          <Phone className="h-4 w-4" />
-        </IconButton>
-      </button>
+      {/* Book a call on this person's own Calendly — shown only when they have a link. */}
+      {person.calendlyUrl && (
+        <CalendlyButton
+          url={person.calendlyUrl}
+          prefill={prefill}
+          variant="ghost"
+          className="h-8 w-8 rounded-full border border-border-color p-0 text-grey hover:bg-portal-tint hover:text-violet"
+          aria-label={`Book a call with ${prettyName(person.name)}`}
+        >
+          <CalendarPlus className="h-4 w-4" />
+        </CalendlyButton>
+      )}
       {person.email && (
-        <a href={`mailto:${person.email}`} aria-label={`Email ${prettyName(person.name)}`} className="transition-opacity hover:opacity-70">
+        <a href={`mailto:${person.email}`} aria-label={`Email ${prettyName(person.name)}`} className="group">
           <IconButton label={person.email}>
             <Mail className="h-4 w-4" />
           </IconButton>
         </a>
       )}
+      {/* Leave feedback specifically about this person. */}
+      <button
+        type="button"
+        onClick={() => onLeaveFeedback(person.id)}
+        aria-label={`Leave feedback about ${prettyName(person.name)}`}
+        title={`Leave feedback about ${prettyName(person.name)}`}
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-border-color text-grey transition-colors hover:bg-portal-tint hover:text-violet"
+      >
+        <MessageSquareHeart className="h-4 w-4" />
+      </button>
     </div>
   </li>
 );
@@ -80,6 +141,19 @@ export const KlepkaTeamWidget: React.FC<{
   projects: ProjectBundle[];
   owner?: OwnerEmbed;
 }> = ({ klepkaTeam, projects, owner }) => {
+  // Prefill Calendly with the signed-in client's details so they don't retype them.
+  const { user } = usePortalUser();
+  const prefill: Prefill = user ? { name: prettyName(user.full_name), email: user.email } : undefined;
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
+  // Which team member the dialog opens pre-set to ('' = general feedback about Klepka).
+  const [feedbackAbout, setFeedbackAbout] = React.useState('');
+  const { collapsed, toggle } = useCollapsedSections();
+
+  const openFeedback = (personId: string) => {
+    setFeedbackAbout(personId);
+    setFeedbackOpen(true);
+  };
+
   const dedup = (people: Person[]): Person[] => {
     const seen = new Set<string>();
     return people.filter((person) => (seen.has(person.id) ? false : (seen.add(person.id), true)));
@@ -98,6 +172,7 @@ export const KlepkaTeamWidget: React.FC<{
           title: owner.title,
           email: owner.email ?? null,
           photoUrl: owner.photo_url ?? null,
+          calendlyUrl: owner.calendly_url ?? null,
         },
       ],
     });
@@ -115,6 +190,7 @@ export const KlepkaTeamWidget: React.FC<{
         title: member.user!.title ?? member.team_role,
         email: member.user!.email,
         photoUrl: member.user!.photo_url ?? null,
+        calendlyUrl: member.user!.calendly_url ?? null,
       })),
   ).filter(notOwner);
   if (preSale.length > 0) sections.push({ key: 'pre-sale', title: 'Pre-sale team', people: preSale });
@@ -129,6 +205,7 @@ export const KlepkaTeamWidget: React.FC<{
           title: member.user!.title ?? member.project_role,
           email: member.user!.email,
           photoUrl: member.user!.photo_url ?? null,
+          calendlyUrl: member.user!.calendly_url ?? null,
         })),
     ).filter(notOwner);
     if (people.length > 0) sections.push({ key: bundle.project.id, title: bundle.project.name, people });
@@ -137,19 +214,58 @@ export const KlepkaTeamWidget: React.FC<{
   if (sections.length === 0) return null;
 
   return (
-    <PortalCard title="Your Klepka team" description="The people working with you — reach any of them directly.">
+    <PortalCard
+      title="Your Klepka team"
+      description="The people working with you — reach any of them directly."
+      action={
+        <PortalButton variant="secondary" onClick={() => openFeedback('')}>
+          <MessageSquareHeart className="h-4 w-4" /> Leave feedback
+        </PortalButton>
+      }
+    >
       <div className="space-y-4">
-        {sections.map((section) => (
-          <div key={section.key}>
-            <div className="text-xs font-semibold uppercase tracking-wide text-grey">{section.title}</div>
-            <ul className="divide-y divide-border-color">
-              {section.people.map((person) => (
-                <PersonRow key={`${section.key}-${person.id}`} person={person} />
-              ))}
-            </ul>
-          </div>
-        ))}
+        {sections.map((section) => {
+          const isCollapsed = collapsed.has(section.key);
+          const bodyId = `klepka-team-${section.key}`;
+          return (
+            <div key={section.key}>
+              <button
+                type="button"
+                onClick={() => toggle(section.key)}
+                aria-expanded={!isCollapsed}
+                aria-controls={bodyId}
+                className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wide text-grey transition-colors hover:text-violet"
+              >
+                <span className="truncate">
+                  {section.title}
+                  <span className="ml-1.5 font-normal normal-case text-grey/70">({section.people.length})</span>
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
+                />
+              </button>
+              {!isCollapsed && (
+                <ul id={bodyId} className="divide-y divide-border-color">
+                  {section.people.map((person) => (
+                    <PersonRow
+                      key={`${section.key}-${person.id}`}
+                      person={person}
+                      prefill={prefill}
+                      onLeaveFeedback={openFeedback}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      <FeedbackDialog
+        open={feedbackOpen}
+        initialAbout={feedbackAbout}
+        onClose={() => setFeedbackOpen(false)}
+      />
     </PortalCard>
   );
 };

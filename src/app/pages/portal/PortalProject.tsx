@@ -6,6 +6,7 @@ import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { approveMilestone } from '@/app/lib/portal-api';
 import { formatDate, prettyName } from '@/app/lib/portal-format';
 import { HEALTH_LABELS, MILESTONE_STATUS_LABELS } from '@/app/lib/portal-types';
+import { FeedbackDialog } from '@/app/components/portal/FeedbackDialog';
 import {
   EmptyState,
   InfoNote,
@@ -22,6 +23,7 @@ export const PortalProject: React.FC = () => {
   const { user } = usePortalUser();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   if (!snapshot || !user) return null;
 
@@ -226,13 +228,15 @@ export const PortalProject: React.FC = () => {
         <div className="mt-4">
           <InfoNote>
             Want to share how it’s going?{' '}
-            <Link to="/portal/feedback" className="font-medium underline">
+            <button type="button" onClick={() => setFeedbackOpen(true)} className="font-medium underline">
               Leave feedback
-            </Link>{' '}
+            </button>{' '}
             about anyone on this list.
           </InfoNote>
         </div>
       </PortalCard>
+
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 };

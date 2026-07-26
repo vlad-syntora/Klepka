@@ -267,6 +267,11 @@ export async function adminUpsertOpportunity(input: {
   if (error) throw new Error(error.message);
 }
 
+export async function adminDeleteOpportunity(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_opportunities').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 const OFFER_COLUMNS =
   'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount)';
 
@@ -400,7 +405,7 @@ export async function adminUpdateMeeting(
 /* -------------------------------------------------------------- documents */
 
 const DOCUMENT_COLUMNS =
-  'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, uploaded_by_client, updated_at';
+  'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, intake_item_id, uploaded_by_client, updated_at';
 
 export async function adminListDocuments(accountId: string): Promise<PortalDocument[]> {
   const { data, error } = await getSupabase()
@@ -419,7 +424,11 @@ export async function adminUploadDocument(input: {
   status: PortalDocument['status'];
   file: File | null;
   opportunity_id?: string | null;
+  related_offer_id?: string | null;
   related_project_id?: string | null;
+  intake_item_id?: string | null;
+  // Override the Drive destination (e.g. attach an intake file to "01 Discovery" regardless of type).
+  folder_key?: string;
 }): Promise<void> {
   const supabase = getSupabase();
   let filePath: string | null = null;
@@ -452,7 +461,9 @@ export async function adminUploadDocument(input: {
       version: (previous?.[0]?.version ?? 0) + 1,
       file_url: filePath,
       opportunity_id: input.opportunity_id ?? null,
+      related_offer_id: input.related_offer_id ?? null,
       related_project_id: input.related_project_id ?? null,
+      intake_item_id: input.intake_item_id ?? null,
     })
     .select('id')
     .single();
@@ -470,7 +481,7 @@ export async function adminUploadDocument(input: {
       await driveUploadFromStorage({
         accountId: input.account_id,
         storagePath: filePath,
-        folderKey: driveFolderForDocType(input.doc_type),
+        folderKey: input.folder_key ?? driveFolderForDocType(input.doc_type),
         name: input.name,
         documentId: inserted.id,
       });
@@ -676,7 +687,7 @@ export async function adminListProjectTeam(projectId: string): Promise<ProjectTe
   const { data, error } = await getSupabase()
     .from('portal_project_team')
     .select(
-      'id, project_id, user_id, project_role, assigned_at, active, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
+      'id, project_id, user_id, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
     )
     .eq('project_id', projectId)
     .order('assigned_at');
@@ -688,10 +699,17 @@ export async function adminAddProjectTeamMember(input: {
   project_id: string;
   user_id: string;
   project_role: string;
+  is_public?: boolean;
 }): Promise<void> {
   const { error } = await getSupabase()
     .from('portal_project_team')
-    .upsert({ ...input, active: true }, { onConflict: 'project_id,user_id' });
+    .upsert({ is_public: true, ...input, active: true }, { onConflict: 'project_id,user_id' });
+  if (error) throw new Error(error.message);
+}
+
+/** Flip whether a project team member is shown to the client (and can receive feedback). */
+export async function adminSetProjectTeamPublic(id: string, isPublic: boolean): Promise<void> {
+  const { error } = await getSupabase().from('portal_project_team').update({ is_public: isPublic }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -707,7 +725,7 @@ export async function adminRemoveProjectTeamMember(id: string): Promise<void> {
 /* ------------------------------------------------- account team (pre-sale) */
 
 const ACCOUNT_TEAM_COLUMNS =
-  'id, account_id, user_id, team_role, active, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)';
+  'id, account_id, user_id, team_role, active, is_public, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)';
 
 export async function adminListAccountTeam(accountId: string): Promise<AccountTeamMember[]> {
   const { data, error } = await getSupabase()
@@ -723,10 +741,17 @@ export async function adminAddAccountTeamMember(input: {
   account_id: string;
   user_id: string;
   team_role: string;
+  is_public?: boolean;
 }): Promise<void> {
   const { error } = await getSupabase()
     .from('portal_account_team')
-    .upsert({ ...input, active: true }, { onConflict: 'account_id,user_id' });
+    .upsert({ is_public: true, ...input, active: true }, { onConflict: 'account_id,user_id' });
+  if (error) throw new Error(error.message);
+}
+
+/** Flip whether an account team member is shown to the client (and can receive feedback). */
+export async function adminSetAccountTeamPublic(id: string, isPublic: boolean): Promise<void> {
+  const { error } = await getSupabase().from('portal_account_team').update({ is_public: isPublic }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 

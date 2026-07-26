@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronRight, FolderOpen } from 'lucide-react';
+import { ChevronRight, Eye, FolderOpen } from 'lucide-react';
 import { adminGetAccount } from '@/app/lib/portal-admin-api';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { HEALTH_LABELS, LIFECYCLE_LABELS, canViewPayments, type PortalAccount } from '@/app/lib/portal-types';
@@ -9,7 +9,6 @@ import { cn } from '@/app/components/ui/utils';
 import { prettyName } from '@/app/lib/portal-format';
 import { WorkspaceOverview } from '@/app/components/admin/portal/WorkspaceOverview';
 import { WorkspaceResources } from '@/app/components/admin/portal/WorkspaceResources';
-import { WorkspaceIntake } from '@/app/components/admin/portal/WorkspaceIntake';
 import { WorkspacePipeline } from '@/app/components/admin/portal/WorkspacePipeline';
 import { WorkspaceDocuments } from '@/app/components/admin/portal/WorkspaceDocuments';
 import { WorkspaceDrive } from '@/app/components/admin/portal/WorkspaceDrive';
@@ -21,7 +20,6 @@ import { WorkspaceUsers } from '@/app/components/admin/portal/WorkspaceUsers';
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'resources', label: 'Getting started' },
-  { key: 'intake', label: 'Information gathering' },
   { key: 'pipeline', label: 'Pipeline & Offers' },
   { key: 'documents', label: 'Contracts & Documents' },
   { key: 'payments', label: 'Payments' },
@@ -75,6 +73,12 @@ export const AdminAccountWorkspace: React.FC = () => {
         <StatusTag tone="violet">{LIFECYCLE_LABELS[account.lifecycle]}</StatusTag>
         <StatusTag tone={toneFor(account.health)}>{HEALTH_LABELS[account.health]}</StatusTag>
         <span className="text-sm text-grey">Owner: {account.owner ? prettyName(account.owner.full_name) : 'Unassigned'}</span>
+        <Link
+          to={`/admin/portal/accounts/${account.id}/preview`}
+          className="inline-flex items-center gap-1 text-sm text-violet hover:underline"
+        >
+          <Eye className="h-4 w-4" /> View as client
+        </Link>
         {account.drive_web_link && (
           <a
             href={account.drive_web_link}
@@ -104,10 +108,9 @@ export const AdminAccountWorkspace: React.FC = () => {
         ))}
       </div>
 
-      <CollapsibleCards>
+      <CollapsibleCards scope={`${account.id}:${tab}`}>
         {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} />}
         {tab === 'resources' && <WorkspaceResources account={account} />}
-        {tab === 'intake' && <WorkspaceIntake account={account} />}
         {tab === 'pipeline' && <WorkspacePipeline account={account} onChange={load} />}
         {tab === 'documents' && (
           <div className="space-y-5">

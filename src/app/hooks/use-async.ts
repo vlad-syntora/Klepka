@@ -5,6 +5,8 @@ interface AsyncState<T> {
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
+  /** Patch the cached data in place (optimistic updates) without a network round-trip. */
+  mutate: (updater: (previous: T | null) => T | null) => void;
 }
 
 /**
@@ -49,5 +51,9 @@ export function useAsync<T>(loader: () => Promise<T>, deps: React.DependencyList
     setNonce((value) => value + 1);
   }, []);
 
-  return { data, loading, error, reload };
+  const mutate = React.useCallback((updater: (previous: T | null) => T | null) => {
+    setData((previous) => updater(previous));
+  }, []);
+
+  return { data, loading, error, reload, mutate };
 }

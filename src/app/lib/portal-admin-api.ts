@@ -29,6 +29,7 @@ import {
   type Meeting,
   type Milestone,
   type Offer,
+  type OfferBillingType,
   type Opportunity,
   type PortalAccount,
   type PortalDocument,
@@ -244,13 +245,16 @@ export async function portalInviteUser(userId: string): Promise<InviteResult> {
 export async function adminListOpportunities(accountId: string): Promise<Opportunity[]> {
   const { data, error } = await getSupabase()
     .from('portal_opportunities')
-    .select('id, account_id, name, stage, amount, close_date, updated_at')
+    .select(
+      'id, account_id, name, stage, amount, close_date, updated_at, intake_published, drive_folder_id, drive_web_link, drive_folders',
+    )
     .eq('account_id', accountId)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);
   return z.array(OpportunitySchema).parse(data ?? []);
 }
 
+/** Returns the opportunity id (existing on update, freshly created on insert). */
 export async function adminUpsertOpportunity(input: {
   id?: string;
   account_id: string;
@@ -258,17 +262,39 @@ export async function adminUpsertOpportunity(input: {
   stage: Opportunity['stage'];
   amount: number | null;
   close_date: string | null;
-}): Promise<void> {
+}): Promise<string> {
   const supabase = getSupabase();
   const { id, ...values } = input;
-  const { error } = id
-    ? await supabase.from('portal_opportunities').update(values).eq('id', id)
-    : await supabase.from('portal_opportunities').insert(values);
+  if (id) {
+    const { error } = await supabase.from('portal_opportunities').update(values).eq('id', id);
+    if (error) throw new Error(error.message);
+    return id;
+  }
+  const { data, error } = await supabase
+    .from('portal_opportunities')
+    .insert(values)
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+export async function adminDeleteOpportunity(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_opportunities').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Publish (or unpublish) an opportunity's Information gathering checklist to the client. */
+export async function adminSetIntakePublished(opportunityId: string, published: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from('portal_opportunities')
+    .update({ intake_published: published })
+    .eq('id', opportunityId);
   if (error) throw new Error(error.message);
 }
 
 const OFFER_COLUMNS =
-  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount)';
+  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)';
 
 export async function adminListOffers(accountId: string): Promise<Offer[]> {
   const { data, error } = await getSupabase()
@@ -283,7 +309,12 @@ export async function adminListOffers(accountId: string): Promise<Offer[]> {
 export interface OfferItemInput {
   name: string;
   detail: string;
+  // Fixed-price line: the fixed sum per month. Time & materials line: the quoted hourly rate.
   amount: number;
+  billing_type: OfferBillingType;
+  overtime_rate: number | null;
+  // Fixed-price only: hours per month covered by the fixed sum (drives the derived hourly rate).
+  monthly_hours: number | null;
 }
 
 /**
@@ -317,7 +348,12 @@ export async function adminCreateOfferVersion(input: {
   if (existingError) throw new Error(existingError.message);
 
   const nextVersion = (existing?.[0]?.version ?? 0) + 1;
-  const total = input.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  // Only fixed-price lines carry a monetary amount; time & materials lines are purely hourly and
+  // contribute nothing to the offer total (there is no upfront sum to quote).
+  const total = input.items.reduce(
+    (sum, item) => sum + (item.billing_type === 'fixed_price' ? Number(item.amount) || 0 : 0),
+    0,
+  );
 
   const { data: offer, error } = await supabase
     .from('portal_offers')
@@ -339,13 +375,21 @@ export async function adminCreateOfferVersion(input: {
 
   if (input.items.length > 0) {
     const { error: itemsError } = await supabase.from('portal_offer_items').insert(
-      input.items.map((item, index) => ({
-        offer_id: offer.id,
-        position: index,
-        name: item.name,
-        detail: item.detail,
-        amount: item.amount,
-      })),
+      input.items.map((item, index) => {
+        const isFixed = item.billing_type === 'fixed_price';
+        return {
+          offer_id: offer.id,
+          position: index,
+          name: item.name,
+          detail: item.detail,
+          // Fixed price: the monthly sum. T&M: the quoted hourly rate (both live in `amount`).
+          amount: item.amount,
+          billing_type: item.billing_type,
+          overtime_rate: item.overtime_rate,
+          // Hours only apply to fixed-price lines; clear them otherwise.
+          monthly_hours: isFixed && item.monthly_hours && item.monthly_hours > 0 ? item.monthly_hours : null,
+        };
+      }),
     );
     if (itemsError) throw new Error(itemsError.message);
   }
@@ -400,7 +444,7 @@ export async function adminUpdateMeeting(
 /* -------------------------------------------------------------- documents */
 
 const DOCUMENT_COLUMNS =
-  'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, uploaded_by_client, updated_at';
+  'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, intake_item_id, uploaded_by_client, updated_at';
 
 export async function adminListDocuments(accountId: string): Promise<PortalDocument[]> {
   const { data, error } = await getSupabase()
@@ -419,7 +463,11 @@ export async function adminUploadDocument(input: {
   status: PortalDocument['status'];
   file: File | null;
   opportunity_id?: string | null;
+  related_offer_id?: string | null;
   related_project_id?: string | null;
+  intake_item_id?: string | null;
+  // Override the Drive destination (e.g. attach an intake file to "01 Discovery" regardless of type).
+  folder_key?: string;
 }): Promise<void> {
   const supabase = getSupabase();
   let filePath: string | null = null;
@@ -452,7 +500,9 @@ export async function adminUploadDocument(input: {
       version: (previous?.[0]?.version ?? 0) + 1,
       file_url: filePath,
       opportunity_id: input.opportunity_id ?? null,
+      related_offer_id: input.related_offer_id ?? null,
       related_project_id: input.related_project_id ?? null,
+      intake_item_id: input.intake_item_id ?? null,
     })
     .select('id')
     .single();
@@ -469,8 +519,9 @@ export async function adminUploadDocument(input: {
     try {
       await driveUploadFromStorage({
         accountId: input.account_id,
+        opportunityId: input.opportunity_id ?? undefined,
         storagePath: filePath,
-        folderKey: driveFolderForDocType(input.doc_type),
+        folderKey: input.folder_key ?? driveFolderForDocType(input.doc_type),
         name: input.name,
         documentId: inserted.id,
       });
@@ -552,7 +603,7 @@ export async function adminDeleteInvoice(id: string): Promise<void> {
 /* -------------------------------------------------- projects, milestones, team */
 
 const PROJECT_COLUMNS =
-  'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at';
+  'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at, drive_folder_id, drive_web_link, drive_folders';
 
 export async function adminListProjects(accountId: string): Promise<Project[]> {
   const { data, error } = await getSupabase()
@@ -580,6 +631,29 @@ export async function adminCreateProjectFromOpportunity(input: {
 }): Promise<string> {
   const supabase = getSupabase();
 
+  // Carry the opportunity's Drive folder onto the project so its files live in one place. The
+  // Closed-Won trigger does the same for auto-created projects, but a manually-created one is
+  // inserted directly (bypassing the trigger), so copy the folder here.
+  let driveFields: {
+    drive_folder_id: string | null;
+    drive_web_link: string | null;
+    drive_folders: Record<string, string>;
+  } = { drive_folder_id: null, drive_web_link: null, drive_folders: {} };
+  if (input.opportunity_id) {
+    const { data: opp } = await supabase
+      .from('portal_opportunities')
+      .select('drive_folder_id, drive_web_link, drive_folders')
+      .eq('id', input.opportunity_id)
+      .maybeSingle();
+    if (opp) {
+      driveFields = {
+        drive_folder_id: opp.drive_folder_id ?? null,
+        drive_web_link: opp.drive_web_link ?? null,
+        drive_folders: opp.drive_folders ?? {},
+      };
+    }
+  }
+
   const { data: project, error } = await supabase
     .from('portal_projects')
     .insert({
@@ -591,6 +665,7 @@ export async function adminCreateProjectFromOpportunity(input: {
       start_date: new Date().toISOString().slice(0, 10),
       status: input.publish ? 'active' : 'planned',
       published: input.publish,
+      ...driveFields,
     })
     .select('id')
     .single();
@@ -676,7 +751,7 @@ export async function adminListProjectTeam(projectId: string): Promise<ProjectTe
   const { data, error } = await getSupabase()
     .from('portal_project_team')
     .select(
-      'id, project_id, user_id, project_role, assigned_at, active, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
+      'id, project_id, user_id, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
     )
     .eq('project_id', projectId)
     .order('assigned_at');
@@ -688,10 +763,17 @@ export async function adminAddProjectTeamMember(input: {
   project_id: string;
   user_id: string;
   project_role: string;
+  is_public?: boolean;
 }): Promise<void> {
   const { error } = await getSupabase()
     .from('portal_project_team')
-    .upsert({ ...input, active: true }, { onConflict: 'project_id,user_id' });
+    .upsert({ is_public: true, ...input, active: true }, { onConflict: 'project_id,user_id' });
+  if (error) throw new Error(error.message);
+}
+
+/** Flip whether a project team member is shown to the client (and can receive feedback). */
+export async function adminSetProjectTeamPublic(id: string, isPublic: boolean): Promise<void> {
+  const { error } = await getSupabase().from('portal_project_team').update({ is_public: isPublic }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -707,7 +789,7 @@ export async function adminRemoveProjectTeamMember(id: string): Promise<void> {
 /* ------------------------------------------------- account team (pre-sale) */
 
 const ACCOUNT_TEAM_COLUMNS =
-  'id, account_id, user_id, team_role, active, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)';
+  'id, account_id, user_id, team_role, active, is_public, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)';
 
 export async function adminListAccountTeam(accountId: string): Promise<AccountTeamMember[]> {
   const { data, error } = await getSupabase()
@@ -723,10 +805,17 @@ export async function adminAddAccountTeamMember(input: {
   account_id: string;
   user_id: string;
   team_role: string;
+  is_public?: boolean;
 }): Promise<void> {
   const { error } = await getSupabase()
     .from('portal_account_team')
-    .upsert({ ...input, active: true }, { onConflict: 'account_id,user_id' });
+    .upsert({ is_public: true, ...input, active: true }, { onConflict: 'account_id,user_id' });
+  if (error) throw new Error(error.message);
+}
+
+/** Flip whether an account team member is shown to the client (and can receive feedback). */
+export async function adminSetAccountTeamPublic(id: string, isPublic: boolean): Promise<void> {
+  const { error } = await getSupabase().from('portal_account_team').update({ is_public: isPublic }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -738,13 +827,14 @@ export async function adminRemoveAccountTeamMember(id: string): Promise<void> {
 /* ------------------------------------------------------------- candidates */
 
 const CANDIDATE_COLUMNS =
-  'id, account_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)';
+  'id, account_id, opportunity_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)';
 
-export async function adminListCandidates(accountId: string): Promise<Candidate[]> {
+/** Candidates are staffed per deal, so they are listed for one opportunity. */
+export async function adminListCandidates(opportunityId: string): Promise<Candidate[]> {
   const { data, error } = await getSupabase()
     .from('portal_candidates')
     .select(CANDIDATE_COLUMNS)
-    .eq('account_id', accountId)
+    .eq('opportunity_id', opportunityId)
     .order('created_at');
   if (error) throw new Error(error.message);
   return z.array(CandidateSchema).parse(data ?? []);
@@ -752,6 +842,7 @@ export async function adminListCandidates(accountId: string): Promise<Candidate[
 
 export async function adminCreateCandidate(input: {
   account_id: string;
+  opportunity_id: string;
   user_id: string;
   title: string | null;
   cv_url: string | null;
@@ -890,13 +981,14 @@ export async function adminUploadResourceFile(accountId: string | null, file: Fi
 /* --------------------------------------------------------------- intake */
 
 const INTAKE_COLUMNS =
-  'id, account_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at';
+  'id, account_id, opportunity_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at';
 
-export async function adminListIntake(accountId: string): Promise<IntakeItem[]> {
+/** Intake is per-opportunity, so the checklist is listed for one opportunity. */
+export async function adminListIntake(opportunityId: string): Promise<IntakeItem[]> {
   const { data, error } = await getSupabase()
     .from('portal_intake_items')
     .select(INTAKE_COLUMNS)
-    .eq('account_id', accountId)
+    .eq('opportunity_id', opportunityId)
     .order('position');
   if (error) throw new Error(error.message);
   return z.array(IntakeItemSchema).parse(data ?? []);
@@ -905,6 +997,7 @@ export async function adminListIntake(accountId: string): Promise<IntakeItem[]> 
 export interface IntakeInput {
   id?: string;
   account_id: string;
+  opportunity_id: string;
   name: string;
   description: string;
   owner_side: IntakeItem['owner_side'];
@@ -1009,13 +1102,34 @@ export async function driveProvision(
   return callDrive({ action: 'provision', accountId });
 }
 
+/**
+ * Creates (or completes) an opportunity's own folder tree under the account root — the Discovery /
+ * Proposal / Contract / Invoice / Delivery / Candidates subfolders. Idempotent; also back-fills the
+ * tree for opportunities created before this structure existed.
+ */
+export async function driveProvisionOpportunity(
+  accountId: string,
+  opportunityId: string,
+): Promise<{ folderId: string; webLink: string | null; folders: Record<string, string> }> {
+  return callDrive({ action: 'provisionOpportunity', accountId, opportunityId });
+}
+
 /** Renames the account's Drive root folder to match the account's current name. */
 export async function driveRenameFolder(accountId: string): Promise<{ webLink: string | null }> {
   return callDrive({ action: 'rename', accountId });
 }
 
-export async function driveListFiles(accountId: string, folderKey?: string): Promise<DriveFile[]> {
-  const { files } = await callDrive<{ files: DriveFile[] }>({ action: 'list', accountId, folderKey });
+export async function driveListFiles(
+  accountId: string,
+  folderKey?: string,
+  opportunityId?: string,
+): Promise<DriveFile[]> {
+  const { files } = await callDrive<{ files: DriveFile[] }>({
+    action: 'list',
+    accountId,
+    folderKey,
+    opportunityId,
+  });
   return files;
 }
 
@@ -1067,6 +1181,8 @@ export function driveFolderForDocType(docType: string): string | undefined {
  */
 export async function driveUploadFromStorage(input: {
   accountId: string;
+  /** When set, the file lands in this opportunity's own folder tree instead of the account root. */
+  opportunityId?: string;
   storagePath: string;
   folderKey?: string;
   name?: string;

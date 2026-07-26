@@ -25,7 +25,8 @@ export const Header: React.FC = () => {
     { name: 'Pricing', path: '/pricing' },
     { name: 'About', path: '/about' },
     { name: 'Careers', path: '/careers' },
-    { name: 'Articles', path: '/articles' },
+    // Temporarily hidden — re-enable to bring Articles back into the nav.
+    // { name: 'Articles', path: '/articles' },
   ];
 
   const isActive = (path: string) =>

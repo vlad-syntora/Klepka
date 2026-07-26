@@ -38,10 +38,16 @@ async function isStaffedOn(supabase: SupabaseClient, userId: string, accountId: 
   return Boolean(onProject);
 }
 
-// The phase-folder tree. Numeric prefixes keep Drive's alphabetical sort aligned to the
-// portal phases in 0005. Keys are stored in portal_accounts.drive_folders.
-const SUBFOLDERS: { key: string; name: string }[] = [
+// The account root now holds only onboarding material; everything deal-specific lives under the
+// opportunity's own folder (OPP_SUBFOLDERS). Keys are stored in portal_accounts.drive_folders.
+const ACCOUNT_SUBFOLDERS: { key: string; name: string }[] = [
   { key: '00_onboarding', name: '00 Onboarding' },
+];
+
+// The per-opportunity tree, created under the account root when an opportunity is provisioned.
+// Numeric prefixes keep Drive's alphabetical sort aligned to the deal lifecycle. Keys are stored
+// in portal_opportunities.drive_folders.
+const OPP_SUBFOLDERS: { key: string; name: string }[] = [
   { key: '01_discovery', name: '01 Discovery' },
   { key: '02_proposal', name: '02 Proposal' },
   { key: '03_contracts', name: '03 Contracts' },
@@ -112,7 +118,7 @@ async function ensureFolders(
   }
 
   const folders: Record<string, string> = { ...(account.drive_folders ?? {}) };
-  for (const sub of SUBFOLDERS) {
+  for (const sub of ACCOUNT_SUBFOLDERS) {
     if (!folders[sub.key]) {
       const created = await createFolder(drive, sub.name, rootId);
       folders[sub.key] = created.id;
@@ -126,6 +132,50 @@ async function ensureFolders(
   if (error) throw new Error(error.message);
 
   return { rootId, rootLink, folders };
+}
+
+type OpportunityRow = {
+  id: string;
+  name: string;
+  account_id: string;
+  drive_folder_id: string | null;
+  drive_web_link: string | null;
+  drive_folders: Record<string, string> | null;
+};
+
+// Idempotently makes sure an opportunity has its own folder (under the account root) and every
+// OPP_SUBFOLDER, persisting the ids on portal_opportunities. Shared by the `provisionOpportunity`
+// action and any opportunity-scoped upload, so uploading is enough to bootstrap an opp's tree —
+// including pre-existing opportunities created before this structure existed.
+async function ensureOpportunityFolders(
+  drive: ReturnType<typeof google.drive>,
+  supabase: SupabaseClient,
+  opp: OpportunityRow,
+  accountRootId: string,
+): Promise<{ folderId: string; webLink: string | null; folders: Record<string, string> }> {
+  let folderId = opp.drive_folder_id;
+  let webLink = opp.drive_web_link;
+  if (!folderId) {
+    const created = await createFolder(drive, opp.name, accountRootId);
+    folderId = created.id;
+    webLink = created.link;
+  }
+
+  const folders: Record<string, string> = { ...(opp.drive_folders ?? {}) };
+  for (const sub of OPP_SUBFOLDERS) {
+    if (!folders[sub.key]) {
+      const created = await createFolder(drive, sub.name, folderId);
+      folders[sub.key] = created.id;
+    }
+  }
+
+  const { error } = await supabase
+    .from('portal_opportunities')
+    .update({ drive_folder_id: folderId, drive_web_link: webLink, drive_folders: folders })
+    .eq('id', opp.id);
+  if (error) throw new Error(error.message);
+
+  return { folderId, webLink, folders };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -151,15 +201,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const isClient = Boolean(me && !isInternal && me.account_id);
     if (!me || (!isInternal && !isClient)) return res.status(403).json({ error: 'Forbidden' });
 
-    const { action, accountId, folderKey, storagePath, name, documentId, resourceId } = (req.body ?? {}) as {
-      action?: string;
-      accountId?: string;
-      folderKey?: string;
-      storagePath?: string;
-      name?: string;
-      documentId?: string;
-      resourceId?: string;
-    };
+    const { action, accountId, opportunityId, folderKey, storagePath, name, documentId, resourceId } =
+      (req.body ?? {}) as {
+        action?: string;
+        accountId?: string;
+        opportunityId?: string;
+        folderKey?: string;
+        storagePath?: string;
+        name?: string;
+        documentId?: string;
+        resourceId?: string;
+      };
     if (!accountId) return res.status(400).json({ error: 'accountId is required' });
 
     let drive: ReturnType<typeof google.drive>;
@@ -189,10 +241,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .single();
     if (accountError || !account) return res.status(404).json({ error: 'Account not found' });
 
+    // Opportunity-scoped actions load the opportunity up front and verify it belongs to the
+    // account, so deal artefacts always land under the right opportunity's folder.
+    let opportunity: OpportunityRow | null = null;
+    if (opportunityId) {
+      const { data: opp, error: oppError } = await supabase
+        .from('portal_opportunities')
+        .select('id, name, account_id, drive_folder_id, drive_web_link, drive_folders')
+        .eq('id', opportunityId)
+        .single();
+      if (oppError || !opp) return res.status(404).json({ error: 'Opportunity not found' });
+      if (opp.account_id !== accountId) return res.status(403).json({ error: 'Forbidden' });
+      opportunity = opp as OpportunityRow;
+    }
+
     /* -------------------------------------------------------------- provision */
     if (action === 'provision') {
       const { rootId, rootLink, folders } = await ensureFolders(drive, supabase, account, rootFolderId);
       return res.status(200).json({ ok: true, folderId: rootId, webLink: rootLink, folders });
+    }
+
+    /* ------------------------------------------------ provision opportunity */
+    if (action === 'provisionOpportunity') {
+      if (!opportunity) return res.status(400).json({ error: 'opportunityId is required' });
+      const { rootId } = await ensureFolders(drive, supabase, account, rootFolderId);
+      const { folderId, webLink, folders } = await ensureOpportunityFolders(drive, supabase, opportunity, rootId);
+      return res.status(200).json({ ok: true, folderId, webLink, folders });
     }
 
     /* ----------------------------------------------------------------- rename */
@@ -223,10 +297,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!storagePath) return res.status(400).json({ error: 'storagePath is required' });
 
       // The browser already put the bytes in the private Supabase bucket; pull them here with
-      // the service role and push a copy into the matching phase folder. Auto-provisions the
-      // tree if it was never created, so uploading is enough to bootstrap an account's Drive.
-      const { rootId, folders } = await ensureFolders(drive, supabase, account, rootFolderId);
-      const parentId = (folderKey && folders[folderKey]) || rootId;
+      // the service role and push a copy into the matching folder. Auto-provisions the tree if it
+      // was never created, so uploading is enough to bootstrap the Drive. Opportunity-scoped
+      // uploads land in the opportunity's own subfolder tree; everything else in the account root.
+      const { rootId, folders: accountFolders } = await ensureFolders(drive, supabase, account, rootFolderId);
+      let parentId: string;
+      if (opportunity) {
+        const { folderId, folders } = await ensureOpportunityFolders(drive, supabase, opportunity, rootId);
+        parentId = (folderKey && folders[folderKey]) || folderId;
+      } else {
+        parentId = (folderKey && accountFolders[folderKey]) || rootId;
+      }
 
       const { data: blob, error: downloadError } = await supabase.storage
         .from('portal-documents')
@@ -271,8 +352,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     /* ------------------------------------------------------------------- list */
     if (action === 'list') {
-      const folders = (account.drive_folders ?? {}) as Record<string, string>;
-      const parentId = folderKey ? folders[folderKey] : account.drive_folder_id;
+      const scope = opportunity
+        ? { folders: (opportunity.drive_folders ?? {}) as Record<string, string>, root: opportunity.drive_folder_id }
+        : { folders: (account.drive_folders ?? {}) as Record<string, string>, root: account.drive_folder_id };
+      const parentId = folderKey ? scope.folders[folderKey] : scope.root;
       if (!parentId) return res.status(200).json({ files: [] });
 
       const { data } = await drive.files.list({

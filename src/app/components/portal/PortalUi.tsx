@@ -88,15 +88,43 @@ export function toneFor(status: string): Tone {
 
 /* ----------------------------------------------------------------- cards */
 
-// When true, every PortalCard with a title renders collapsed and toggleable. Scoped by the
+// When enabled, every PortalCard with a title renders collapsible and toggleable. Scoped by the
 // <CollapsibleCards> provider so it only affects the trees that opt in (e.g. the admin account
-// workspace) — the client portal is unaffected.
-const CardCollapseContext = React.createContext(false);
+// workspace) — the client portal is unaffected. `scope` namespaces the persisted open/closed
+// state so different accounts/tabs remember their sections independently.
+interface CardCollapseState {
+  enabled: boolean;
+  scope: string;
+  /** State a card starts in the first time it's seen (before the user has toggled it). */
+  defaultOpen: boolean;
+}
+const CardCollapseContext = React.createContext<CardCollapseState>({
+  enabled: false,
+  scope: '',
+  defaultOpen: false,
+});
 
-/** Wrap a region so its PortalCards become collapsible sections, closed by default. */
-export const CollapsibleCards: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <CardCollapseContext.Provider value={true}>{children}</CardCollapseContext.Provider>
+/**
+ * Wrap a region so its PortalCards become collapsible sections. Each card remembers whether it
+ * was left open or closed (persisted in localStorage under `scope`), so the layout is restored on
+ * the next visit. Pass a stable `scope` (e.g. account id + tab) to keep those memories separate.
+ * `defaultOpen` sets the starting state before the user has toggled a section (admin defaults to
+ * collapsed; the client portal opens everything by default).
+ */
+export const CollapsibleCards: React.FC<{
+  children: React.ReactNode;
+  scope?: string;
+  defaultOpen?: boolean;
+}> = ({ children, scope = '', defaultOpen = false }) => (
+  <CardCollapseContext.Provider value={{ enabled: true, scope, defaultOpen }}>
+    {children}
+  </CardCollapseContext.Provider>
 );
+
+/** Turn a card title / explicit key into a filesystem-safe token for the storage key. */
+function collapseToken(value: React.ReactNode): string {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+}
 
 export const PortalCard: React.FC<{
   title?: React.ReactNode;
@@ -107,10 +135,53 @@ export const PortalCard: React.FC<{
   bodyClassName?: string;
   /** Opt this card out of the CollapsibleCards behaviour — it stays expanded and non-toggleable. */
   alwaysOpen?: boolean;
-}> = ({ title, action, description, children, className, bodyClassName, alwaysOpen }) => {
-  const collapseEnabled = React.useContext(CardCollapseContext);
+  /** Stable identifier for persisting the open/closed state when a title isn't a plain string. */
+  collapseKey?: string;
+  /** Keep the header `action` visible even while collapsed (e.g. an unread badge + "View all"). */
+  keepActionWhenCollapsed?: boolean;
+}> = ({
+  title,
+  action,
+  description,
+  children,
+  className,
+  bodyClassName,
+  alwaysOpen,
+  collapseKey,
+  keepActionWhenCollapsed,
+}) => {
+  const { enabled: collapseEnabled, scope, defaultOpen } = React.useContext(CardCollapseContext);
   const collapsible = !alwaysOpen && collapseEnabled && Boolean(title);
-  const [open, setOpen] = React.useState(false);
+
+  // A stable key lets each section remember whether the user left it open or closed.
+  const token = collapseKey ?? collapseToken(title);
+  const storageKey = collapsible && token ? `portal-card:${scope}:${token}` : null;
+
+  const [open, setOpen] = React.useState<boolean>(() => {
+    if (!storageKey || typeof window === 'undefined') return defaultOpen;
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+      return defaultOpen;
+    } catch {
+      return defaultOpen;
+    }
+  });
+
+  const toggle = () =>
+    setOpen((value) => {
+      const next = !value;
+      if (storageKey) {
+        try {
+          window.localStorage.setItem(storageKey, next ? '1' : '0');
+        } catch {
+          /* storage unavailable (private mode / quota) — fall back to in-memory only */
+        }
+      }
+      return next;
+    });
+
   const showBody = !collapsible || open;
 
   return (
@@ -125,7 +196,7 @@ export const PortalCard: React.FC<{
           {collapsible ? (
             <button
               type="button"
-              onClick={() => setOpen((value) => !value)}
+              onClick={toggle}
               aria-expanded={open}
               className="flex min-w-0 flex-1 items-center gap-2 text-left"
             >
@@ -143,8 +214,11 @@ export const PortalCard: React.FC<{
               {description && <p className="mt-0.5 text-xs text-grey">{description}</p>}
             </div>
           )}
-          {/* Actions belong to the open section — hide them while collapsed. */}
-          {action && showBody && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+          {/* Actions belong to the open section — hide them while collapsed, unless the card asks
+              to keep them (e.g. an unread badge that must stay visible when Recent activity is folded). */}
+          {action && (showBody || keepActionWhenCollapsed) && (
+            <div className="flex shrink-0 items-center gap-2">{action}</div>
+          )}
         </header>
       )}
       {showBody && <div className={cn('px-5 py-4', bodyClassName)}>{children}</div>}

@@ -1,14 +1,24 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Paperclip, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
-import { adminDeleteIntakeItem, adminListIntake, adminUpsertIntakeItem } from '@/app/lib/portal-admin-api';
+import {
+  adminDeleteIntakeItem,
+  adminListDocuments,
+  adminListIntake,
+  adminSetIntakePublished,
+  adminUploadDocument,
+  adminUpsertIntakeItem,
+} from '@/app/lib/portal-admin-api';
+import { getDocumentUrl } from '@/app/lib/portal-api';
 import { formatDate } from '@/app/lib/portal-format';
 import {
   INTAKE_STATUSES,
   INTAKE_STATUS_LABELS,
   type IntakeItem,
+  type Opportunity,
   type PortalAccount,
+  type PortalDocument,
 } from '@/app/lib/portal-types';
 import {
   Cell,
@@ -37,9 +47,17 @@ const TEMPLATE: { name: string; description: string; owner_side: IntakeItem['own
   { name: 'Effort estimate', description: 'Sizing per workstream ahead of the proposal.', owner_side: 'klepka' },
 ];
 
-export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account }) => {
-  const items = useAsync(() => adminListIntake(account.id), [account.id]);
+export const WorkspaceIntake: React.FC<{
+  account: PortalAccount;
+  opportunity: Opportunity;
+  /** Called after publish/unpublish so the parent can refresh the opportunity. */
+  onOpportunityChange?: () => Promise<void> | void;
+}> = ({ account, opportunity, onOpportunityChange }) => {
+  const items = useAsync(() => adminListIntake(opportunity.id), [opportunity.id]);
+  const documents = useAsync(() => adminListDocuments(account.id), [account.id]);
   const [showForm, setShowForm] = React.useState(false);
+  const [publishing, setPublishing] = React.useState(false);
+  const published = Boolean(opportunity.intake_published);
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [ownerSide, setOwnerSide] = React.useState<IntakeItem['owner_side']>('client');
@@ -51,6 +69,53 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
   const rows = items.data ?? [];
   const approved = rows.filter((item) => item.status === 'approved').length;
   const awaiting = rows.filter((item) => ['submitted', 'in_review'].includes(item.status)).length;
+  const docsFor = (itemId: string) => (documents.data ?? []).filter((doc) => doc.intake_item_id === itemId);
+  const [attachingId, setAttachingId] = React.useState<string | null>(null);
+
+  const openDoc = async (doc: PortalDocument) => {
+    if (!doc.file_url) return;
+    try {
+      window.open(await getDocumentUrl(doc.file_url), '_blank', 'noopener');
+    } catch (cause) {
+      toast.error('Could not open the file', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
+  // Attach a file straight under an intake item — lands in the opportunity's "01 Discovery" folder.
+  const attach = async (item: IntakeItem, file: File) => {
+    setAttachingId(item.id);
+    try {
+      await adminUploadDocument({
+        account_id: account.id,
+        opportunity_id: item.opportunity_id,
+        name: file.name,
+        doc_type: 'reference',
+        status: 'acknowledged',
+        file,
+        intake_item_id: item.id,
+        folder_key: '01_discovery',
+      });
+      toast.success('File attached.');
+      await documents.reload();
+    } catch (cause) {
+      toast.error('Upload failed', { description: cause instanceof Error ? cause.message : undefined });
+    } finally {
+      setAttachingId(null);
+    }
+  };
+
+  const publish = async (next: boolean) => {
+    setPublishing(true);
+    try {
+      await adminSetIntakePublished(opportunity.id, next);
+      toast.success(next ? 'Checklist published — the client can see it now.' : 'Checklist hidden from the client.');
+      await onOpportunityChange?.();
+    } catch (cause) {
+      toast.error('Could not update visibility', { description: cause instanceof Error ? cause.message : undefined });
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -58,6 +123,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
     try {
       await adminUpsertIntakeItem({
         account_id: account.id,
+        opportunity_id: opportunity.id,
         name: name.trim(),
         description: description.trim(),
         owner_side: ownerSide,
@@ -84,6 +150,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       for (const [index, item] of TEMPLATE.entries()) {
         await adminUpsertIntakeItem({
           account_id: account.id,
+          opportunity_id: opportunity.id,
           ...item,
           status: 'not_started',
           due_date: null,
@@ -100,10 +167,13 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
   };
 
   const patch = async (item: IntakeItem, changes: Partial<IntakeItem>) => {
+    // Reflect the change instantly, then persist and reconcile with the server in the background.
+    items.mutate((rows) => rows?.map((row) => (row.id === item.id ? { ...row, ...changes } : row)) ?? rows);
     try {
       await adminUpsertIntakeItem({
         id: item.id,
         account_id: item.account_id,
+        opportunity_id: item.opportunity_id,
         name: changes.name ?? item.name,
         description: changes.description ?? item.description,
         owner_side: changes.owner_side ?? item.owner_side,
@@ -114,6 +184,7 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       });
       await items.reload();
     } catch (cause) {
+      await items.reload(); // roll back the optimistic change to the true server state
       toast.error('Could not update', { description: cause instanceof Error ? cause.message : undefined });
     }
   };
@@ -124,7 +195,8 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
     await items.reload();
   };
 
-  if (items.loading) return <PortalSpinner />;
+  // Only blank on the very first load — reloads keep the table on screen (no flash).
+  if (items.loading && !items.data) return <PortalSpinner />;
   if (items.error) return <ErrorNote>{items.error}</ErrorNote>;
 
   return (
@@ -140,9 +212,21 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
 
       <PortalCard
         title="Information gathering"
-        description="Drives the client's checklist — due dates, owners and review verdicts."
+        description="Drives the client's checklist — due dates, owners and review verdicts. Build it here, then make it available to the client when it's ready."
         action={
           <>
+            <StatusTag tone={published ? 'green' : 'grey'}>
+              {published ? 'Visible to client' : 'Hidden from client'}
+            </StatusTag>
+            {published ? (
+              <PortalButton variant="secondary" onClick={() => publish(false)} disabled={publishing}>
+                <EyeOff className="h-4 w-4" /> Hide from client
+              </PortalButton>
+            ) : (
+              <PortalButton onClick={() => publish(true)} disabled={publishing || rows.length === 0}>
+                <Eye className="h-4 w-4" /> Make available to client
+              </PortalButton>
+            )}
             <PortalButton variant="secondary" onClick={seed} disabled={busy}>
               Use standard checklist
             </PortalButton>
@@ -242,8 +326,40 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
                         <StatusTag tone={toneFor(item.status)}>submitted {formatDate(item.submitted_at)}</StatusTag>
                       </div>
                     )}
+                    {docsFor(item.id).length > 0 && (
+                      <div className="mt-1.5 space-y-1">
+                        {docsFor(item.id).map((doc) => (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            onClick={() => openDoc(doc)}
+                            className="flex max-w-full items-center gap-1.5 text-xs font-medium text-violet hover:underline"
+                          >
+                            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{doc.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </Cell>
                   <Cell className="whitespace-nowrap text-right">
+                    <label
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-grey transition-colors hover:bg-portal-tint/60"
+                      aria-label="Attach file"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      {attachingId === item.id ? 'Attaching…' : 'Attach'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={attachingId === item.id}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = '';
+                          if (file) void attach(item, file);
+                        }}
+                      />
+                    </label>
                     <PortalButton
                       variant="ghost"
                       onClick={() => {
@@ -307,8 +423,8 @@ export const WorkspaceIntake: React.FC<{ account: PortalAccount }> = ({ account 
       </PortalCard>
 
       <InfoNote>
-        The client only sees this page once the account reaches <strong>Qualified</strong>. Move the lifecycle stage on
-        the Overview tab to open it up.
+        The client sees this checklist only after you <strong>make it available</strong> above — build it fully first,
+        then publish. (They also need the account to have reached <strong>Qualified</strong> for the section to appear.)
       </InfoNote>
     </div>
   );

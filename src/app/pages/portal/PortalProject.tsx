@@ -6,6 +6,7 @@ import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { approveMilestone } from '@/app/lib/portal-api';
 import { formatDate, prettyName } from '@/app/lib/portal-format';
 import { HEALTH_LABELS, MILESTONE_STATUS_LABELS } from '@/app/lib/portal-types';
+import { FeedbackDialog } from '@/app/components/portal/FeedbackDialog';
 import {
   EmptyState,
   InfoNote,
@@ -22,6 +23,7 @@ export const PortalProject: React.FC = () => {
   const { user } = usePortalUser();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = React.useState(false);
 
   if (!snapshot || !user) return null;
 
@@ -80,22 +82,27 @@ export const PortalProject: React.FC = () => {
   return (
     <div className="space-y-5">
       {projects.length > 1 && (
-        <div className="flex flex-wrap gap-1 border-b border-border-color">
-          {projects.map((entry) => (
-            <button
-              key={entry.project.id}
-              onClick={() => setSelectedId(entry.project.id)}
-              className={cn(
-                'whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors',
-                entry.project.id === project.id
-                  ? 'border-violet font-medium text-violet'
-                  : 'border-transparent text-grey hover:text-foreground',
-              )}
-            >
-              {entry.project.name}
-            </button>
-          ))}
-        </div>
+        <PortalCard title="Your projects" description="Pick a project to see its milestones, hours and team.">
+          <div className="flex flex-wrap gap-2">
+            {projects.map((entry) => (
+              <button
+                key={entry.project.id}
+                onClick={() => setSelectedId(entry.project.id)}
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  entry.project.id === project.id
+                    ? 'border-violet bg-portal-tint text-violet'
+                    : 'border-border-color hover:border-violet/50',
+                )}
+              >
+                <div className="font-medium">{entry.project.name}</div>
+                <div className="mt-0.5">
+                  <StatusTag tone={toneFor(entry.project.health)}>{HEALTH_LABELS[entry.project.health]}</StatusTag>
+                </div>
+              </button>
+            ))}
+          </div>
+        </PortalCard>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -226,13 +233,15 @@ export const PortalProject: React.FC = () => {
         <div className="mt-4">
           <InfoNote>
             Want to share how it’s going?{' '}
-            <Link to="/portal/feedback" className="font-medium underline">
+            <button type="button" onClick={() => setFeedbackOpen(true)} className="font-medium underline">
               Leave feedback
-            </Link>{' '}
+            </button>{' '}
             about anyone on this list.
           </InfoNote>
         </div>
       </PortalCard>
+
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 };

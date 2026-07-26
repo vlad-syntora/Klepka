@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   DriveNotConfiguredError,
@@ -44,6 +44,8 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
   const articles = useAsync(() => adminListArticles(), []);
 
   const [showForm, setShowForm] = React.useState(false);
+  // The material being edited (its existing file_path is kept unless a new file is uploaded). null = adding new.
+  const [editing, setEditing] = React.useState<PortalResource | null>(null);
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [kind, setKind] = React.useState<PortalResource['kind']>('presentation');
@@ -56,13 +58,49 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
 
   const rows = resources.data ?? [];
 
+  const resetForm = () => {
+    setEditing(null);
+    setTitle('');
+    setDescription('');
+    setKind('presentation');
+    setPhase('onboarding');
+    setUrl('');
+    setArticleId('');
+    setFile(null);
+    setShared(false);
+  };
+
+  const startAdd = () => {
+    if (showForm && !editing) {
+      setShowForm(false);
+      return;
+    }
+    resetForm();
+    setShowForm(true);
+  };
+
+  const startEdit = (resource: PortalResource) => {
+    setEditing(resource);
+    setTitle(resource.title ?? '');
+    setDescription(resource.description ?? '');
+    setKind(resource.kind);
+    setPhase(resource.phase);
+    setUrl(resource.url ?? '');
+    setArticleId(resource.article_id ?? '');
+    setFile(null);
+    setShared(resource.account_id === null);
+    setShowForm(true);
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (kind === 'article' && !articleId) {
       toast.error('Pick an article.');
       return;
     }
-    if (kind !== 'article' && !url.trim() && !file) {
+    // Non-article material needs a source: a link, a new upload, or (when editing) a file already attached.
+    const hasExistingFile = Boolean(editing?.file_path);
+    if (kind !== 'article' && !url.trim() && !file && !hasExistingFile) {
       toast.error('Add a link or upload a file.');
       return;
     }
@@ -70,8 +108,10 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
     setBusy(true);
     try {
       const accountId = shared ? null : account.id;
-      const filePath = file ? await adminUploadResourceFile(accountId, file) : null;
+      // Upload a new file if provided; otherwise keep the existing one when editing (null when adding).
+      const filePath = file ? await adminUploadResourceFile(accountId, file) : (editing?.file_path ?? null);
       const resourceId = await adminUpsertResource({
+        id: editing?.id,
         account_id: accountId,
         title: title.trim() || 'Untitled',
         description: description.trim(),
@@ -80,8 +120,8 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
         file_path: filePath,
         article_id: kind === 'article' ? articleId : null,
         phase,
-        position: rows.length,
-        published: true,
+        position: editing?.position ?? rows.length,
+        published: editing?.published ?? true,
       });
 
       // Move an account-specific upload into Drive (server repoints file_path at the Drive link and
@@ -106,12 +146,8 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
         }
       }
 
-      toast.success(shared ? 'Added to the shared library.' : 'Added for this account.');
-      setTitle('');
-      setDescription('');
-      setUrl('');
-      setArticleId('');
-      setFile(null);
+      toast.success(editing ? 'Material updated.' : shared ? 'Added to the shared library.' : 'Added for this account.');
+      resetForm();
       setShowForm(false);
       await resources.reload();
     } catch (cause) {
@@ -157,13 +193,14 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
         title="Onboarding material"
         description="Presentations, docs and articles the client sees under Getting started."
         action={
-          <PortalButton onClick={() => setShowForm((open) => !open)}>
+          <PortalButton onClick={startAdd}>
             <Plus className="h-4 w-4" /> Add material
           </PortalButton>
         }
       >
         {showForm && (
           <form onSubmit={submit} className="mb-4 space-y-3 rounded-lg border border-border-color bg-off-white p-4">
+            <div className="text-sm font-semibold">{editing ? 'Edit material' : 'New material'}</div>
             <div className="grid gap-3 sm:grid-cols-4">
               <Field label="Kind">
                 <select
@@ -222,7 +259,10 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
                 <Field label="Link" hint="External URL — or upload a file instead.">
                   <input className={inputClass} value={url} onChange={(event) => setUrl(event.target.value)} />
                 </Field>
-                <Field label="Upload">
+                <Field
+                  label="Upload"
+                  hint={editing?.file_path ? 'Leave empty to keep the current file.' : undefined}
+                >
                   <input
                     type="file"
                     className={`${inputClass} py-1.5`}
@@ -244,9 +284,16 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
 
             <div className="flex gap-2">
               <PortalButton type="submit" disabled={busy}>
-                {busy ? 'Saving…' : 'Add'}
+                {busy ? 'Saving…' : editing ? 'Save changes' : 'Add'}
               </PortalButton>
-              <PortalButton variant="ghost" type="button" onClick={() => setShowForm(false)}>
+              <PortalButton
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+              >
                 Cancel
               </PortalButton>
             </div>
@@ -278,9 +325,14 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
                   </PortalButton>
                 </Cell>
                 <Cell className="text-right">
-                  <PortalButton variant="ghost" onClick={() => remove(resource)} aria-label="Remove">
-                    <Trash2 className="h-4 w-4" />
-                  </PortalButton>
+                  <div className="flex justify-end gap-1">
+                    <PortalButton variant="ghost" onClick={() => startEdit(resource)} aria-label="Edit">
+                      <Pencil className="h-4 w-4" />
+                    </PortalButton>
+                    <PortalButton variant="ghost" onClick={() => remove(resource)} aria-label="Remove">
+                      <Trash2 className="h-4 w-4" />
+                    </PortalButton>
+                  </div>
                 </Cell>
               </Row>
             ))}

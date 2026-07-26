@@ -1,16 +1,15 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
   Bell,
-  CalendarDays,
   ClipboardList,
-  FileText,
+  Eye,
   Gauge,
   Handshake,
   LayoutDashboard,
   LogOut,
   Menu,
-  MessageSquareHeart,
   Settings,
   Sparkles,
   Wallet,
@@ -22,7 +21,7 @@ import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { getSupabase } from '@/app/lib/supabase';
 import { prettyName } from '@/app/lib/portal-format';
 import { cn } from '@/app/components/ui/utils';
-import { ErrorNote, PortalSpinner } from './PortalUi';
+import { CollapsibleCards, ErrorNote, PortalSpinner } from './PortalUi';
 import { MODULE_LABELS, ROLE_LABELS } from '@/app/lib/portal-types';
 import {
   PHASE_LABELS,
@@ -38,14 +37,24 @@ interface NavEntry {
   icon: React.ElementType;
   section: PortalSection;
   badge?: number;
+  /** Reachable by URL (e.g. from "View all") but not shown in the sidebar. */
+  hidden?: boolean;
 }
 
-export const PortalLayout: React.FC = () => {
+interface PortalLayoutProps {
+  /** Root path the nav links hang off. Defaults to the real portal; the admin preview overrides it. */
+  basePath?: string;
+  /** When set, renders the "viewing as client" banner + an exit button instead of Sign out. */
+  preview?: { onExit: () => void };
+}
+
+export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal', preview }) => {
   const { user } = usePortalUser();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const data = usePortalDataState(user?.account_id ?? null);
+  const data = usePortalDataState(user?.account_id ?? null, Boolean(preview));
+  const path = (sub: string) => (sub ? `${basePath}/${sub}` : basePath);
 
   React.useEffect(() => {
     setMenuOpen(false);
@@ -55,7 +64,6 @@ export const PortalLayout: React.FC = () => {
 
   const snapshot = data.snapshot;
   const openOffers = snapshot?.offers.filter((offer) => offer.status === 'sent').length ?? 0;
-  const toSign = snapshot?.documents.filter((doc) => doc.status === 'awaiting_signature').length ?? 0;
   const unread =
     snapshot?.activity.filter((entry) => !entry.read_by.includes(user.id)).length ?? 0;
 
@@ -65,17 +73,14 @@ export const PortalLayout: React.FC = () => {
     ).length ?? 0;
 
   const allEntries: NavEntry[] = [
-    { to: '/portal', label: 'Dashboard', icon: LayoutDashboard, section: 'start' },
-    { to: '/portal/start', label: 'Getting started', icon: Sparkles, section: 'start' },
-    { to: '/portal/intake', label: 'Information gathering', icon: ClipboardList, section: 'intake', badge: intakeOpen },
-    { to: '/portal/pipeline', label: MODULE_LABELS.pipeline, icon: Handshake, section: 'pipeline', badge: openOffers },
-    { to: '/portal/calls', label: MODULE_LABELS.calls, icon: CalendarDays, section: 'calls' },
-    { to: '/portal/documents', label: MODULE_LABELS.documents, icon: FileText, section: 'documents', badge: toSign },
-    { to: '/portal/payments', label: MODULE_LABELS.payments, icon: Wallet, section: 'payments' },
-    { to: '/portal/project', label: MODULE_LABELS.project, icon: Gauge, section: 'project' },
-    { to: '/portal/feedback', label: MODULE_LABELS.feedback, icon: MessageSquareHeart, section: 'feedback' },
-    { to: '/portal/notifications', label: 'Notifications', icon: Bell, section: 'notifications', badge: unread },
-    { to: '/portal/settings', label: 'Account Settings', icon: Settings, section: 'settings' },
+    { to: path(''), label: 'Dashboard', icon: LayoutDashboard, section: 'start' },
+    { to: path('project'), label: MODULE_LABELS.project, icon: Gauge, section: 'project' },
+    { to: path('payments'), label: MODULE_LABELS.payments, icon: Wallet, section: 'payments' },
+    { to: path('pipeline'), label: MODULE_LABELS.pipeline, icon: Handshake, section: 'pipeline', badge: openOffers },
+    { to: path('intake'), label: 'Information gathering', icon: ClipboardList, section: 'intake', badge: intakeOpen },
+    { to: path('start'), label: 'Getting started', icon: Sparkles, section: 'start' },
+    { to: path('notifications'), label: 'Notifications', icon: Bell, section: 'notifications', badge: unread, hidden: true },
+    { to: path('settings'), label: 'Account Settings', icon: Settings, section: 'settings' },
   ];
 
   // Phase decides what is relevant now, role decides what they may ever see. Computed here
@@ -120,11 +125,11 @@ export const PortalLayout: React.FC = () => {
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-            {navEntries.map((entry) => (
+            {navEntries.filter((entry) => !entry.hidden).map((entry) => (
               <NavLink
                 key={entry.to}
                 to={entry.to}
-                end={entry.to === '/portal'}
+                end={entry.to === basePath}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
@@ -143,22 +148,48 @@ export const PortalLayout: React.FC = () => {
             ))}
           </nav>
 
-          <div className="border-t border-white/15 px-5 py-3 text-xs text-white/70">
-            Signed in as
-            <div className="truncate text-sm font-medium text-white">{prettyName(user.full_name)}</div>
-            <div className="truncate">{ROLE_LABELS[user.role]}</div>
-          </div>
+          {preview ? (
+            <button
+              onClick={preview.onExit}
+              className="flex items-center gap-3 border-t border-white/15 px-5 py-3.5 text-sm text-accent-yellow transition-colors hover:bg-white/10"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Return to admin panel
+            </button>
+          ) : (
+            <>
+              <div className="border-t border-white/15 px-5 py-3 text-xs text-white/70">
+                Signed in as
+                <div className="truncate text-sm font-medium text-white">{prettyName(user.full_name)}</div>
+                <div className="truncate">{ROLE_LABELS[user.role]}</div>
+              </div>
 
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-3 border-t border-white/15 px-5 py-3.5 text-sm text-accent-yellow transition-colors hover:bg-white/10"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-3 border-t border-white/15 px-5 py-3.5 text-sm text-accent-yellow transition-colors hover:bg-white/10"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </>
+          )}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col lg:ml-60">
+          {preview && (
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-accent-yellow px-4 py-2 text-sm font-medium text-violet lg:px-8">
+              <span className="flex items-center gap-2">
+                <Eye className="h-4 w-4 shrink-0" />
+                Client preview
+              </span>
+              <button
+                onClick={preview.onExit}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-violet px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-violet/90"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Return to admin panel
+              </button>
+            </div>
+          )}
           <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border-color bg-card px-4 lg:px-8">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -170,7 +201,7 @@ export const PortalLayout: React.FC = () => {
               </button>
               <h1 className="truncate text-base font-semibold text-foreground">
                 {navEntries.find((entry) =>
-                  entry.to === '/portal' ? location.pathname === '/portal' : location.pathname.startsWith(entry.to),
+                  entry.to === basePath ? location.pathname === basePath : location.pathname.startsWith(entry.to),
                 )?.label ?? 'Portal'}
               </h1>
             </div>
@@ -201,7 +232,9 @@ export const PortalLayout: React.FC = () => {
             ) : data.error ? (
               <ErrorNote>{data.error}</ErrorNote>
             ) : (
-              <Outlet />
+              <CollapsibleCards scope={`${user.account_id ?? 'na'}:${location.pathname}`} defaultOpen>
+                <Outlet />
+              </CollapsibleCards>
             )}
           </main>
         </div>

@@ -67,13 +67,13 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase.from('portal_accounts').select(ACCOUNT_COLUMNS).eq('id', accountId).single(),
       supabase
         .from('portal_opportunities')
-        .select('id, account_id, name, stage, amount, close_date, updated_at')
+        .select('id, account_id, name, stage, amount, close_date, updated_at, intake_published')
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
       supabase
         .from('portal_offers')
         .select(
-          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount)',
+          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)',
         )
         .eq('account_id', accountId)
         .order('version', { ascending: false }),
@@ -87,7 +87,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_documents')
         .select(
-          'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, uploaded_by_client, updated_at',
+          'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, intake_item_id, uploaded_by_client, updated_at',
         )
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
@@ -129,23 +129,25 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_intake_items')
         .select(
-          'id, account_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at',
+          'id, account_id, opportunity_id, name, description, owner_side, status, due_date, position, client_note, review_note, submitted_at, reviewed_at',
         )
         .eq('account_id', accountId)
         .order('position'),
-      // The account's Klepka people — surfaced on Calls for direct Calendly booking.
+      // The account's Klepka people — surfaced on Calls for direct Calendly booking. Only members
+      // the admin marked public are shown to the client.
       supabase
         .from('portal_account_team')
         .select(
-          'id, account_id, user_id, team_role, active, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
+          'id, account_id, user_id, team_role, active, is_public, added_at, user:portal_users!portal_account_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
         )
         .eq('account_id', accountId)
         .eq('active', true)
+        .eq('is_public', true)
         .order('added_at'),
       supabase
         .from('portal_candidates')
         .select(
-          'id, account_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)',
+          'id, account_id, opportunity_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)',
         )
         .eq('account_id', accountId)
         .order('created_at'),
@@ -171,10 +173,11 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_project_team')
         .select(
-          'id, project_id, user_id, project_role, assigned_at, active, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
+          'id, project_id, user_id, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
         )
         .in('project_id', projectIds)
-        .eq('active', true),
+        .eq('active', true)
+        .eq('is_public', true),
       supabase
         .from('portal_time_entries')
         .select(
@@ -222,6 +225,47 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
     klepkaTeam: z.array(AccountTeamMemberSchema).parse(klepkaTeam.data ?? []),
     feedback: z.array(FeedbackSchema).parse(feedback.data ?? []),
     activity: z.array(ActivitySchema).parse(activity.data ?? []),
+  };
+}
+
+/**
+ * Trims an internally-loaded snapshot down to what a client actually sees. Used by the admin
+ * "View as client" preview, where the data is fetched with internal RLS (so it includes drafts,
+ * unpublished and internal-only rows) — this re-applies the client-facing visibility rules so the
+ * preview matches the real portal instead of leaking internal state during a demo.
+ */
+export function filterSnapshotForClient(snapshot: PortalSnapshot): PortalSnapshot {
+  const offers = snapshot.offers.filter((offer) => offer.status !== 'draft');
+  const documents = snapshot.documents.filter((doc) => doc.status !== 'draft');
+  const resources = snapshot.resources.filter((resource) => resource.published);
+  const activity = snapshot.activity.filter((entry) => entry.client_visible);
+  // Intake is hidden until the team publishes its opportunity's checklist (RLS enforces the same
+  // for real clients; this keeps the admin "View as client" preview honest).
+  const publishedOppIds = new Set(
+    snapshot.opportunities.filter((opp) => opp.intake_published).map((opp) => opp.id),
+  );
+  const intake = snapshot.intake.filter((item) => publishedOppIds.has(item.opportunity_id));
+  const projects = snapshot.projects
+    .filter((bundle) => bundle.project.published)
+    .map((bundle) => ({
+      ...bundle,
+      timeEntries: bundle.timeEntries.filter((entry) => entry.visible_to_client),
+    }));
+  const first = projects[0];
+
+  return {
+    ...snapshot,
+    account: { ...snapshot.account, internal_notes: '' },
+    offers,
+    documents,
+    resources,
+    activity,
+    intake,
+    projects,
+    project: first?.project ?? null,
+    milestones: first?.milestones ?? [],
+    team: first?.team ?? [],
+    timeEntries: first?.timeEntries ?? [],
   };
 }
 
@@ -304,11 +348,13 @@ export async function updateIntakeItem(
   itemId: string,
   status: 'in_progress' | 'submitted',
   note?: string,
+  dueDate?: string | null,
 ): Promise<void> {
   const { error } = await getSupabase().rpc('portal_update_intake_item', {
     p_item: itemId,
     p_status: status,
     p_note: note ?? null,
+    p_due_date: dueDate ?? null,
   });
   if (error) throw new Error(error.message);
 }
@@ -344,8 +390,17 @@ export async function listAccountUsers(accountId: string): Promise<PortalUser[]>
   return z.array(PortalUserSchema).parse(data ?? []);
 }
 
-/** Uploads a client-side document, then records it via the RPC (storage path is tenant-scoped). */
-export async function uploadClientDocument(accountId: string, file: File, name: string): Promise<void> {
+/**
+ * Uploads a client-side document, then records it via the RPC (storage path is tenant-scoped).
+ * Pass `intakeItemId` to tag the file to a Discovery checklist item — it then lands in the
+ * account's "01 Discovery" Drive folder and shows under that item on the Information gathering page.
+ */
+export async function uploadClientDocument(
+  accountId: string,
+  file: File,
+  name: string,
+  options?: { intakeItemId?: string; opportunityId?: string; folderKey?: string },
+): Promise<void> {
   const supabase = getSupabase();
   const extension = file.name.split('.').pop()?.toLowerCase() || 'bin';
   const path = `${accountId}/${crypto.randomUUID()}.${extension}`;
@@ -360,6 +415,7 @@ export async function uploadClientDocument(accountId: string, file: File, name: 
     p_name: name || file.name,
     p_file_url: path,
     p_doc_type: docType,
+    p_intake_item: options?.intakeItemId ?? null,
   });
   if (error) throw new Error(error.message);
 
@@ -371,8 +427,9 @@ export async function uploadClientDocument(accountId: string, file: File, name: 
     try {
       await driveUploadFromStorage({
         accountId,
+        opportunityId: options?.opportunityId,
         storagePath: path,
-        folderKey: driveFolderForDocType(docType),
+        folderKey: options?.folderKey ?? driveFolderForDocType(docType),
         name: name || file.name,
         documentId,
       });

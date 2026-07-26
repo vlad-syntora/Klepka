@@ -1,5 +1,5 @@
 import React from 'react';
-import { loadPortalSnapshot } from '@/app/lib/portal-api';
+import { filterSnapshotForClient, loadPortalSnapshot } from '@/app/lib/portal-api';
 import type { PortalSnapshot } from '@/app/lib/portal-types';
 
 interface PortalDataState {
@@ -12,7 +12,12 @@ interface PortalDataState {
 
 export const PortalDataContext = React.createContext<PortalDataState | null>(null);
 
-export function usePortalDataState(accountId: string | null): PortalDataState {
+/**
+ * @param clientView when true, the loaded snapshot is passed through the client-visibility filter.
+ *   Used by the admin "View as client" preview so drafts/internal-only rows are hidden even though
+ *   the data is fetched with internal RLS.
+ */
+export function usePortalDataState(accountId: string | null, clientView = false): PortalDataState {
   const [snapshot, setSnapshot] = React.useState<PortalSnapshot | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -26,13 +31,13 @@ export function usePortalDataState(accountId: string | null): PortalDataState {
     try {
       setError(null);
       const next = await loadPortalSnapshot(accountId);
-      setSnapshot(next);
+      setSnapshot(clientView ? filterSnapshotForClient(next) : next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not load your portal data.');
     } finally {
       setLoading(false);
     }
-  }, [accountId]);
+  }, [accountId, clientView]);
 
   React.useEffect(() => {
     setLoading(true);

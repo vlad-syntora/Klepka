@@ -12,7 +12,6 @@ import {
   driveRenameFolder,
 } from '@/app/lib/portal-admin-api';
 import { WorkspaceTeam } from '@/app/components/admin/portal/WorkspaceTeam';
-import { WorkspaceCandidates } from '@/app/components/admin/portal/WorkspaceCandidates';
 import { formatDateTime, prettyName } from '@/app/lib/portal-format';
 import {
   ACCOUNT_SOURCES,
@@ -263,8 +262,6 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
         </PortalCard>
 
         <WorkspaceTeam account={account} />
-
-        <WorkspaceCandidates account={account} />
 
         <PortalCard title="Danger zone" description="Deleting an account cannot be undone.">
           <div className="flex flex-wrap items-center justify-between gap-3">

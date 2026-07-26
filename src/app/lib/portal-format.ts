@@ -24,6 +24,47 @@ export function formatMoney(amount: number | null | undefined, currency = 'USD')
   }).format(amount);
 }
 
+/**
+ * An offer mixes two billing models, so it has two totals: the fixed-price lines add up to a
+ * monthly sum, and the time & materials lines add up to a combined hourly rate. They are different
+ * units and must not be summed together, so we keep them apart. `total` mirrors the stored
+ * fixed-price figure. Pass any object carrying the offer's line items (billing_type + amount).
+ */
+export function offerTotals(items: { billing_type: string; amount: number }[]): {
+  fixed: number;
+  hourly: number;
+  hasFixed: boolean;
+  hasHourly: boolean;
+} {
+  let fixed = 0;
+  let hourly = 0;
+  let hasFixed = false;
+  let hasHourly = false;
+  for (const item of items) {
+    if (item.billing_type === 'fixed_price') {
+      fixed += Number(item.amount) || 0;
+      hasFixed = true;
+    } else {
+      hourly += Number(item.amount) || 0;
+      hasHourly = true;
+    }
+  }
+  return { fixed, hourly, hasFixed, hasHourly };
+}
+
+/**
+ * Compact one-line rendering of an offer's totals, e.g. "$4,000/mo + $150/h". Used in list rows
+ * and card headers where the full two-row breakdown does not fit.
+ */
+export function formatOfferTotal(items: { billing_type: string; amount: number }[], currency = 'USD'): string {
+  const t = offerTotals(items);
+  const parts = [
+    t.hasFixed ? `${formatMoney(t.fixed, currency)}/mo` : null,
+    t.hasHourly ? `${formatMoney(t.hourly, currency)}/h` : null,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' + ') : formatMoney(0, currency);
+}
+
 export function formatRelative(value: string | null | undefined): string {
   if (!value) return 'never';
   const date = new Date(value);

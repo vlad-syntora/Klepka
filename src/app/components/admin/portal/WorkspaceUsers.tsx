@@ -15,6 +15,7 @@ import { notifyInviteResult } from '@/app/lib/invite-feedback';
 import { formatRelative, prettyName } from '@/app/lib/portal-format';
 import {
   CLIENT_ROLES,
+  USER_STATUS_LABELS,
   type PortalAccount,
   type PortalUser,
 } from '@/app/lib/portal-types';
@@ -33,7 +34,10 @@ import {
 } from '@/app/components/portal/PortalUi';
 import { UserStatusControl } from '@/app/components/admin/portal/UserStatusControl';
 
-export const WorkspaceUsers: React.FC<{ account: PortalAccount }> = ({ account }) => {
+export const WorkspaceUsers: React.FC<{ account: PortalAccount; canManage?: boolean }> = ({
+  account,
+  canManage = true,
+}) => {
   const users = useAsync(() => adminListAccountUsers(account.id), [account.id]);
   const directory = useAsync(() => adminListUsers(), []);
   const accounts = useAsync(() => adminListAccounts(), []);
@@ -133,12 +137,14 @@ export const WorkspaceUsers: React.FC<{ account: PortalAccount }> = ({ account }
         title="Customer portal users"
         description="Internal-only tab — the client never sees this list."
         action={
-          <PortalButton onClick={() => setShowInvite((open) => !open)}>
-            <UserPlus className="h-4 w-4" /> Add user
-          </PortalButton>
+          canManage ? (
+            <PortalButton onClick={() => setShowInvite((open) => !open)}>
+              <UserPlus className="h-4 w-4" /> Add user
+            </PortalButton>
+          ) : undefined
         }
       >
-        {showInvite && (
+        {canManage && showInvite && (
           <form
             onSubmit={(event) => event.preventDefault()}
             className="mb-4 space-y-3 rounded-lg border border-border-color bg-off-white p-4"
@@ -219,31 +225,41 @@ export const WorkspaceUsers: React.FC<{ account: PortalAccount }> = ({ account }
         {(users.data ?? []).length === 0 ? (
           <EmptyState title="No portal users on this account yet" />
         ) : (
-          <PortalTable head={['Name', 'Email', 'Status', 'Last login', '']}>
+          <PortalTable head={canManage ? ['Name', 'Email', 'Status', 'Last login', ''] : ['Name', 'Email', 'Status', 'Last login']}>
             {(users.data ?? []).map((user) => (
               <Row key={user.id}>
                 <Cell className="font-medium">{prettyName(user.full_name)}</Cell>
                 <Cell className="text-grey">{user.email}</Cell>
                 <Cell>
-                  <UserStatusControl user={user} onChanged={() => users.reload()} />
+                  {canManage ? (
+                    <UserStatusControl user={user} onChanged={() => users.reload()} />
+                  ) : (
+                    <span className="text-grey">{USER_STATUS_LABELS[user.status]}</span>
+                  )}
                 </Cell>
                 <Cell className="whitespace-nowrap text-grey">{formatRelative(user.last_login_at)}</Cell>
-                <Cell className="whitespace-nowrap text-right">
-                  <PortalButton variant="ghost" onClick={() => remove(user)}>
-                    Delete
-                  </PortalButton>
-                </Cell>
+                {canManage && (
+                  <Cell className="whitespace-nowrap text-right">
+                    <PortalButton variant="ghost" onClick={() => remove(user)}>
+                      Delete
+                    </PortalButton>
+                  </Cell>
+                )}
               </Row>
             ))}
           </PortalTable>
         )}
       </PortalCard>
 
-      <InfoNote>
-        Inviting someone here creates their portal profile — no password is issued. They open the portal and either
-        continue with the Google account for that address, or have a one-time sign-in link emailed to it. Anyone whose
-        address is not on this list sees “no portal access yet”.
-      </InfoNote>
+      {canManage ? (
+        <InfoNote>
+          Inviting someone here creates their portal profile — no password is issued. They open the portal and either
+          continue with the Google account for that address, or have a one-time sign-in link emailed to it. Anyone whose
+          address is not on this list sees “no portal access yet”.
+        </InfoNote>
+      ) : (
+        <InfoNote>Your role can view the users on this account but not add, invite or remove them.</InfoNote>
+      )}
     </div>
   );
 };

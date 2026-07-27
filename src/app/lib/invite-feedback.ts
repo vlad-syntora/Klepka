@@ -9,7 +9,9 @@ import type { InviteResult } from '@/app/lib/portal-admin-api';
 export function notifyInviteResult(result: InviteResult, email: string): void {
   const { emailed, alreadyRegistered, actionLink } = result;
   const message = alreadyRegistered
-    ? `${email} already has an account — status set to Invited.`
+    ? emailed
+      ? `${email} already has an account — a fresh sign-in email is on its way.`
+      : `${email} already has an account — email could not be sent. Copy the sign-in link and share it directly.`
     : emailed
       ? `Invite emailed to ${email}.`
       : 'User provisioned — email could not be sent. Copy the sign-in link and share it directly.';

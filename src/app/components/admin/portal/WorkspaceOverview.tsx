@@ -26,6 +26,7 @@ import {
   EmptyState,
   ErrorNote,
   Field,
+  InfoNote,
   PortalButton,
   PortalCard,
   PortalSpinner,
@@ -34,10 +35,12 @@ import {
   inputClass,
 } from '@/app/components/portal/PortalUi';
 
-export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () => Promise<void> }> = ({
-  account,
-  onChange,
-}) => {
+export const WorkspaceOverview: React.FC<{
+  account: PortalAccount;
+  onChange: () => Promise<void>;
+  /** Implementers get a read-only view — they may see the account but not edit it. */
+  canEdit?: boolean;
+}> = ({ account, onChange, canEdit = true }) => {
   const navigate = useNavigate();
   const owners = useAsync(() => adminListInternalUsers(), []);
   const activity = useAsync(() => adminListActivity(account.id), [account.id]);
@@ -133,13 +136,16 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
   return (
     <div className="grid gap-5 lg:grid-cols-3">
       <div className="space-y-5 lg:col-span-2">
+        {!canEdit && (
+          <InfoNote>Your role can view this account but not change its settings.</InfoNote>
+        )}
         <PortalCard title="Snapshot" description="Stage changes are reflected in the client's portal immediately.">
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Account name" className="sm:col-span-3" hint="Must be unique — renaming is blocked if another account already uses the name.">
               <input
                 className={inputClass}
                 value={name}
-                disabled={busy}
+                disabled={busy || !canEdit}
                 onChange={(event) => setName(event.target.value)}
                 onBlur={saveName}
               />
@@ -150,7 +156,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
                   type="url"
                   className={`${inputClass} pr-12`}
                   value={logo}
-                  disabled={busy}
+                  disabled={busy || !canEdit}
                   placeholder="https://…/logo.png"
                   onChange={(event) => setLogo(event.target.value)}
                   onBlur={saveLogo}
@@ -172,7 +178,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
               <select
                 className={inputClass}
                 value={account.lifecycle}
-                disabled={busy}
+                disabled={busy || !canEdit}
                 onChange={(event) =>
                   patch({ lifecycle: event.target.value as Lifecycle }, 'Stage updated — the client sees it now.')
                 }
@@ -188,7 +194,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
               <select
                 className={inputClass}
                 value={account.health}
-                disabled={busy}
+                disabled={busy || !canEdit}
                 onChange={(event) => patch({ health: event.target.value as Health }, 'Health updated.')}
               >
                 {(Object.keys(HEALTH_LABELS) as Health[]).map((health) => (
@@ -202,7 +208,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
               <select
                 className={inputClass}
                 value={account.owner_id ?? ''}
-                disabled={busy || owners.loading}
+                disabled={busy || !canEdit || owners.loading}
                 onChange={(event) => patch({ owner_id: event.target.value || null }, 'Owner reassigned.')}
               >
                 <option value="">Unassigned</option>
@@ -217,7 +223,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
               <select
                 className={inputClass}
                 value={account.source ?? ''}
-                disabled={busy}
+                disabled={busy || !canEdit}
                 onChange={(event) => patch({ source: event.target.value || null }, 'Source updated.')}
               >
                 <option value="">—</option>
@@ -232,7 +238,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
               <input
                 className={inputClass}
                 value={sourceSubtype}
-                disabled={busy}
+                disabled={busy || !canEdit}
                 onChange={(event) => setSourceSubtype(event.target.value)}
                 onBlur={saveSourceSubtype}
               />
@@ -245,7 +251,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
           description="Never shown to the client."
           action={
             <PortalButton
-              disabled={busy || notes === account.internal_notes}
+              disabled={busy || !canEdit || notes === account.internal_notes}
               onClick={() => patch({ internal_notes: notes }, 'Notes saved.')}
             >
               Save notes
@@ -256,6 +262,7 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
             rows={5}
             className={inputClass}
             value={notes}
+            disabled={busy || !canEdit}
             onChange={(event) => setNotes(event.target.value)}
             placeholder="Context for whoever picks this account up next…"
           />
@@ -263,17 +270,19 @@ export const WorkspaceOverview: React.FC<{ account: PortalAccount; onChange: () 
 
         <WorkspaceTeam account={account} />
 
-        <PortalCard title="Danger zone" description="Deleting an account cannot be undone.">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-grey">
-              Removes this account and every user, offer, document, invoice and project attached to it. Drive files are
-              left in place.
-            </p>
-            <PortalButton variant="danger" onClick={deleteAccount} disabled={deleting}>
-              <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete account'}
-            </PortalButton>
-          </div>
-        </PortalCard>
+        {canEdit && (
+          <PortalCard title="Danger zone" description="Deleting an account cannot be undone.">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-grey">
+                Removes this account and every user, offer, document, invoice and project attached to it. Drive files are
+                left in place.
+              </p>
+              <PortalButton variant="danger" onClick={deleteAccount} disabled={deleting}>
+                <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete account'}
+              </PortalButton>
+            </div>
+          </PortalCard>
+        )}
       </div>
 
       <PortalCard title="Activity log" alwaysOpen>

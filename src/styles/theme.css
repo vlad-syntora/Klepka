@@ -11,7 +11,13 @@
   --grey: #7F7B82;
   --text-secondary: #000000;
   --border-color: #E2E8F0;
-  
+
+  /* Client portal status colours (portal-design §15) */
+  --portal-green: #1E8E5A;
+  --portal-amber: #B8860B;
+  --portal-red: #C0392B;
+  --portal-tint: #F4EEFB;
+
   --background: #FFFFFF;
   --foreground: #0F172A;
   --card: #ffffff;
@@ -89,6 +95,10 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-border-color: var(--border-color);
+  --color-portal-green: var(--portal-green);
+  --color-portal-amber: var(--portal-amber);
+  --color-portal-red: var(--portal-red);
+  --color-portal-tint: var(--portal-tint);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -155,5 +165,121 @@
     font-size: 1rem;
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+/* Rich-text article rendering (TipTap output on public pages and in the admin editor) */
+@layer components {
+  .article-body {
+    color: var(--text-secondary);
+    line-height: 1.75;
+    overflow-wrap: break-word;
+  }
+
+  .article-body h2,
+  .article-body h3,
+  .article-body h4 {
+    color: var(--violet);
+    scroll-margin-top: 7rem;
+  }
+
+  .article-body h2 { margin: 2rem 0 0.75rem; }
+  .article-body h3 { margin: 1.5rem 0 0.5rem; }
+  .article-body h4 { margin: 1.25rem 0 0.5rem; }
+  .article-body p { margin-bottom: 1rem; }
+
+  .article-body ul,
+  .article-body ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .article-body ul { list-style: disc; }
+  .article-body ol { list-style: decimal; }
+  .article-body li > p { margin-bottom: 0.25rem; }
+
+  .article-body a {
+    color: var(--violet);
+    text-decoration: underline;
+  }
+  .article-body a:hover { opacity: 0.8; }
+
+  .article-body blockquote {
+    border-left: 3px solid var(--violet);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    font-style: italic;
+  }
+
+  .article-body code {
+    background: color-mix(in srgb, var(--violet) 8%, transparent);
+    color: var(--violet);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+  }
+
+  .article-body pre {
+    background: #0F172A;
+    color: #F8FAFC;
+    padding: 1rem;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin-bottom: 1rem;
+  }
+  .article-body pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+
+  .article-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    margin: 1rem 0;
+  }
+
+  .article-body hr {
+    border-color: var(--border-color);
+    margin: 1.5rem 0;
+  }
+
+  .article-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .article-body th {
+    background: color-mix(in srgb, var(--violet) 8%, transparent);
+    color: var(--violet);
+    font-weight: 600;
+  }
+
+  .article-body th,
+  .article-body td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    min-width: 6rem;
+  }
+
+  .article-body div[data-youtube-video] {
+    margin: 1rem 0;
+  }
+
+  .article-body div[data-youtube-video] iframe {
+    max-width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+  }
+
+  .article-body mark {
+    border-radius: 0.125rem;
+    padding: 0 0.125rem;
   }
 }

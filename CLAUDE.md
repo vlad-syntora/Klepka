@@ -20,7 +20,9 @@ No test suite is configured.
 
 ## Architecture
 
-**Routing** (`src/app/App.tsx`): React Router v7. All pages share `Header`/`Footer` except `/card/:slug` (FounderCardPage), which renders in isolation.
+**Routing** (`src/app/App.tsx`): React Router v7. Three isolated route trees render without `Header`/`Footer`: `/card/:slug` (FounderCardPage), `/admin/*` (content admin + client-portal admin console) and `/portal/*` (client portal). Everything else shares the marketing shell.
+
+**Client portal** (`/portal/*` and `/admin/portal/*`): authenticated B2B portal built from the spec in `portal-design/`. Schema and access model live in `supabase/migrations/0004_client_portal.sql`; see `PORTAL.md` for routes, roles and the onboarding flow. Client-side writes go through `SECURITY DEFINER` RPCs, never direct table access.
 
 **Pages** (`src/app/pages/`): Home, About, Partners, Pricing, Careers, FounderCardPage. Content is mostly static/configured data.
 

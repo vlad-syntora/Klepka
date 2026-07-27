@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /portal
 
 Sitemap: https://klepka.solutions/sitemap.xml

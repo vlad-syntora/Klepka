@@ -3,7 +3,14 @@ import { Link, useParams } from 'react-router-dom';
 import { ChevronRight, Eye, FolderOpen } from 'lucide-react';
 import { adminGetAccount } from '@/app/lib/portal-admin-api';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
-import { HEALTH_LABELS, LIFECYCLE_LABELS, canViewPayments, type PortalAccount } from '@/app/lib/portal-types';
+import {
+  HEALTH_LABELS,
+  LIFECYCLE_LABELS,
+  canEditAccounts,
+  canViewPayments,
+  canViewPipeline,
+  type PortalAccount,
+} from '@/app/lib/portal-types';
 import { CollapsibleCards, ErrorNote, PortalSpinner, StatusTag, toneFor } from '@/app/components/portal/PortalUi';
 import { cn } from '@/app/components/ui/utils';
 import { prettyName } from '@/app/lib/portal-format';
@@ -37,10 +44,20 @@ export const AdminAccountWorkspace: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState<TabKey>('overview');
 
-  // Payments are for Sales Rep / Ops-Finance / Portal Admin only — drop the tab for everyone else
-  // (RLS also blocks the data). Show it while the user is still loading to avoid a flash-hide.
+  // Role-gated tabs (RLS also blocks the data). Payments is Sales Rep / Ops-Finance / Portal
+  // Admin only; Implementers additionally lose Pipeline & Offers. Everything is shown while the
+  // user is still loading to avoid a flash-hide.
   const showPayments = user ? canViewPayments(user.role) : true;
-  const tabs = showPayments ? TABS : TABS.filter((entry) => entry.key !== 'payments');
+  const showPipeline = user ? canViewPipeline(user.role) : true;
+  const canEdit = user ? canEditAccounts(user.role) : true;
+  const tabs = TABS.filter(
+    (entry) => (entry.key !== 'payments' || showPayments) && (entry.key !== 'pipeline' || showPipeline),
+  );
+
+  // Keep the active tab valid if the current one just got filtered out for this role.
+  React.useEffect(() => {
+    if (!tabs.some((entry) => entry.key === tab)) setTab('overview');
+  }, [tabs, tab]);
 
   const load = React.useCallback(async () => {
     try {
@@ -109,9 +126,9 @@ export const AdminAccountWorkspace: React.FC = () => {
       </div>
 
       <CollapsibleCards scope={`${account.id}:${tab}`}>
-        {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} />}
+        {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} canEdit={canEdit} />}
         {tab === 'resources' && <WorkspaceResources account={account} />}
-        {tab === 'pipeline' && <WorkspacePipeline account={account} onChange={load} />}
+        {tab === 'pipeline' && showPipeline && <WorkspacePipeline account={account} onChange={load} />}
         {tab === 'documents' && (
           <div className="space-y-5">
             <WorkspaceDrive account={account} onChange={load} />
@@ -121,7 +138,7 @@ export const AdminAccountWorkspace: React.FC = () => {
         {tab === 'payments' && showPayments && <WorkspacePayments account={account} />}
         {tab === 'project' && <WorkspaceProject account={account} />}
         {tab === 'feedback' && <WorkspaceFeedback account={account} />}
-        {tab === 'users' && <WorkspaceUsers account={account} />}
+        {tab === 'users' && <WorkspaceUsers account={account} canManage={canEdit} />}
       </CollapsibleCards>
     </div>
   );

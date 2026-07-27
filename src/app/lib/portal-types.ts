@@ -39,6 +39,16 @@ export function canViewPayments(role: PortalRole): boolean {
   return role === 'client_admin' || role === 'sales_rep' || role === 'ops_finance' || role === 'portal_admin';
 }
 
+// Implementers are a limited delivery role (migration 0025): no pipeline (opportunities/offers),
+// no finance, and they can't edit account settings. Mirrors the SQL rules so the admin UI hides
+// what RLS would otherwise reject or return empty.
+export function canViewPipeline(role: PortalRole): boolean {
+  return role !== 'implementor';
+}
+export function canEditAccounts(role: PortalRole): boolean {
+  return role !== 'implementor';
+}
+
 export const ROLE_LABELS: Record<PortalRole, string> = {
   prospect: 'Prospect',
   client_admin: 'Client Admin',

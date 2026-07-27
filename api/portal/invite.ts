@@ -85,6 +85,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       emailed = false;
     }
 
+    // Re-inviting someone who already has an auth account (e.g. Inactive → Invited again):
+    // inviteUserByEmail won't re-send, so send a fresh magic-link email instead. Needs the anon
+    // key + configured SMTP; if either is missing we fall back to the shareable link below.
+    if (alreadyRegistered) {
+      const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+      const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+      if (url && anonKey) {
+        const otpClient = createClient(url, anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { error: otpError } = await otpClient.auth.signInWithOtp({
+          email: target.email,
+          options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+        });
+        if (!otpError) emailed = true;
+      }
+    }
+
     // Always produce a shareable link as a fallback, so the invite works even without SMTP. When
     // the user still doesn't exist (invite failed for a non-registration reason) an 'invite' link
     // also creates them; otherwise a one-time 'magiclink' signs the existing user in.

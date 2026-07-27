@@ -191,6 +191,7 @@ export async function adminUpdateUser(
   id: string,
   patch: Partial<{
     full_name: string;
+    email: string;
     role: PortalRole;
     module_access: string[];
     title: string | null;

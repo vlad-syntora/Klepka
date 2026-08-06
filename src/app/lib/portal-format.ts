@@ -65,6 +65,39 @@ export function formatOfferTotal(items: { billing_type: string; amount: number }
   return parts.length > 0 ? parts.join(' + ') : formatMoney(0, currency);
 }
 
+/**
+ * A milestone's schedule as one line: "12 Mar → 20 Mar" when both dates are set, "Due 20 Mar" or
+ * "From 12 Mar" when only one is, and "Date TBC" when neither is.
+ */
+export function formatMilestoneRange(
+  start: string | null | undefined,
+  due: string | null | undefined,
+): string {
+  if (start && due) return `${formatDate(start)} → ${formatDate(due)}`;
+  if (due) return `Due ${formatDate(due)}`;
+  if (start) return `From ${formatDate(start)}`;
+  return 'Date TBC';
+}
+
+/**
+ * Whole-day span between two dates as a human phrase: "same day", "3 days", "2 weeks". Returns null
+ * when either endpoint is missing so callers can omit the duration entirely.
+ */
+export function formatDayDuration(
+  start: string | null | undefined,
+  due: string | null | undefined,
+): string | null {
+  if (!start || !due) return null;
+  const from = new Date(start).getTime();
+  const to = new Date(due).getTime();
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  const days = Math.max(0, Math.round((to - from) / 86_400_000));
+  if (days === 0) return 'same day';
+  if (days < 14) return `${days} day${days === 1 ? '' : 's'}`;
+  const weeks = Math.round(days / 7);
+  return `${weeks} week${weeks === 1 ? '' : 's'}`;
+}
+
 export function formatRelative(value: string | null | undefined): string {
   if (!value) return 'never';
   const date = new Date(value);

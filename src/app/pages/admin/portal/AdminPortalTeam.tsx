@@ -1,13 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { UserPlus } from 'lucide-react';
+import { Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminCreateUser,
   adminDeleteUser,
   adminListAccounts,
   adminListUsers,
+  adminSetUserProducts,
   adminUpdateUser,
   portalInviteUser,
 } from '@/app/lib/portal-admin-api';
@@ -17,13 +18,18 @@ import { formatRelative, initialsOf, prettyName } from '@/app/lib/portal-format'
 import {
   INTERNAL_ROLES,
   ROLE_LABELS,
+  USER_STATUSES,
   USER_STATUS_LABELS,
   canEditAccounts,
+  isImplementer,
   isInternalRole,
   type PortalRole,
   type PortalUser,
+  type UserStatus,
 } from '@/app/lib/portal-types';
+import { openCalendly } from '@/app/lib/calendly';
 import { UserStatusControl } from '@/app/components/admin/portal/UserStatusControl';
+import { UserSkillsEditor } from '@/app/components/admin/portal/UserSkillsEditor';
 import {
   Cell,
   EmptyState,
@@ -32,21 +38,28 @@ import {
   InfoNote,
   PortalButton,
   PortalCard,
+  PortalModal,
   PortalSpinner,
   PortalTable,
   Row,
+  SortHeader,
   StatusTag,
   inputClass,
+  useTableSort,
 } from '@/app/components/portal/PortalUi';
 import { cn } from '@/app/components/ui/utils';
 
 export const AdminPortalTeam: React.FC = () => {
   const { user } = usePortalUser();
-  // Implementers can view the team directory but not manage it (RLS blocks the writes anyway).
+  // Implementers can view the team directory but not manage it (RLS blocks the writes anyway), and
+  // they don't get the Customer users tab at all.
   const canManage = user ? canEditAccounts(user.role) : true;
+  const implementer = user ? isImplementer(user.role) : false;
   const users = useAsync(() => adminListUsers(), []);
   const accounts = useAsync(() => adminListAccounts(), []);
   const [tab, setTab] = React.useState<'klepka' | 'customers'>('klepka');
+  // Implementers only ever see the Klepka team tab.
+  const activeTab = implementer ? 'klepka' : tab;
   const [showAdd, setShowAdd] = React.useState(false);
   // null → the form creates a new member; a user id → it edits that member in place.
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -56,7 +69,16 @@ export const AdminPortalTeam: React.FC = () => {
   const [calendly, setCalendly] = React.useState('');
   const [photo, setPhoto] = React.useState('');
   const [role, setRole] = React.useState<PortalRole>('sales_rep');
+  // Draft skills held only while creating a member (no user row to persist against yet); applied
+  // once the user is created. In edit mode the editor saves against the user id directly.
+  const [skillIds, setSkillIds] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
+  const canEditSkills = user?.role === 'portal_admin';
+  // Accounts-style list controls: a search box and a status filter shared by both tabs, plus a role
+  // filter on the Klepka-team tab.
+  const [query, setQuery] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | UserStatus>('all');
+  const [roleFilter, setRoleFilter] = React.useState<'all' | PortalRole>('all');
 
   const resetForm = () => {
     setEditingId(null);
@@ -66,6 +88,7 @@ export const AdminPortalTeam: React.FC = () => {
     setCalendly('');
     setPhoto('');
     setRole('sales_rep');
+    setSkillIds([]);
     setShowAdd(false);
   };
 
@@ -110,6 +133,9 @@ export const AdminPortalTeam: React.FC = () => {
           calendly_url: calendly.trim() || null,
           photo_url: photo.trim() || null,
         });
+        if (skillIds.length && canEditSkills) {
+          await adminSetUserProducts(created.id, skillIds);
+        }
         if (sendInvite) {
           notifyInviteResult(await portalInviteUser(created.id), created.email);
         } else {
@@ -144,129 +170,233 @@ export const AdminPortalTeam: React.FC = () => {
     }
   };
 
-  if (users.loading) return <PortalSpinner label="Loading team…" />;
-  if (users.error) return <ErrorNote>{users.error}</ErrorNote>;
-
   const all = users.data ?? [];
   const internal = all.filter((user) => isInternalRole(user.role));
   const customers = all.filter((user) => !isInternalRole(user.role));
   const accountName = (id: string | null) => accounts.data?.find((account) => account.id === id)?.name ?? '—';
 
-  return (
-    <div className="space-y-5">
-      <div className="flex gap-1 border-b border-border-color">
-        {(['klepka', 'customers'] as const).map((key) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={cn(
-              'border-b-2 px-3 py-2.5 text-sm transition-colors',
-              tab === key ? 'border-violet font-medium text-violet' : 'border-transparent text-grey hover:text-foreground',
-            )}
-          >
-            {key === 'klepka' ? `Klepka team (${internal.length})` : `Customer users (${customers.length})`}
-          </button>
-        ))}
-      </div>
+  const filtersActive = query.trim().length > 0 || statusFilter !== 'all' || roleFilter !== 'all';
+  const matchesFilters = (person: PortalUser) => {
+    if (query) {
+      const q = query.toLowerCase();
+      if (!prettyName(person.full_name).toLowerCase().includes(q) && !person.email.toLowerCase().includes(q)) return false;
+    }
+    if (statusFilter !== 'all' && person.status !== statusFilter) return false;
+    return true;
+  };
+  const internalVisible = internal.filter((p) => matchesFilters(p) && (roleFilter === 'all' || p.role === roleFilter));
+  const customerVisible = customers.filter(matchesFilters);
 
-      {tab === 'klepka' ? (
+  const internalSorted = useTableSort(internalVisible, {
+    name: (u) => prettyName(u.full_name).toLowerCase(),
+    email: (u) => u.email.toLowerCase(),
+    role: (u) => ROLE_LABELS[u.role],
+    status: (u) => USER_STATUS_LABELS[u.status],
+    login: (u) => u.last_login_at,
+  });
+  const customerSorted = useTableSort(customerVisible, {
+    name: (u) => prettyName(u.full_name).toLowerCase(),
+    account: (u) => accountName(u.account_id).toLowerCase(),
+    role: (u) => ROLE_LABELS[u.role],
+    status: (u) => USER_STATUS_LABELS[u.status],
+    login: (u) => u.last_login_at,
+  });
+
+  // Reusable Accounts-style search + status filter for a card header.
+  const filterControls = (
+    <>
+      <input
+        className={`${inputClass} w-40 py-1.5 text-xs`}
+        placeholder="Search users…"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <select
+        className={`${inputClass} w-auto py-1.5 text-xs`}
+        value={statusFilter}
+        onChange={(event) => setStatusFilter(event.target.value as 'all' | UserStatus)}
+      >
+        <option value="all">All statuses</option>
+        {USER_STATUSES.map((value) => (
+          <option key={value} value={value}>
+            {USER_STATUS_LABELS[value]}
+          </option>
+        ))}
+      </select>
+    </>
+  );
+
+  if (users.loading) return <PortalSpinner label="Loading team…" />;
+  if (users.error) return <ErrorNote>{users.error}</ErrorNote>;
+
+  return (
+    <div className="space-y-2">
+      {!implementer && (
+        <div className="flex gap-1 border-b border-border-color">
+          {(['klepka', 'customers'] as const).map((key) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={cn(
+                'border-b-2 px-3 py-2.5 text-sm transition-colors',
+                activeTab === key ? 'border-violet font-medium text-violet' : 'border-transparent text-grey hover:text-foreground',
+              )}
+            >
+              {key === 'klepka' ? `Klepka team (${internal.length})` : `Customer users (${customers.length})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'klepka' ? (
         <PortalCard
           title="Klepka team"
           description="Internal roles set default permissions across accounts."
           action={
-            canManage ? (
-              <PortalButton onClick={() => (showAdd ? resetForm() : setShowAdd(true))}>
-                <UserPlus className="h-4 w-4" /> Add team member
-              </PortalButton>
-            ) : undefined
+            <>
+              {filterControls}
+              <select
+                className={`${inputClass} w-auto py-1.5 text-xs`}
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value as 'all' | PortalRole)}
+              >
+                <option value="all">All roles</option>
+                {INTERNAL_ROLES.map((value) => (
+                  <option key={value} value={value}>
+                    {ROLE_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              {canManage && (
+                <PortalButton
+                  className="whitespace-nowrap"
+                  onClick={() => {
+                    resetForm();
+                    setShowAdd(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4 shrink-0" /> Add team member
+                </PortalButton>
+              )}
+            </>
           }
         >
-          {canManage && showAdd && (
-            <form onSubmit={(event) => event.preventDefault()} className="mb-4 grid gap-3 rounded-lg border border-border-color bg-off-white p-4 sm:grid-cols-6">
-              <Field label="Full name">
-                <input className={inputClass} value={fullName} onChange={(event) => setFullName(event.target.value)} required />
-              </Field>
-              <Field label="Email">
-                <input
-                  type="email"
-                  className={inputClass}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
-              </Field>
-              <Field label="Job title">
-                <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
-              </Field>
-              <Field label="Calendly link" className="sm:col-span-2" hint="Personal booking URL — optional.">
-                <input
-                  type="url"
-                  className={inputClass}
-                  value={calendly}
-                  onChange={(event) => setCalendly(event.target.value)}
-                  placeholder="https://calendly.com/name"
-                />
-              </Field>
-              <Field label="Internal role">
-                <select className={inputClass} value={role} onChange={(event) => setRole(event.target.value as PortalRole)}>
-                  {INTERNAL_ROLES.map((value) => (
-                    <option key={value} value={value}>
-                      {ROLE_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Photo (URL)" className="sm:col-span-2" hint="Headshot shown to clients in “Your Klepka team”.">
-                <div className="flex items-center gap-2">
-                  {photo.trim() ? (
-                    <img src={photo} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
-                  ) : (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-500">
-                      {initialsOf(fullName || '—')}
-                    </span>
-                  )}
+          {canManage && (
+            <PortalModal
+              open={showAdd}
+              onClose={resetForm}
+              title={editingId ? `Edit ${prettyName(fullName || 'team member')}` : 'Add team member'}
+              description="Internal roles set default permissions across accounts."
+            >
+              <form onSubmit={(event) => event.preventDefault()} className="grid gap-3 sm:grid-cols-2">
+                <Field label="Full name">
+                  <input className={inputClass} value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+                </Field>
+                <Field label="Email">
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Internal role">
+                  <select className={inputClass} value={role} onChange={(event) => setRole(event.target.value as PortalRole)}>
+                    {INTERNAL_ROLES.map((value) => (
+                      <option key={value} value={value}>
+                        {ROLE_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Job title">
+                  <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
+                </Field>
+                <Field label="Photo (URL)" className="sm:col-span-2" hint="Headshot shown to clients in “Your Klepka team”.">
+                  <div className="flex items-center gap-2">
+                    {photo.trim() ? (
+                      <img src={photo} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-500">
+                        {initialsOf(fullName || '—')}
+                      </span>
+                    )}
+                    <input
+                      type="url"
+                      className={inputClass}
+                      value={photo}
+                      onChange={(event) => setPhoto(event.target.value)}
+                      placeholder="https://…/photo.jpg"
+                    />
+                  </div>
+                </Field>
+                <Field label="Calendly link" className="sm:col-span-2" hint="Personal booking URL — optional.">
                   <input
                     type="url"
                     className={inputClass}
-                    value={photo}
-                    onChange={(event) => setPhoto(event.target.value)}
-                    placeholder="https://…/photo.jpg"
+                    value={calendly}
+                    onChange={(event) => setCalendly(event.target.value)}
+                    placeholder="https://calendly.com/name"
                   />
-                </div>
-              </Field>
-              <div className="flex flex-wrap items-end gap-2 sm:col-span-6">
-                <PortalButton type="button" variant="secondary" disabled={busy} onClick={() => save(false)}>
-                  {busy ? 'Saving…' : editingId ? 'Save changes' : 'Save'}
-                </PortalButton>
-                {!editingId && (
-                  <PortalButton type="button" disabled={busy} onClick={() => save(true)}>
-                    <UserPlus className="h-4 w-4" /> {busy ? 'Working…' : 'Send invite'}
+                </Field>
+                <Field
+                  label="Skills (products owned)"
+                  className="sm:col-span-2"
+                  hint={
+                    !canEditSkills
+                      ? 'Only a Portal Admin can change skills.'
+                      : editingId
+                        ? 'Pick the products this person owns. Changes save immediately.'
+                        : 'Pick the products this person owns. Saved when you create the member.'
+                  }
+                >
+                  {editingId ? (
+                    <UserSkillsEditor userId={editingId} canEdit={canEditSkills} />
+                  ) : (
+                    <UserSkillsEditor value={skillIds} onChange={setSkillIds} canEdit={canEditSkills} />
+                  )}
+                </Field>
+                <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
+                  <PortalButton type="button" variant="secondary" disabled={busy} onClick={() => save(false)}>
+                    {busy ? 'Saving…' : editingId ? 'Save changes' : 'Save'}
                   </PortalButton>
-                )}
-                <PortalButton variant="ghost" type="button" onClick={resetForm}>
-                  Cancel
-                </PortalButton>
-              </div>
-            </form>
+                  {!editingId && (
+                    <PortalButton type="button" disabled={busy} onClick={() => save(true)}>
+                      <UserPlus className="h-4 w-4" /> {busy ? 'Working…' : 'Send invite'}
+                    </PortalButton>
+                  )}
+                  <PortalButton variant="ghost" type="button" onClick={resetForm}>
+                    Cancel
+                  </PortalButton>
+                </div>
+              </form>
+            </PortalModal>
           )}
 
-          {internal.length === 0 ? (
-            <EmptyState title="No internal users yet" />
+          {internalSorted.sorted.length === 0 ? (
+            <EmptyState title={filtersActive ? 'No users match' : 'No internal users yet'} />
           ) : (
             <PortalTable
-              head={
-                canManage
-                  ? ['Name', 'Email', 'Role', 'Calendly', 'Photo', 'Status', 'Last login', '']
-                  : ['Name', 'Email', 'Role', 'Calendly', 'Photo', 'Status', 'Last login']
-              }
+              className="[&_th]:px-3 [&_td]:px-3"
+              head={[
+                <SortHeader key="name" label="Name" sortKey="name" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                <SortHeader key="email" label="Email" sortKey="email" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                <SortHeader key="role" label="Role" sortKey="role" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                'Calendly',
+                'Photo',
+                <SortHeader key="status" label="Status" sortKey="status" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                <SortHeader key="login" label="Last login" sortKey="login" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                ...(canManage ? [''] : []),
+              ]}
             >
-              {internal.map((user) => (
+              {internalSorted.sorted.map((user) => (
                 <Row key={user.id}>
-                  <Cell>
+                  <Cell className="whitespace-nowrap">
                     <div className="font-medium">{prettyName(user.full_name)}</div>
                     {user.title && <div className="text-xs text-grey">{user.title}</div>}
                   </Cell>
-                  <Cell className="text-grey">{user.email}</Cell>
+                  <Cell className="whitespace-nowrap text-grey">{user.email}</Cell>
                   <Cell>
                     {canManage ? (
                       <select
@@ -288,9 +418,17 @@ export const AdminPortalTeam: React.FC = () => {
                     {canManage ? (
                       <CalendlyCell user={user} onSaved={() => users.reload()} />
                     ) : user.calendly_url ? (
-                      <a href={user.calendly_url} target="_blank" rel="noreferrer" className="text-violet hover:underline">
-                        Link
-                      </a>
+                      <button
+                        type="button"
+                        className="text-violet hover:underline"
+                        onClick={() =>
+                          openCalendly(user.calendly_url ?? '').catch(() =>
+                            toast.error('Could not open the booking window'),
+                          )
+                        }
+                      >
+                        Book
+                      </button>
                     ) : (
                       <span className="text-grey">—</span>
                     )}
@@ -317,11 +455,11 @@ export const AdminPortalTeam: React.FC = () => {
                   {canManage && (
                     <Cell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <PortalButton variant="ghost" onClick={() => startEdit(user)}>
-                          Edit
+                        <PortalButton variant="ghost" onClick={() => startEdit(user)} aria-label="Edit">
+                          <Pencil className="h-4 w-4" />
                         </PortalButton>
-                        <PortalButton variant="ghost" onClick={() => remove(user)}>
-                          Remove
+                        <PortalButton variant="ghost" onClick={() => remove(user)} aria-label="Remove">
+                          <Trash2 className="h-4 w-4" />
                         </PortalButton>
                       </div>
                     </Cell>
@@ -345,12 +483,24 @@ export const AdminPortalTeam: React.FC = () => {
           </div>
         </PortalCard>
       ) : (
-        <PortalCard title="Customer users" description="Every client-side login across all accounts.">
-          {customers.length === 0 ? (
-            <EmptyState title="No customer users yet" />
+        <PortalCard
+          title="Customer users"
+          description="Every client-side login across all accounts."
+          action={filterControls}
+        >
+          {customerSorted.sorted.length === 0 ? (
+            <EmptyState title={filtersActive ? 'No users match' : 'No customer users yet'} />
           ) : (
-            <PortalTable head={['Name', 'Account', 'Role', 'Status', 'Last login']}>
-              {customers.map((user) => (
+            <PortalTable
+              head={[
+                <SortHeader key="name" label="Name" sortKey="name" sort={customerSorted.sort} onSort={customerSorted.toggle} />,
+                <SortHeader key="account" label="Account" sortKey="account" sort={customerSorted.sort} onSort={customerSorted.toggle} />,
+                <SortHeader key="role" label="Role" sortKey="role" sort={customerSorted.sort} onSort={customerSorted.toggle} />,
+                <SortHeader key="status" label="Status" sortKey="status" sort={customerSorted.sort} onSort={customerSorted.toggle} />,
+                <SortHeader key="login" label="Last login" sortKey="login" sort={customerSorted.sort} onSort={customerSorted.toggle} />,
+              ]}
+            >
+              {customerSorted.sorted.map((user) => (
                 <Row key={user.id}>
                   <Cell>
                     <div className="font-medium">{prettyName(user.full_name)}</div>
@@ -406,13 +556,13 @@ const CalendlyCell: React.FC<{ user: PortalUser; onSaved: () => void }> = ({ use
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <input
         type="url"
-        className={`${inputClass} w-48 py-1 text-xs`}
+        className={`${inputClass} w-28 py-1 text-xs`}
         value={value}
         disabled={saving}
-        placeholder="https://calendly.com/…"
+        placeholder="calendly.com/…"
         onChange={(event) => setValue(event.target.value)}
         onBlur={save}
       />
@@ -453,7 +603,7 @@ const PhotoCell: React.FC<{ user: PortalUser; onSaved: () => void }> = ({ user, 
       )}
       <input
         type="url"
-        className={`${inputClass} w-40 py-1 text-xs`}
+        className={`${inputClass} w-36 py-1 text-xs`}
         value={value}
         disabled={saving}
         placeholder="https://…/photo.jpg"

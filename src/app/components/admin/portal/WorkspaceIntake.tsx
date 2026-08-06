@@ -1,8 +1,9 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Paperclip, Plus, Trash2 } from 'lucide-react';
+import { ClipboardCheck, Eye, EyeOff, Loader2, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
+  adminApplyIntakeTemplate,
   adminDeleteIntakeItem,
   adminListDocuments,
   adminListIntake,
@@ -25,7 +26,6 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  InfoNote,
   PortalButton,
   PortalCard,
   PortalSpinner,
@@ -36,16 +36,6 @@ import {
   inputClass,
   toneFor,
 } from '@/app/components/portal/PortalUi';
-
-const TEMPLATE: { name: string; description: string; owner_side: IntakeItem['owner_side'] }[] = [
-  { name: 'Current CRM access', description: 'Read-only access or an export of the existing system.', owner_side: 'client' },
-  { name: 'Sales process walkthrough', description: 'Stages, hand-offs and who owns what.', owner_side: 'client' },
-  { name: 'Data sample', description: 'Anonymised extract so we can assess quality and volume.', owner_side: 'client' },
-  { name: 'Integration inventory', description: 'Systems that must talk to Salesforce.', owner_side: 'client' },
-  { name: 'Stakeholder list', description: 'Who signs off, who uses it daily.', owner_side: 'client' },
-  { name: 'Solution outline', description: 'Our first pass at the architecture.', owner_side: 'klepka' },
-  { name: 'Effort estimate', description: 'Sizing per workstream ahead of the proposal.', owner_side: 'klepka' },
-];
 
 export const WorkspaceIntake: React.FC<{
   account: PortalAccount;
@@ -65,6 +55,9 @@ export const WorkspaceIntake: React.FC<{
   const [busy, setBusy] = React.useState(false);
   const [reviewId, setReviewId] = React.useState<string | null>(null);
   const [reviewNote, setReviewNote] = React.useState('');
+  const [editId, setEditId] = React.useState<string | null>(null);
+  const [editName, setEditName] = React.useState('');
+  const [editDescription, setEditDescription] = React.useState('');
 
   const rows = items.data ?? [];
   const approved = rows.filter((item) => item.status === 'approved').length;
@@ -143,24 +136,17 @@ export const WorkspaceIntake: React.FC<{
     }
   };
 
+  // Copy the editable standard checklist (managed under Sales Process Settings) into this
+  // opportunity. The RPC skips items already present by name, so re-running never duplicates.
   const seed = async () => {
-    if (rows.length > 0 && !window.confirm('Append the standard discovery checklist to the existing items?')) return;
+    if (rows.length > 0 && !window.confirm('Add the standard discovery checklist to the existing items?')) return;
     setBusy(true);
     try {
-      for (const [index, item] of TEMPLATE.entries()) {
-        await adminUpsertIntakeItem({
-          account_id: account.id,
-          opportunity_id: opportunity.id,
-          ...item,
-          status: 'not_started',
-          due_date: null,
-          position: rows.length + index,
-        });
-      }
-      toast.success('Standard checklist added.');
+      await adminApplyIntakeTemplate(opportunity.id);
       await items.reload();
+      toast.success('Standard checklist applied.');
     } catch (cause) {
-      toast.error('Could not seed', { description: cause instanceof Error ? cause.message : undefined });
+      toast.error('Could not apply the checklist', { description: cause instanceof Error ? cause.message : undefined });
     } finally {
       setBusy(false);
     }
@@ -200,8 +186,8 @@ export const WorkspaceIntake: React.FC<{
   if (items.error) return <ErrorNote>{items.error}</ErrorNote>;
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <div className="space-y-2">
+      <div className="grid gap-2 sm:grid-cols-3">
         <StatTile label="Approved" value={`${approved} / ${rows.length}`} />
         <StatTile label="Awaiting your review" value={awaiting} tone={awaiting > 0 ? 'amber' : 'green'} />
         <StatTile
@@ -343,37 +329,103 @@ export const WorkspaceIntake: React.FC<{
                     )}
                   </Cell>
                   <Cell className="whitespace-nowrap text-right">
-                    <label
-                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-grey transition-colors hover:bg-portal-tint/60"
-                      aria-label="Attach file"
-                    >
-                      <Paperclip className="h-4 w-4" />
-                      {attachingId === item.id ? 'Attaching…' : 'Attach'}
-                      <input
-                        type="file"
-                        className="hidden"
-                        disabled={attachingId === item.id}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          event.target.value = '';
-                          if (file) void attach(item, file);
+                    <div className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewId(null);
+                          setEditId(editId === item.id ? null : item.id);
+                          setEditName(item.name);
+                          setEditDescription(item.description);
                         }}
-                      />
-                    </label>
-                    <PortalButton
-                      variant="ghost"
-                      onClick={() => {
-                        setReviewId(reviewId === item.id ? null : item.id);
-                        setReviewNote(item.review_note ?? '');
-                      }}
-                    >
-                      Review
-                    </PortalButton>
-                    <PortalButton variant="ghost" onClick={() => remove(item)} aria-label="Delete">
-                      <Trash2 className="h-4 w-4" />
-                    </PortalButton>
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint/60"
+                        aria-label="Edit item"
+                        title="Edit item"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <label
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint/60"
+                        aria-label="Attach file"
+                        title="Attach file"
+                      >
+                        {attachingId === item.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Paperclip className="h-4 w-4" />
+                        )}
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={attachingId === item.id}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            event.target.value = '';
+                            if (file) void attach(item, file);
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditId(null);
+                          setReviewId(reviewId === item.id ? null : item.id);
+                          setReviewNote(item.review_note ?? '');
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint/60"
+                        aria-label="Review"
+                        title="Review"
+                      >
+                        <ClipboardCheck className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(item)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint/60 hover:text-portal-red"
+                        aria-label="Delete"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </Cell>
                 </Row>
+                {editId === item.id && (
+                  <Row>
+                    <Cell colSpan={6} className="bg-off-white">
+                      <div className="grid gap-3 sm:grid-cols-5">
+                        <Field label="Item" className="sm:col-span-2">
+                          <input
+                            className={inputClass}
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                          />
+                        </Field>
+                        <Field label="Description" className="sm:col-span-3">
+                          <input
+                            className={inputClass}
+                            value={editDescription}
+                            onChange={(event) => setEditDescription(event.target.value)}
+                          />
+                        </Field>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <PortalButton
+                          disabled={!editName.trim()}
+                          onClick={async () => {
+                            await patch(item, { name: editName.trim(), description: editDescription.trim() });
+                            setEditId(null);
+                          }}
+                        >
+                          Save
+                        </PortalButton>
+                        <PortalButton variant="ghost" onClick={() => setEditId(null)}>
+                          Cancel
+                        </PortalButton>
+                      </div>
+                    </Cell>
+                  </Row>
+                )}
                 {reviewId === item.id && (
                   <Row>
                     <Cell colSpan={6} className="bg-off-white">
@@ -421,11 +473,6 @@ export const WorkspaceIntake: React.FC<{
           </PortalTable>
         )}
       </PortalCard>
-
-      <InfoNote>
-        The client sees this checklist only after you <strong>make it available</strong> above — build it fully first,
-        then publish. (They also need the account to have reached <strong>Qualified</strong> for the section to appear.)
-      </InfoNote>
     </div>
   );
 };

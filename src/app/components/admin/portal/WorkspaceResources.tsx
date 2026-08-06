@@ -24,9 +24,9 @@ import {
   EmptyState,
   ErrorNote,
   Field,
-  InfoNote,
   PortalButton,
   PortalCard,
+  PortalModal,
   PortalSpinner,
   PortalTable,
   Row,
@@ -39,7 +39,10 @@ const PHASES: PortalResource['phase'][] = ['onboarding', 'discovery', 'proposal'
 const phaseLabel = (phase: PortalResource['phase']) =>
   phase === 'any' ? 'All stages' : PHASE_LABELS[phase];
 
-export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ account }) => {
+export const WorkspaceResources: React.FC<{ account: PortalAccount; canEdit?: boolean }> = ({
+  account,
+  canEdit = true,
+}) => {
   const resources = useAsync(() => adminListResources(account.id), [account.id]);
   const articles = useAsync(() => adminListArticles(), []);
 
@@ -70,11 +73,12 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
     setShared(false);
   };
 
+  const closeForm = () => {
+    resetForm();
+    setShowForm(false);
+  };
+
   const startAdd = () => {
-    if (showForm && !editing) {
-      setShowForm(false);
-      return;
-    }
     resetForm();
     setShowForm(true);
   };
@@ -188,19 +192,25 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
   if (resources.error) return <ErrorNote>{resources.error}</ErrorNote>;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard
         title="Onboarding material"
         description="Presentations, docs and articles the client sees under Getting started."
         action={
-          <PortalButton onClick={startAdd}>
-            <Plus className="h-4 w-4" /> Add material
-          </PortalButton>
+          canEdit ? (
+            <PortalButton onClick={startAdd}>
+              <Plus className="h-4 w-4" /> Add material
+            </PortalButton>
+          ) : undefined
         }
       >
-        {showForm && (
-          <form onSubmit={submit} className="mb-4 space-y-3 rounded-lg border border-border-color bg-off-white p-4">
-            <div className="text-sm font-semibold">{editing ? 'Edit material' : 'New material'}</div>
+        <PortalModal
+          open={showForm}
+          onClose={closeForm}
+          title={editing ? 'Edit material' : 'New material'}
+          description="Presentations, docs and articles the client sees under Getting started."
+        >
+          <form onSubmit={submit} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-4">
               <Field label="Kind">
                 <select
@@ -282,28 +292,21 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
               Add to the shared library — every account sees it, not just {account.name}
             </label>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <PortalButton type="submit" disabled={busy}>
                 {busy ? 'Saving…' : editing ? 'Save changes' : 'Add'}
               </PortalButton>
-              <PortalButton
-                variant="ghost"
-                type="button"
-                onClick={() => {
-                  resetForm();
-                  setShowForm(false);
-                }}
-              >
+              <PortalButton variant="ghost" type="button" onClick={closeForm}>
                 Cancel
               </PortalButton>
             </div>
           </form>
-        )}
+        </PortalModal>
 
         {rows.length === 0 ? (
           <EmptyState title="No material yet" description="A new lead lands on an empty Getting started page." />
         ) : (
-          <PortalTable head={['Title', 'Kind', 'Shown from', 'Scope', 'Visible', '']}>
+          <PortalTable head={['Title', 'Kind', 'Shown from', 'Scope', 'Visible', ...(canEdit ? [''] : [])]}>
             {rows.map((resource) => (
               <Row key={resource.id}>
                 <Cell>
@@ -318,32 +321,35 @@ export const WorkspaceResources: React.FC<{ account: PortalAccount }> = ({ accou
                   </StatusTag>
                 </Cell>
                 <Cell>
-                  <PortalButton variant="ghost" onClick={() => togglePublished(resource)}>
+                  {canEdit ? (
+                    <PortalButton variant="ghost" onClick={() => togglePublished(resource)}>
+                      <StatusTag tone={resource.published ? 'green' : 'grey'}>
+                        {resource.published ? 'Visible' : 'Hidden'}
+                      </StatusTag>
+                    </PortalButton>
+                  ) : (
                     <StatusTag tone={resource.published ? 'green' : 'grey'}>
                       {resource.published ? 'Visible' : 'Hidden'}
                     </StatusTag>
-                  </PortalButton>
+                  )}
                 </Cell>
-                <Cell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <PortalButton variant="ghost" onClick={() => startEdit(resource)} aria-label="Edit">
-                      <Pencil className="h-4 w-4" />
-                    </PortalButton>
-                    <PortalButton variant="ghost" onClick={() => remove(resource)} aria-label="Remove">
-                      <Trash2 className="h-4 w-4" />
-                    </PortalButton>
-                  </div>
-                </Cell>
+                {canEdit && (
+                  <Cell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <PortalButton variant="ghost" onClick={() => startEdit(resource)} aria-label="Edit">
+                        <Pencil className="h-4 w-4" />
+                      </PortalButton>
+                      <PortalButton variant="ghost" onClick={() => remove(resource)} aria-label="Remove">
+                        <Trash2 className="h-4 w-4" />
+                      </PortalButton>
+                    </div>
+                  </Cell>
+                )}
               </Row>
             ))}
           </PortalTable>
         )}
       </PortalCard>
-
-      <InfoNote>
-        Material tagged with a stage appears from that stage onwards — an onboarding deck stays available later, but a
-        delivery handbook won’t leak to a brand-new lead. Shared items are the default kit every new account gets.
-      </InfoNote>
     </div>
   );
 };

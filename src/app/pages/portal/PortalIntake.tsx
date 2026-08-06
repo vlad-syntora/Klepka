@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { CalendarClock, CheckCircle2, ChevronDown, Eye, Paperclip, Upload } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronDown, Eye, Loader2, Paperclip } from 'lucide-react';
 import { usePortalData } from '@/app/hooks/use-portal-data';
 import { getDocumentUrl, updateIntakeItem, uploadClientDocument } from '@/app/lib/portal-api';
 import { resolveFileView } from '@/app/lib/file-view';
@@ -70,7 +70,6 @@ const Item: React.FC<{
   const [due, setDue] = React.useState((item.due_date ?? '').slice(0, 10));
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
-  const [file, setFile] = React.useState<File | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const fileInput = React.useRef<HTMLInputElement>(null);
   const mine = item.owner_side === 'client';
@@ -98,17 +97,15 @@ const Item: React.FC<{
     }
   };
 
-  const upload = async () => {
-    if (!file) return;
+  const upload = async (picked: File) => {
     setUploading(true);
     try {
-      await uploadClientDocument(accountId, file, file.name, {
+      await uploadClientDocument(accountId, picked, picked.name, {
         intakeItemId: item.id,
         opportunityId: item.opportunity_id,
         folderKey: DISCOVERY_FOLDER,
       });
       toast.success('File attached.');
-      setFile(null);
       if (fileInput.current) fileInput.current.value = '';
       await onChanged();
     } catch (cause) {
@@ -131,7 +128,7 @@ const Item: React.FC<{
   return (
     <li
       className={cn(
-        'rounded-xl border p-4 transition-colors',
+        'rounded-xl border p-3 transition-colors',
         info?.overdue
           ? 'border-portal-red/40 bg-portal-red/5'
           : info?.urgent
@@ -164,6 +161,34 @@ const Item: React.FC<{
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          {mine && (
+            <>
+              <input
+                ref={fileInput}
+                type="file"
+                className="hidden"
+                onChange={(event) => {
+                  const picked = event.target.files?.[0];
+                  if (picked) void upload(picked);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInput.current?.click()}
+                disabled={uploading}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-grey transition-colors hover:bg-portal-tint/60 disabled:opacity-50"
+                aria-label="Attach file"
+                title="Attach file"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </button>
+            </>
+          )}
+          {mine && !locked && !open && (
+            <PortalButton onClick={() => submit('submitted')} disabled={busy}>
+              <CheckCircle2 className="h-4 w-4" /> Done
+            </PortalButton>
+          )}
           {mine && !locked && (
             <PortalButton variant={open ? 'ghost' : 'secondary'} onClick={() => setOpen((value) => !value)}>
               {open ? 'Cancel' : 'Update'}
@@ -184,17 +209,17 @@ const Item: React.FC<{
 
       {expanded && (
         <>
-          {item.description && <p className="mt-2 text-sm text-grey">{item.description}</p>}
+          {item.description && <p className="mt-1.5 text-sm text-grey">{item.description}</p>}
 
           {item.client_note && !open && (
-            <div className="mt-3 rounded-lg border border-border-color bg-off-white px-3 py-2 text-sm">
+            <div className="mt-2 rounded-lg border border-border-color bg-off-white px-3 py-2 text-sm">
               <span className="text-xs font-semibold uppercase tracking-wide text-grey">Your note</span>
               <p className="mt-0.5 whitespace-pre-line">{item.client_note}</p>
             </div>
           )}
 
           {item.review_note && (
-            <div className="mt-3 rounded-lg bg-portal-tint px-3 py-2 text-sm text-violet">
+            <div className="mt-2 rounded-lg bg-portal-tint px-3 py-2 text-sm text-violet">
               <span className="text-xs font-semibold uppercase tracking-wide">Klepka review</span>
               <p className="mt-0.5 whitespace-pre-line">{item.review_note}</p>
             </div>
@@ -202,13 +227,13 @@ const Item: React.FC<{
 
           {/* Attached files — stored in the Discovery folder, visible to both sides. */}
           {docs.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
+            <ul className="mt-2 space-y-1">
               {docs.map((doc) => (
                 <li key={doc.id}>
                   <button
                     type="button"
                     onClick={() => viewDoc(doc)}
-                    className="flex w-full items-center gap-2 rounded-lg border border-border-color bg-off-white px-3 py-2 text-left text-sm transition-colors hover:bg-portal-tint/60"
+                    className="flex w-full items-center gap-2 rounded-lg border border-border-color bg-off-white px-3 py-1.5 text-left text-sm transition-colors hover:bg-portal-tint/60"
                   >
                     <Paperclip className="h-4 w-4 shrink-0 text-violet" />
                     <span className="min-w-0 flex-1 truncate">{doc.name}</span>
@@ -219,23 +244,8 @@ const Item: React.FC<{
             </ul>
           )}
 
-          {/* Attach a supporting file for this item (client side only). */}
-          {mine && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input
-                ref={fileInput}
-                type="file"
-                className={cn(inputClass, 'w-auto flex-1 py-1.5 text-sm')}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              />
-              <PortalButton variant="secondary" onClick={upload} disabled={!file || uploading}>
-                <Upload className="h-4 w-4" /> {uploading ? 'Attaching…' : 'Attach file'}
-              </PortalButton>
-            </div>
-          )}
-
           {open && mine && !locked && (
-            <div className="mt-3 space-y-3 rounded-lg border border-border-color bg-off-white p-4">
+            <div className="mt-2 space-y-3 rounded-lg border border-border-color bg-off-white p-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Target date" hint="When you expect to have this ready.">
                   <input
@@ -295,7 +305,7 @@ export const PortalIntake: React.FC = () => {
   const pct = intake.length > 0 ? Math.round((approved / intake.length) * 100) : 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       {opportunities.length > 1 && (
         <PortalCard title="Your opportunities" description="Pick a deal to see its information-gathering checklist.">
           <div className="flex flex-wrap gap-2">
@@ -354,7 +364,7 @@ export const PortalIntake: React.FC = () => {
         {mine.length === 0 ? (
           <EmptyState title="Nothing needed from you right now" />
         ) : (
-          <ul className="space-y-2.5">
+          <ul className="space-y-1.5">
             {mine.map((item) => (
               <Item
                 key={item.id}
@@ -371,7 +381,7 @@ export const PortalIntake: React.FC = () => {
 
       {theirs.length > 0 && (
         <PortalCard title="What we're working on" description="Our side of the discovery — visible so nothing looks stalled.">
-          <ul className="space-y-2.5">
+          <ul className="space-y-1.5">
             {theirs.map((item) => (
               <Item
                 key={item.id}

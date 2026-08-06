@@ -5,9 +5,8 @@ import { PortalLayout } from '@/app/components/portal/PortalLayout';
 import { PortalDashboard } from '@/app/pages/portal/PortalDashboard';
 import { PortalStart } from '@/app/pages/portal/PortalStart';
 import { PortalIntake } from '@/app/pages/portal/PortalIntake';
-import { PortalPipeline } from '@/app/pages/portal/PortalPipeline';
 import { PortalPayments } from '@/app/pages/portal/PortalPayments';
-import { PortalProject } from '@/app/pages/portal/PortalProject';
+import { PortalProjectHub } from '@/app/pages/portal/PortalProjectHub';
 import { PortalNotifications } from '@/app/pages/portal/PortalNotifications';
 import { PortalSettings } from '@/app/pages/portal/PortalSettings';
 import { PORTAL_MODULES, type PortalUser } from '@/app/lib/portal-types';
@@ -67,9 +66,9 @@ export const ClientPreview: React.FC = () => {
           <Route index element={<PortalDashboard />} />
           <Route path="start" element={<PortalStart />} />
           <Route path="intake" element={<PortalIntake />} />
-          <Route path="pipeline" element={<PortalPipeline />} />
+          <Route path="pipeline" element={<Navigate to="../project" replace />} />
           <Route path="payments" element={<PortalPayments />} />
-          <Route path="project" element={<PortalProject />} />
+          <Route path="project" element={<PortalProjectHub />} />
           <Route path="notifications" element={<PortalNotifications />} />
           <Route path="settings" element={<PortalSettings />} />
           <Route path="*" element={<Navigate to={base} replace />} />

@@ -65,7 +65,7 @@ export const PortalSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard title="Account">
         <dl className="grid gap-4 sm:grid-cols-3 text-sm">
           <div>

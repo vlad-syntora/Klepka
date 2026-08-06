@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, Eye, FolderOpen } from 'lucide-react';
 import { adminGetAccount } from '@/app/lib/portal-admin-api';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
@@ -15,7 +15,6 @@ import { CollapsibleCards, ErrorNote, PortalSpinner, StatusTag, toneFor } from '
 import { cn } from '@/app/components/ui/utils';
 import { prettyName } from '@/app/lib/portal-format';
 import { WorkspaceOverview } from '@/app/components/admin/portal/WorkspaceOverview';
-import { WorkspaceResources } from '@/app/components/admin/portal/WorkspaceResources';
 import { WorkspacePipeline } from '@/app/components/admin/portal/WorkspacePipeline';
 import { WorkspaceDocuments } from '@/app/components/admin/portal/WorkspaceDocuments';
 import { WorkspaceDrive } from '@/app/components/admin/portal/WorkspaceDrive';
@@ -26,13 +25,12 @@ import { WorkspaceUsers } from '@/app/components/admin/portal/WorkspaceUsers';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'resources', label: 'Getting started' },
   { key: 'pipeline', label: 'Pipeline & Offers' },
-  { key: 'documents', label: 'Contracts & Documents' },
-  { key: 'payments', label: 'Payments' },
   { key: 'project', label: 'Project' },
-  { key: 'feedback', label: 'Feedback' },
+  { key: 'payments', label: 'Payments' },
+  { key: 'documents', label: 'Contracts & Documents' },
   { key: 'users', label: 'Users & Access' },
+  { key: 'feedback', label: 'Feedback' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -42,7 +40,8 @@ export const AdminAccountWorkspace: React.FC = () => {
   const { user } = usePortalUser();
   const [account, setAccount] = React.useState<PortalAccount | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<TabKey>('overview');
+  // The active tab lives in the URL (?tab=…) so a refresh — or a shared link — lands on the same tab.
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Role-gated tabs (RLS also blocks the data). Payments is Sales Rep / Ops-Finance / Portal
   // Admin only; Implementers additionally lose Pipeline & Offers. Everything is shown while the
@@ -50,14 +49,25 @@ export const AdminAccountWorkspace: React.FC = () => {
   const showPayments = user ? canViewPayments(user.role) : true;
   const showPipeline = user ? canViewPipeline(user.role) : true;
   const canEdit = user ? canEditAccounts(user.role) : true;
+  // Implementers (canEdit === false) also lose the Contracts & Documents tab.
   const tabs = TABS.filter(
-    (entry) => (entry.key !== 'payments' || showPayments) && (entry.key !== 'pipeline' || showPipeline),
+    (entry) =>
+      (entry.key !== 'payments' || showPayments) &&
+      (entry.key !== 'pipeline' || showPipeline) &&
+      (entry.key !== 'documents' || canEdit),
   );
 
-  // Keep the active tab valid if the current one just got filtered out for this role.
-  React.useEffect(() => {
-    if (!tabs.some((entry) => entry.key === tab)) setTab('overview');
-  }, [tabs, tab]);
+  // Read the tab from the URL, falling back to Overview when it's missing or not allowed for this role.
+  const tabParam = searchParams.get('tab');
+  const tab: TabKey = tabParam && tabs.some((entry) => entry.key === tabParam) ? (tabParam as TabKey) : 'overview';
+  const setTab = (next: TabKey) =>
+    setSearchParams(
+      (prev) => {
+        prev.set('tab', next);
+        return prev;
+      },
+      { replace: true },
+    );
 
   const load = React.useCallback(async () => {
     try {
@@ -76,7 +86,7 @@ export const AdminAccountWorkspace: React.FC = () => {
   if (!account) return <PortalSpinner label="Loading account…" />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <nav className="flex items-center gap-1 text-sm text-grey">
         <Link to="/admin/portal/accounts" className="hover:text-violet hover:underline">
           Accounts
@@ -90,13 +100,16 @@ export const AdminAccountWorkspace: React.FC = () => {
         <StatusTag tone="violet">{LIFECYCLE_LABELS[account.lifecycle]}</StatusTag>
         <StatusTag tone={toneFor(account.health)}>{HEALTH_LABELS[account.health]}</StatusTag>
         <span className="text-sm text-grey">Owner: {account.owner ? prettyName(account.owner.full_name) : 'Unassigned'}</span>
-        <Link
-          to={`/admin/portal/accounts/${account.id}/preview`}
-          className="inline-flex items-center gap-1 text-sm text-violet hover:underline"
-        >
-          <Eye className="h-4 w-4" /> View as client
-        </Link>
-        {account.drive_web_link && (
+        {/* View-as-client and the Drive folder link are hidden from the Implementer role. */}
+        {canEdit && (
+          <Link
+            to={`/admin/portal/accounts/${account.id}/preview`}
+            className="inline-flex items-center gap-1 text-sm text-violet hover:underline"
+          >
+            <Eye className="h-4 w-4" /> View as client
+          </Link>
+        )}
+        {canEdit && account.drive_web_link && (
           <a
             href={account.drive_web_link}
             target="_blank"
@@ -127,17 +140,16 @@ export const AdminAccountWorkspace: React.FC = () => {
 
       <CollapsibleCards scope={`${account.id}:${tab}`}>
         {tab === 'overview' && <WorkspaceOverview account={account} onChange={load} canEdit={canEdit} />}
-        {tab === 'resources' && <WorkspaceResources account={account} />}
         {tab === 'pipeline' && showPipeline && <WorkspacePipeline account={account} onChange={load} />}
         {tab === 'documents' && (
-          <div className="space-y-5">
+          <div className="space-y-2">
             <WorkspaceDrive account={account} onChange={load} />
             <WorkspaceDocuments account={account} />
           </div>
         )}
         {tab === 'payments' && showPayments && <WorkspacePayments account={account} />}
-        {tab === 'project' && <WorkspaceProject account={account} />}
-        {tab === 'feedback' && <WorkspaceFeedback account={account} />}
+        {tab === 'project' && <WorkspaceProject account={account} canEdit={canEdit} />}
+        {tab === 'feedback' && <WorkspaceFeedback account={account} canRespond={canEdit} />}
         {tab === 'users' && <WorkspaceUsers account={account} canManage={canEdit} />}
       </CollapsibleCards>
     </div>

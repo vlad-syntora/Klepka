@@ -15,13 +15,22 @@ import {
   OpportunitySchema,
   PortalAccountSchema,
   PortalUserSchema,
+  ProductSchema,
   ProjectSchema,
   ProjectTeamMemberSchema,
+  PublicHolidaySchema,
+  PublicReviewSchema,
   ResourceSchema,
+  StaffRatingSchema,
   TimeEntrySchema,
   type MeetingType,
   type PortalSnapshot,
   type PortalUser,
+  type Product,
+  type ProductEntity,
+  type PublicHoliday,
+  type PublicReview,
+  type StaffRating,
 } from '@/app/lib/portal-types';
 import {
   DriveNotConfiguredError,
@@ -67,13 +76,13 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase.from('portal_accounts').select(ACCOUNT_COLUMNS).eq('id', accountId).single(),
       supabase
         .from('portal_opportunities')
-        .select('id, account_id, name, stage, amount, close_date, updated_at, intake_published')
+        .select('id, account_id, name, stage, amount, close_date, bank_hours, notify_hours, project_type, updated_at, intake_published')
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
       supabase
         .from('portal_offers')
         .select(
-          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)',
+          'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, bank_hours, notify_hours, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)',
         )
         .eq('account_id', accountId)
         .order('version', { ascending: false }),
@@ -101,14 +110,14 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_projects')
         .select(
-          'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at',
+          'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at, bank_hours, notify_hours, project_type',
         )
         .eq('account_id', accountId)
         .order('created_at', { ascending: false }),
       supabase
         .from('portal_feedback')
         .select(
-          'id, account_id, project_id, about_user_id, submitted_by, rating, comment, context, is_urgent, status, response, responded_at, created_at, about:portal_users!portal_feedback_about_user_id_fkey(id, full_name)',
+          'id, account_id, project_id, about_user_id, submitted_by, rating, comment, context, is_urgent, is_public, public_approved_at, status, response, responded_at, created_at, about:portal_users!portal_feedback_about_user_id_fkey(id, full_name)',
         )
         .eq('account_id', accountId)
         .order('created_at', { ascending: false }),
@@ -147,7 +156,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
       supabase
         .from('portal_candidates')
         .select(
-          'id, account_id, opportunity_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, photo_url)',
+          'id, account_id, opportunity_id, user_id, title, cv_url, hourly_rate, status, client_note, decided_at, decided_by, created_at, updated_at, user:portal_users!portal_candidates_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
         )
         .eq('account_id', accountId)
         .order('created_at'),
@@ -167,21 +176,24 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
     const [milestoneRows, teamRows, timeRows] = await Promise.all([
       supabase
         .from('portal_milestones')
-        .select('id, project_id, name, description, due_date, status, percent_complete, position, approved_at')
+        .select('id, project_id, name, description, start_date, due_date, status, percent_complete, position, approved_at')
         .in('project_id', projectIds)
         .order('position'),
       supabase
         .from('portal_project_team')
         .select(
-          'id, project_id, user_id, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
+          'id, project_id, user_id, display_name, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, calendly_url, photo_url)',
         )
         .in('project_id', projectIds)
         .eq('active', true)
         .eq('is_public', true),
       supabase
         .from('portal_time_entries')
+        // The client only ever sees the reporter, never the internal employee who did the work, so
+        // `user` here is aliased to reporter_id (migration 0041). Rows logged before reporters
+        // existed have a null reporter and show a generic label instead of a name.
         .select(
-          'id, project_id, milestone_id, user_id, entry_date, hours, description, billable, visible_to_client, user:portal_users!portal_time_entries_user_id_fkey(id, full_name)',
+          'id, project_id, milestone_id, reporter_id, entry_date, hours, approved, description, billable, visible_to_client, user:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
         )
         .in('project_id', projectIds)
         .order('entry_date', { ascending: false }),
@@ -226,6 +238,22 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
     feedback: z.array(FeedbackSchema).parse(feedback.data ?? []),
     activity: z.array(ActivitySchema).parse(activity.data ?? []),
   };
+}
+
+/**
+ * The shared public-holiday calendar (migration 0042). RLS decides visibility: staff always see it,
+ * clients only once their account is qualified — so a client with no access simply gets an empty
+ * list. Returns holidays on or after `from` (defaults to today), soonest first.
+ */
+export async function loadPublicHolidays(from?: string): Promise<PublicHoliday[]> {
+  const fromDate = from ?? new Date().toISOString().slice(0, 10);
+  const { data, error } = await getSupabase()
+    .from('portal_public_holidays')
+    .select('id, name, holiday_date, description, country, created_at, updated_at')
+    .gte('holiday_date', fromDate)
+    .order('holiday_date');
+  if (error) throw new Error(error.message);
+  return z.array(PublicHolidaySchema).parse(data ?? []);
 }
 
 /**
@@ -332,6 +360,7 @@ export async function submitFeedback(input: {
   comment: string;
   aboutUserId: string | null;
   isUrgent: boolean;
+  isPublic?: boolean;
   context?: string | null;
 }): Promise<void> {
   const { error } = await getSupabase().rpc('portal_submit_feedback', {
@@ -340,8 +369,112 @@ export async function submitFeedback(input: {
     p_about_user: input.aboutUserId,
     p_is_urgent: input.isUrgent,
     p_context: input.context ?? null,
+    p_is_public: input.isPublic ?? false,
   });
   if (error) throw new Error(error.message);
+}
+
+/** Average rating + count per staff member, keyed by user id. Empty when nobody has feedback. */
+export async function loadStaffRatings(userIds: string[]): Promise<Map<string, StaffRating>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await getSupabase().rpc('portal_staff_feedback_summary', { p_user_ids: userIds });
+  if (error) throw new Error(error.message);
+  const parsed = z.array(StaffRatingSchema).parse(data ?? []);
+  return new Map(parsed.map((row) => [row.user_id, row]));
+}
+
+/* ----------------------------------------------------------------- products */
+
+const ENTITY_TABLE: Record<ProductEntity, { table: string; column: string }> = {
+  account: { table: 'portal_account_products', column: 'account_id' },
+  opportunity: { table: 'portal_opportunity_products', column: 'opportunity_id' },
+  project: { table: 'portal_project_products', column: 'project_id' },
+};
+
+/** The full product catalog, name-sorted. Pending (client-created) products are included. */
+export async function listProducts(): Promise<Product[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_products')
+    .select('id, name, description, status, created_by, created_at')
+    .order('name');
+  if (error) throw new Error(error.message);
+  return z.array(ProductSchema).parse(data ?? []);
+}
+
+/** Create a product (or reuse an existing same-named one). Client creations are 'pending'. */
+export async function createProduct(name: string, description?: string | null): Promise<Product> {
+  const { data, error } = await getSupabase().rpc('portal_create_product', {
+    p_name: name,
+    p_description: description ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return ProductSchema.parse(data);
+}
+
+/** Replace the product set on an account / opportunity / project (client-safe RPC). */
+export async function setEntityProducts(entity: ProductEntity, id: string, productIds: string[]): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_set_products', {
+    p_entity: entity,
+    p_entity_id: id,
+    p_product_ids: productIds,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** The products tagged on one account / opportunity / project. */
+export async function listEntityProducts(entity: ProductEntity, id: string): Promise<Product[]> {
+  const { table, column } = ENTITY_TABLE[entity];
+  const { data, error } = await getSupabase()
+    .from(table)
+    .select('product:portal_products(id, name, description, status, created_by, created_at)')
+    .eq(column, id);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as { product: unknown }[];
+  return z.array(ProductSchema).parse(rows.map((row) => row.product).filter(Boolean));
+}
+
+/**
+ * Products in scope on an account through its non-Lost opportunities and its projects, excluding any
+ * the account already tags directly. Read-only "inherited" set shown alongside the account's own.
+ */
+export async function listAccountInheritedProducts(accountId: string): Promise<Product[]> {
+  const { data, error } = await getSupabase().rpc('portal_account_inherited_products', { p_account: accountId });
+  if (error) throw new Error(error.message);
+  return z.array(ProductSchema).parse(data ?? []);
+}
+
+/** Skills (owned products) for the given staff, grouped by user id. */
+export async function listUserProducts(userIds: string[]): Promise<Map<string, Product[]>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await getSupabase()
+    .from('portal_user_products')
+    .select('user_id, product:portal_products(id, name, description, status, created_by, created_at)')
+    .in('user_id', userIds);
+  if (error) throw new Error(error.message);
+  const map = new Map<string, Product[]>();
+  for (const row of (data ?? []) as { user_id: string; product: unknown }[]) {
+    if (!row.product) continue;
+    const product = ProductSchema.parse(row.product);
+    const list = map.get(row.user_id) ?? [];
+    list.push(product);
+    map.set(row.user_id, list);
+  }
+  return map;
+}
+
+/** Approved, anonymised public reviews about the given staff, grouped by user id. */
+export async function loadPublicReviews(userIds: string[]): Promise<Map<string, PublicReview[]>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await getSupabase().rpc('portal_staff_public_reviews', { p_user_ids: userIds });
+  if (error) throw new Error(error.message);
+  const parsed = z.array(PublicReviewSchema).parse(data ?? []);
+  const map = new Map<string, PublicReview[]>();
+  for (const review of parsed) {
+    const list = map.get(review.about_user_id) ?? [];
+    list.push(review);
+    map.set(review.about_user_id, list);
+  }
+  return map;
 }
 
 export async function updateIntakeItem(
@@ -362,6 +495,87 @@ export async function updateIntakeItem(
 export async function markActivityRead(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const { error } = await getSupabase().rpc('portal_mark_activity_read', { p_ids: ids });
+  if (error) throw new Error(error.message);
+}
+
+/* --------------------------------------------------------------- worklogs */
+
+const ProjectForUserSchema = z.object({ id: z.guid(), name: z.string(), account_name: z.string() });
+export type ProjectForUser = z.infer<typeof ProjectForUserSchema>;
+
+/** The projects a staff member is staffed on — for the Log hours widget's project picker. */
+export async function listProjectsForUser(userId: string): Promise<ProjectForUser[]> {
+  const { data, error } = await getSupabase().rpc('portal_projects_for_user', { p_user: userId });
+  if (error) throw new Error(error.message);
+  return z.array(ProjectForUserSchema).parse(data ?? []);
+}
+
+/**
+ * Log a worklog (staff only). The RPC enforces that non-admins can only log for themselves and can't
+ * approve; `user_id`/`approved` are ignored for them (migration 0038).
+ */
+export async function logHours(input: {
+  projectId: string;
+  userId: string | null;
+  entryDate: string | null;
+  description: string;
+  billingHours: number;
+  actualHours: number | null;
+  approved: boolean;
+  milestoneId?: string | null;
+  /** Client-facing reporter; omit to credit the log to the employee (migration 0041). */
+  reporterId?: string | null;
+}): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_log_hours', {
+    p_project: input.projectId,
+    p_user: input.userId,
+    p_entry_date: input.entryDate,
+    p_description: input.description,
+    p_billing_hours: input.billingHours,
+    p_actual_hours: input.actualHours,
+    p_approved: input.approved,
+    // Only pass a milestone when one was actually picked. Sending it unconditionally forces Postgres
+    // to resolve the newer milestone-aware signature; omitting it lets the call fall back to the
+    // milestone-less signature, so logging still works if the milestone migration isn't applied yet.
+    ...(input.milestoneId ? { p_milestone: input.milestoneId } : {}),
+    // Likewise only pass a reporter when it differs from the employee — otherwise the RPC defaults
+    // it to the employee, and the call still resolves against pre-0041 signatures.
+    ...(input.reporterId ? { p_reporter: input.reporterId } : {}),
+  });
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------------------------------------- dashboard layout */
+
+/**
+ * A client's personal dashboard arrangement: widget order, which widgets they've hidden, and each
+ * widget's chosen size (`w` = grid columns 1–3, `h` = 1 normal / 2 tall). Widgets missing from
+ * `sizes` fall back to their built-in default size.
+ */
+export interface DashboardLayout {
+  order: string[];
+  hidden: string[];
+  sizes?: Record<string, { w: number; h: number }>;
+}
+
+const DashboardLayoutSchema = z.object({
+  order: z.array(z.string()).catch([]),
+  hidden: z.array(z.string()).catch([]),
+  sizes: z.record(z.string(), z.object({ w: z.number(), h: z.number() })).catch({}),
+});
+
+/** The caller's saved dashboard layout, or null when they haven't customised it yet. */
+export async function getDashboardLayout(): Promise<DashboardLayout | null> {
+  const { data, error } = await getSupabase().rpc('portal_get_dashboard_layout');
+  if (error) throw new Error(error.message);
+  if (data == null) return null;
+  const parsed = DashboardLayoutSchema.safeParse(data);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Persist (or, with null, clear) the caller's dashboard layout. */
+export async function setDashboardLayout(layout: DashboardLayout | null): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_set_dashboard_layout', { p_layout: layout });
   if (error) throw new Error(error.message);
 }
 

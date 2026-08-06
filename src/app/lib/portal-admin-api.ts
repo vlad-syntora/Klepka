@@ -6,19 +6,25 @@ import {
   DocumentSchema,
   FeedbackSchema,
   IntakeItemSchema,
+  IntakeTemplateSchema,
   InvoiceSchema,
+  MaterialTemplateSchema,
   MeetingSchema,
   MilestoneSchema,
   OfferSchema,
   OpportunitySchema,
   PortalAccountSchema,
   PortalUserSchema,
+  ProductSchema,
   ProjectSchema,
   ProjectTeamMemberSchema,
+  PublicHolidaySchema,
   ResourceSchema,
   TimeEntrySchema,
   AccountTeamMemberSchema,
   type AccountTeamMember,
+  type Product,
+  type ProductDocument,
   type Activity,
   type Candidate,
   type Feedback,
@@ -26,6 +32,8 @@ import {
   type IntakeItem,
   type Invoice,
   type Lifecycle,
+  type IntakeTemplate,
+  type MaterialTemplate,
   type Meeting,
   type Milestone,
   type Offer,
@@ -38,6 +46,8 @@ import {
   type PortalUser,
   type Project,
   type ProjectTeamMember,
+  type ProjectType,
+  type PublicHoliday,
   type TimeEntry,
 } from '@/app/lib/portal-types';
 
@@ -247,7 +257,7 @@ export async function adminListOpportunities(accountId: string): Promise<Opportu
   const { data, error } = await getSupabase()
     .from('portal_opportunities')
     .select(
-      'id, account_id, name, stage, amount, close_date, updated_at, intake_published, drive_folder_id, drive_web_link, drive_folders',
+      'id, account_id, name, stage, amount, close_date, bank_hours, notify_hours, project_type, updated_at, intake_published, drive_folder_id, drive_web_link, drive_folders',
     )
     .eq('account_id', accountId)
     .order('updated_at', { ascending: false });
@@ -263,6 +273,9 @@ export async function adminUpsertOpportunity(input: {
   stage: Opportunity['stage'];
   amount: number | null;
   close_date: string | null;
+  bank_hours?: number | null;
+  notify_hours?: number | null;
+  project_type?: Opportunity['project_type'];
 }): Promise<string> {
   const supabase = getSupabase();
   const { id, ...values } = input;
@@ -295,7 +308,7 @@ export async function adminSetIntakePublished(opportunityId: string, published: 
 }
 
 const OFFER_COLUMNS =
-  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)';
+  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, bank_hours, notify_hours, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)';
 
 export async function adminListOffers(accountId: string): Promise<Offer[]> {
   const { data, error } = await getSupabase()
@@ -329,9 +342,11 @@ export async function adminCreateOfferVersion(input: {
   summary: string;
   expires_on: string | null;
   change_note: string | null;
+  bank_hours: number | null;
+  notify_hours: number | null;
   items: OfferItemInput[];
   send: boolean;
-}): Promise<void> {
+}): Promise<string> {
   const supabase = getSupabase();
 
   // The version chain is per opportunity, so each deal has its own v1, v2, … sequence. Offers
@@ -366,6 +381,8 @@ export async function adminCreateOfferVersion(input: {
       summary: input.summary,
       expires_on: input.expires_on,
       change_note: input.change_note,
+      bank_hours: input.bank_hours,
+      notify_hours: input.notify_hours,
       total,
       status: input.send ? 'sent' : 'draft',
       sent_at: input.send ? new Date().toISOString() : null,
@@ -402,6 +419,8 @@ export async function adminCreateOfferVersion(input: {
   if (input.send) {
     await logActivity(input.account_id, 'pipeline', `Offer v${nextVersion} sent`, input.title, '/portal/pipeline');
   }
+
+  return offer.id;
 }
 
 export async function adminSendOffer(offerId: string, accountId: string, label: string): Promise<void> {
@@ -411,6 +430,31 @@ export async function adminSendOffer(offerId: string, accountId: string, label: 
     .eq('id', offerId);
   if (error) throw new Error(error.message);
   await logActivity(accountId, 'pipeline', 'Offer sent', label, '/portal/pipeline');
+}
+
+/**
+ * Staff-side offer decision — lets an internal user accept (or request changes on) an offer on the
+ * client's behalf, e.g. after a verbal sign-off. Mirrors the client's portal_respond_to_offer RPC
+ * (0004), which only sets status + logs activity; accepting has no other DB side-effects.
+ */
+export async function adminSetOfferStatus(
+  offerId: string,
+  accountId: string,
+  status: 'accepted' | 'changes_requested',
+  label: string,
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from('portal_offers')
+    .update({ status, responded_at: new Date().toISOString() })
+    .eq('id', offerId);
+  if (error) throw new Error(error.message);
+  await logActivity(
+    accountId,
+    'pipeline',
+    status === 'accepted' ? 'Offer accepted' : 'Changes requested on offer',
+    label,
+    '/portal/pipeline',
+  );
 }
 
 /* --------------------------------------------------------------- meetings */
@@ -604,7 +648,7 @@ export async function adminDeleteInvoice(id: string): Promise<void> {
 /* -------------------------------------------------- projects, milestones, team */
 
 const PROJECT_COLUMNS =
-  'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at, drive_folder_id, drive_web_link, drive_folders';
+  'id, account_id, opportunity_id, name, summary, health, status, start_date, target_date, published, created_at, bank_hours, notify_hours, project_type, drive_folder_id, drive_web_link, drive_folders';
 
 export async function adminListProjects(accountId: string): Promise<Project[]> {
   const { data, error } = await getSupabase()
@@ -626,7 +670,22 @@ export async function adminCreateProjectFromOpportunity(input: {
   name: string;
   summary: string;
   target_date: string | null;
+  bank_hours: number | null;
+  notify_hours: number | null;
+  project_type: ProjectType | null;
   milestones: { name: string; description: string; due_date: string | null }[];
+  // Text-only roster rows seeded from the accepted offer's line items (no linked user account). Each
+  // carries the seeding line's billing (migration 0036) so the team member mirrors the offer.
+  team: {
+    display_name: string;
+    project_role: string;
+    billing_type?: OfferBillingType | null;
+    rate?: number | null;
+    overtime_rate?: number | null;
+    monthly_hours?: number | null;
+  }[];
+  // Products copied from the linked opportunity onto the new project.
+  product_ids: string[];
   delivery_lead_id: string | null;
   publish: boolean;
 }): Promise<string> {
@@ -663,6 +722,9 @@ export async function adminCreateProjectFromOpportunity(input: {
       name: input.name,
       summary: input.summary,
       target_date: input.target_date,
+      bank_hours: input.bank_hours,
+      notify_hours: input.notify_hours,
+      project_type: input.project_type,
       start_date: new Date().toISOString().slice(0, 10),
       status: input.publish ? 'active' : 'planned',
       published: input.publish,
@@ -683,6 +745,34 @@ export async function adminCreateProjectFromOpportunity(input: {
       })),
     );
     if (milestoneError) throw new Error(milestoneError.message);
+  }
+
+  // Seed the roster from the accepted offer's line items — text-only rows (no linked user).
+  const teamRows = input.team.filter((member) => member.display_name.trim().length > 0);
+  if (teamRows.length > 0) {
+    const { error: teamError } = await supabase.from('portal_project_team').insert(
+      teamRows.map((member) => ({
+        project_id: project.id,
+        user_id: null,
+        display_name: member.display_name.trim(),
+        project_role: member.project_role.trim() || 'Team member',
+        is_public: true,
+        active: true,
+        billing_type: member.billing_type ?? null,
+        rate: member.rate ?? null,
+        overtime_rate: member.overtime_rate ?? null,
+        monthly_hours: member.monthly_hours ?? null,
+      })),
+    );
+    if (teamError) throw new Error(teamError.message);
+  }
+
+  // Copy the linked opportunity's products onto the project (the opportunity keeps its own).
+  if (input.product_ids.length > 0) {
+    const { error: productError } = await supabase
+      .from('portal_project_products')
+      .insert(input.product_ids.map((productId) => ({ project_id: project.id, product_id: productId })));
+    if (productError) throw new Error(productError.message);
   }
 
   if (input.delivery_lead_id) {
@@ -708,6 +798,10 @@ export async function adminUpdateProject(
     health: Health;
     status: Project['status'];
     target_date: string | null;
+    bank_hours: number | null;
+    notify_hours: number | null;
+    project_type: ProjectType | null;
+    opportunity_id: string | null;
     published: boolean;
   }>,
 ): Promise<void> {
@@ -718,7 +812,7 @@ export async function adminUpdateProject(
 export async function adminListMilestones(projectId: string): Promise<Milestone[]> {
   const { data, error } = await getSupabase()
     .from('portal_milestones')
-    .select('id, project_id, name, description, due_date, status, percent_complete, position, approved_at')
+    .select('id, project_id, name, description, start_date, due_date, status, percent_complete, position, approved_at')
     .eq('project_id', projectId)
     .order('position');
   if (error) throw new Error(error.message);
@@ -730,6 +824,7 @@ export async function adminUpsertMilestone(input: {
   project_id: string;
   name: string;
   description: string;
+  start_date: string | null;
   due_date: string | null;
   status: Milestone['status'];
   percent_complete: number;
@@ -748,11 +843,21 @@ export async function adminDeleteMilestone(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Persist a new milestone order: each id's position is set to its index in the array. */
+export async function adminReorderMilestones(ids: string[]): Promise<void> {
+  const supabase = getSupabase();
+  const results = await Promise.all(
+    ids.map((id, index) => supabase.from('portal_milestones').update({ position: index }).eq('id', id)),
+  );
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw new Error(failed.error.message);
+}
+
 export async function adminListProjectTeam(projectId: string): Promise<ProjectTeamMember[]> {
   const { data, error } = await getSupabase()
     .from('portal_project_team')
     .select(
-      'id, project_id, user_id, project_role, assigned_at, active, is_public, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
+      'id, project_id, user_id, display_name, project_role, assigned_at, active, is_public, billing_type, rate, overtime_rate, monthly_hours, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
     )
     .eq('project_id', projectId)
     .order('assigned_at');
@@ -775,6 +880,25 @@ export async function adminAddProjectTeamMember(input: {
 /** Flip whether a project team member is shown to the client (and can receive feedback). */
 export async function adminSetProjectTeamPublic(id: string, isPublic: boolean): Promise<void> {
   const { error } = await getSupabase().from('portal_project_team').update({ is_public: isPublic }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Edit a project team member's role and (admin-only) billing — the fields seeded from the offer
+ * line item (migration 0036). Used to correct an offer-derived roster row.
+ */
+export async function adminUpdateProjectTeamMember(
+  id: string,
+  patch: Partial<{
+    display_name: string | null;
+    project_role: string;
+    billing_type: OfferBillingType | null;
+    rate: number | null;
+    overtime_rate: number | null;
+    monthly_hours: number | null;
+  }>,
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_project_team').update(patch).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -877,7 +1001,7 @@ export async function adminDeleteCandidate(id: string): Promise<void> {
 /* --------------------------------------------------------------- feedback */
 
 const FEEDBACK_COLUMNS =
-  'id, account_id, project_id, about_user_id, submitted_by, rating, comment, context, is_urgent, status, response, responded_at, created_at, about:portal_users!portal_feedback_about_user_id_fkey(id, full_name), submitter:portal_users!portal_feedback_submitted_by_fkey(id, full_name), account:portal_accounts!portal_feedback_account_id_fkey(id, name)';
+  'id, account_id, project_id, about_user_id, submitted_by, rating, comment, context, is_urgent, is_public, public_approved_at, status, response, responded_at, created_at, about:portal_users!portal_feedback_about_user_id_fkey(id, full_name), submitter:portal_users!portal_feedback_submitted_by_fkey(id, full_name), account:portal_accounts!portal_feedback_account_id_fkey(id, name)';
 
 export async function adminListFeedback(accountId?: string): Promise<Feedback[]> {
   let query = getSupabase().from('portal_feedback').select(FEEDBACK_COLUMNS).order('created_at', { ascending: false });
@@ -896,6 +1020,87 @@ export async function adminRespondToFeedback(
     .update({ ...input, responded_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Approve (or un-approve) a client's public feedback for cross-client display. Only feedback the
+ * client already consented to share (is_public) can be surfaced to other clients — this is the
+ * moderation gate. Setting public_approved_at makes it visible; clearing it hides it again.
+ */
+export async function adminSetFeedbackPublicApproval(id: string, approved: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from('portal_feedback')
+    .update({ public_approved_at: approved ? new Date().toISOString() : null })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Permanently delete a feedback entry. Its rating drops out of the staff average automatically. */
+export async function adminDeleteFeedback(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_feedback').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* --------------------------------------------------------------- products */
+
+const PRODUCT_COLUMNS =
+  'id, name, description, status, documents, document_url, document_name, created_by, created_at';
+
+export async function adminListProducts(): Promise<Product[]> {
+  const { data, error } = await getSupabase().from('portal_products').select(PRODUCT_COLUMNS).order('name');
+  if (error) throw new Error(error.message);
+  return z.array(ProductSchema).parse(data ?? []);
+}
+
+/** Approve a pending (client-created) product so it reads as vetted. */
+export async function adminApproveProduct(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_products').update({ status: 'approved' }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUpdateProduct(
+  id: string,
+  patch: {
+    name?: string;
+    description?: string | null;
+    // The documents that follow this product onto clients when tagged (0037).
+    documents?: ProductDocument[];
+    document_url?: string | null;
+    document_name?: string | null;
+  },
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_products').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Delete a product; its associations cascade away. */
+export async function adminDeleteProduct(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_products').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Products a staff member owns (their skills). */
+export async function adminListUserProducts(userId: string): Promise<Product[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_user_products')
+    .select('product:portal_products(id, name, description, status, created_by, created_at)')
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as { product: unknown }[];
+  return z.array(ProductSchema).parse(rows.map((row) => row.product).filter(Boolean));
+}
+
+/** Replace a staff member's skills. Admin-only (RLS enforces it too). */
+export async function adminSetUserProducts(userId: string, productIds: string[]): Promise<void> {
+  const supabase = getSupabase();
+  const { error: delError } = await supabase.from('portal_user_products').delete().eq('user_id', userId);
+  if (delError) throw new Error(delError.message);
+  if (productIds.length > 0) {
+    const { error: insError } = await supabase
+      .from('portal_user_products')
+      .insert(productIds.map((productId) => ({ user_id: userId, product_id: productId })));
+    if (insError) throw new Error(insError.message);
+  }
 }
 
 /* --------------------------------------------------------------- activity */
@@ -1026,13 +1231,119 @@ export async function adminDeleteIntakeItem(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/* --------------------------------------------- sales process settings (templates) */
+
+const MATERIAL_TEMPLATE_COLUMNS =
+  'id, title, description, kind, url, file_path, article_id, phase, position';
+
+/** The general onboarding-material templates, copied into every new account. */
+export async function adminListMaterialTemplates(): Promise<MaterialTemplate[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_material_templates')
+    .select(MATERIAL_TEMPLATE_COLUMNS)
+    .order('position');
+  if (error) throw new Error(error.message);
+  return z.array(MaterialTemplateSchema).parse(data ?? []);
+}
+
+export interface MaterialTemplateInput {
+  id?: string;
+  title: string;
+  description: string;
+  kind: PortalResource['kind'];
+  url: string | null;
+  file_path: string | null;
+  article_id: string | null;
+  phase: PortalResource['phase'];
+  position: number;
+}
+
+export async function adminUpsertMaterialTemplate(input: MaterialTemplateInput): Promise<string> {
+  const supabase = getSupabase();
+  const { id, ...values } = input;
+  const { data, error } = id
+    ? await supabase.from('portal_material_templates').update(values).eq('id', id).select('id').single()
+    : await supabase.from('portal_material_templates').insert(values).select('id').single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+export async function adminDeleteMaterialTemplate(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_material_templates').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminListIntakeTemplates(): Promise<IntakeTemplate[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_intake_templates')
+    .select('id, name, description, owner_side, position')
+    .order('position');
+  if (error) throw new Error(error.message);
+  return z.array(IntakeTemplateSchema).parse(data ?? []);
+}
+
+export interface IntakeTemplateInput {
+  id?: string;
+  name: string;
+  description: string;
+  owner_side: IntakeTemplate['owner_side'];
+  position: number;
+}
+
+export async function adminUpsertIntakeTemplate(input: IntakeTemplateInput): Promise<void> {
+  const supabase = getSupabase();
+  const { id, ...values } = input;
+  const { error } = id
+    ? await supabase.from('portal_intake_templates').update(values).eq('id', id)
+    : await supabase.from('portal_intake_templates').insert(values);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteIntakeTemplate(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_intake_templates').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Reorder: persist a single checklist item's position (callers swap two rows to move up/down). */
+export async function adminSetIntakeTemplatePosition(id: string, position: number): Promise<void> {
+  const { error } = await getSupabase().from('portal_intake_templates').update({ position }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------------------- org settings (sales-process defaults) */
+
+/** The org-wide default Account Owner (stored preference only — see 0029_org_settings.sql). */
+export async function adminGetDefaultAccountOwner(): Promise<string | null> {
+  const { data, error } = await getSupabase()
+    .from('portal_org_settings')
+    .select('default_account_owner_id')
+    .eq('id', true)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.default_account_owner_id as string | null) ?? null;
+}
+
+export async function adminSetDefaultAccountOwner(userId: string | null): Promise<void> {
+  const { error } = await getSupabase()
+    .from('portal_org_settings')
+    .update({ default_account_owner_id: userId })
+    .eq('id', true);
+  if (error) throw new Error(error.message);
+}
+
+/** Copy the standard checklist into an opportunity's intake (skips items already present). */
+export async function adminApplyIntakeTemplate(opportunityId: string): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_apply_intake_template', { p_opportunity: opportunityId });
+  if (error) throw new Error(error.message);
+}
+
 /* ---------------------------------------------------------- time entries */
 
 export async function adminListTimeEntries(projectId: string): Promise<TimeEntry[]> {
   const { data, error } = await getSupabase()
     .from('portal_time_entries')
     .select(
-      'id, project_id, milestone_id, user_id, entry_date, hours, description, billable, visible_to_client, user:portal_users!portal_time_entries_user_id_fkey(id, full_name)',
+      'id, project_id, milestone_id, user_id, reporter_id, entry_date, hours, actual_hours, approved, description, billable, visible_to_client, user:portal_users!portal_time_entries_user_id_fkey(id, full_name), reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
     )
     .eq('project_id', projectId)
     .order('entry_date', { ascending: false });
@@ -1051,6 +1362,24 @@ export async function adminCreateTimeEntry(input: {
   visible_to_client: boolean;
 }): Promise<void> {
   const { error } = await getSupabase().from('portal_time_entries').insert(input);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUpdateTimeEntry(
+  id: string,
+  patch: Partial<{
+    entry_date: string;
+    milestone_id: string | null;
+    reporter_id: string | null;
+    description: string;
+    hours: number;
+    actual_hours: number | null;
+    billable: boolean;
+    visible_to_client: boolean;
+    approved: boolean;
+  }>,
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_time_entries').update(patch).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -1191,4 +1520,41 @@ export async function driveUploadFromStorage(input: {
   resourceId?: string;
 }): Promise<{ fileId: string; webLink: string | null }> {
   return callDrive({ action: 'upload', ...input });
+}
+
+// ---------------------------------------------------------------------------
+// Public holidays (migration 0042) — a shared calendar. Admins write; RLS blocks implementers.
+// ---------------------------------------------------------------------------
+
+const PUBLIC_HOLIDAY_COLUMNS = 'id, name, holiday_date, description, country, created_at, updated_at';
+
+export async function adminListPublicHolidays(): Promise<PublicHoliday[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_public_holidays')
+    .select(PUBLIC_HOLIDAY_COLUMNS)
+    .order('holiday_date');
+  if (error) throw new Error(error.message);
+  return z.array(PublicHolidaySchema).parse(data ?? []);
+}
+
+export async function adminUpsertPublicHoliday(input: {
+  id?: string;
+  name: string;
+  holiday_date: string;
+  description?: string;
+  country?: string | null;
+}): Promise<void> {
+  const { error } = await getSupabase().from('portal_public_holidays').upsert({
+    ...(input.id ? { id: input.id } : {}),
+    name: input.name,
+    holiday_date: input.holiday_date,
+    description: input.description ?? '',
+    country: input.country ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeletePublicHoliday(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_public_holidays').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }

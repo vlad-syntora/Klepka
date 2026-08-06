@@ -32,6 +32,18 @@ export function isFinanceRestrictedRole(role: PortalRole): boolean {
   return role === 'implementor';
 }
 
+// The delivery-only Implementer role. A single named predicate for the many UI gates that hide
+// content/products/pipeline management, account admin and worklog approval from this role.
+export function isImplementer(role: PortalRole): boolean {
+  return role === 'implementor';
+}
+
+// Who may approve worklogs (sign off logged hours). Implementers can log and edit their own
+// unapproved hours but never approve — every other internal role can. Mirrors the delivery gate.
+export function canApproveWorklogs(role: PortalRole): boolean {
+  return role !== 'implementor';
+}
+
 // Finance/payments visibility (migration 0010). Internally only Sales Rep, Ops/Finance and
 // Portal Admin see payments; client_admin sees their own account's. Mirrors the SQL rule in
 // portal_can_view_module so the UI hides what RLS would return empty anyway.
@@ -62,6 +74,13 @@ export const ROLE_LABELS: Record<PortalRole, string> = {
 
 export function isInternalRole(role: PortalRole): boolean {
   return INTERNAL_ROLES.includes(role);
+}
+
+// Who may edit the Sales Process Settings defaults: Portal Admin, Sales Rep, Delivery Lead and
+// Ops/Finance — every internal role except Implementer. Mirrors the SQL portal_is_internal()
+// predicate (which, unlike TS INTERNAL_ROLES, already excludes implementer) that gates the writes.
+export function canManageSalesSettings(role: PortalRole): boolean {
+  return isInternalRole(role) && role !== 'implementor';
 }
 
 export const PORTAL_MODULES = [
@@ -140,6 +159,44 @@ export const HEALTH_LABELS: Record<Health, string> = {
   delayed: 'Delayed',
 };
 
+// Client-facing project lifecycle statuses and their display labels.
+export type ProjectStatus = 'planned' | 'active' | 'on_hold' | 'complete';
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  planned: 'Planned',
+  active: 'Active',
+  on_hold: 'On hold',
+  complete: 'Complete',
+};
+// Tone for a project status badge: violet in flight, green done, amber paused, grey not started.
+export const projectStatusTone = (status: ProjectStatus): 'violet' | 'green' | 'amber' | 'grey' => {
+  switch (status) {
+    case 'complete':
+      return 'green';
+    case 'on_hold':
+      return 'amber';
+    case 'active':
+      return 'violet';
+    default:
+      return 'grey';
+  }
+};
+
+// Project Type (migration 0035): set on the opportunity, carried onto its project. Nullable means
+// "not picked yet". Only the Support type hides the milestone tracker.
+export const PROJECT_TYPES = ['support', 'health_check', 'implementation'] as const;
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
+export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
+  support: 'Support',
+  health_check: 'Health Check',
+  implementation: 'Implementation',
+};
+
+// Milestones apply to every type except Support (a blank/not-yet-picked type keeps them).
+export function projectUsesMilestones(type: ProjectType | null | undefined): boolean {
+  return type !== 'support';
+}
+
 // Where an account came from. Picklist is UI-enforced (stored as free text), so options can be
 // edited here without a migration.
 export const ACCOUNT_SOURCES = [
@@ -209,6 +266,11 @@ export const OpportunitySchema = z.object({
   stage: z.enum([...OPPORTUNITY_STAGES, 'closed_lost']),
   amount: numeric.nullable(),
   close_date: z.string().nullable(),
+  // Optional hours budget carried onto this deal's offers and project (migration 0034).
+  bank_hours: numericNullable.optional().default(null),
+  notify_hours: numericNullable.optional().default(null),
+  // Project Type carried onto the project on Closed Won / manual creation (migration 0035).
+  project_type: z.enum(PROJECT_TYPES).nullable().optional().default(null),
   updated_at: z.string(),
   intake_published: z.boolean().optional(),
   drive_folder_id: z.string().nullable().optional(),
@@ -278,6 +340,9 @@ export const OfferSchema = z.object({
   sent_at: z.string().nullable(),
   responded_at: z.string().nullable(),
   created_at: z.string(),
+  // Hours budget prefilled from the opportunity, still editable per offer version (migration 0034).
+  bank_hours: numericNullable.optional().default(null),
+  notify_hours: numericNullable.optional().default(null),
   items: z.array(OfferItemSchema).optional().default([]),
 });
 export type Offer = z.infer<typeof OfferSchema>;
@@ -448,6 +513,7 @@ export const CandidateSchema = z.object({
       full_name: z.string(),
       title: z.string().nullable(),
       email: z.string(),
+      calendly_url: z.string().nullable().optional(),
       photo_url: z.string().nullable().optional(),
     })
     .nullable()
@@ -477,6 +543,7 @@ export const MilestoneSchema = z.object({
   project_id: z.guid(),
   name: z.string(),
   description: z.string(),
+  start_date: z.string().nullable(),
   due_date: z.string().nullable(),
   status: z.enum(MILESTONE_STATUSES),
   percent_complete: z.number(),
@@ -488,11 +555,19 @@ export type Milestone = z.infer<typeof MilestoneSchema>;
 export const ProjectTeamMemberSchema = z.object({
   id: z.guid(),
   project_id: z.guid(),
-  user_id: z.guid(),
+  // Nullable since 0035: offer-derived roster rows carry a display_name instead of a linked user.
+  user_id: z.guid().nullable(),
+  display_name: z.string().nullable().optional(),
   project_role: z.string(),
   assigned_at: z.string(),
   active: z.boolean(),
   is_public: z.boolean().optional(),
+  // Billing carried from the seeding offer line item (migration 0036). Admin-only — the client
+  // roster never selects these, so they stay undefined on the client snapshot.
+  billing_type: OfferBillingTypeSchema.nullable().optional().default(null),
+  rate: numericNullable.optional().default(null),
+  overtime_rate: numericNullable.optional().default(null),
+  monthly_hours: numericNullable.optional().default(null),
   user: z
     .object({
       id: z.guid(),
@@ -529,6 +604,18 @@ export const AccountTeamMemberSchema = z.object({
 });
 export type AccountTeamMember = z.infer<typeof AccountTeamMemberSchema>;
 
+// A shared public-holiday entry (migration 0042). Global — not tied to an account.
+export const PublicHolidaySchema = z.object({
+  id: z.guid(),
+  name: z.string(),
+  holiday_date: z.string(),
+  description: z.string(),
+  country: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+export type PublicHoliday = z.infer<typeof PublicHolidaySchema>;
+
 export const ProjectSchema = z.object({
   id: z.guid(),
   account_id: z.guid(),
@@ -541,6 +628,11 @@ export const ProjectSchema = z.object({
   target_date: z.string().nullable(),
   published: z.boolean(),
   created_at: z.string(),
+  // Hours budget carried from the opportunity, still editable per project (migration 0034).
+  bank_hours: numericNullable.optional().default(null),
+  notify_hours: numericNullable.optional().default(null),
+  // Project Type (migration 0035); Support hides the milestone tracker.
+  project_type: z.enum(PROJECT_TYPES).nullable().optional().default(null),
   drive_folder_id: z.string().nullable().optional(),
   drive_web_link: z.string().nullable().optional(),
   drive_folders: z.record(z.string(), z.string()).catch({}).optional(),
@@ -557,6 +649,9 @@ export const FeedbackSchema = z.object({
   comment: z.string(),
   context: z.string().nullable(),
   is_urgent: z.boolean(),
+  // Client consented to share publicly; only visible to other clients once staff approve it.
+  is_public: z.boolean().optional().default(false),
+  public_approved_at: z.string().nullable().optional(),
   status: z.enum(['new', 'acknowledged', 'resolved']),
   response: z.string().nullable(),
   responded_at: z.string().nullable(),
@@ -566,6 +661,55 @@ export const FeedbackSchema = z.object({
   account: z.object({ id: z.guid(), name: z.string() }).nullable().optional(),
 });
 export type Feedback = z.infer<typeof FeedbackSchema>;
+
+// Per-staff aggregate rating (portal_staff_feedback_summary) — average over all their feedback.
+export const StaffRatingSchema = z.object({
+  user_id: z.guid(),
+  avg_rating: z.union([z.number(), z.string()]).transform((value) => Number(value)),
+  rating_count: z.union([z.number(), z.string()]).transform((value) => Number(value)),
+});
+export type StaffRating = z.infer<typeof StaffRatingSchema>;
+
+// An approved, anonymised public review about a staff member (portal_staff_public_reviews).
+export const PublicReviewSchema = z.object({
+  id: z.guid(),
+  about_user_id: z.guid(),
+  rating: z.number(),
+  comment: z.string(),
+  created_at: z.string(),
+});
+export type PublicReview = z.infer<typeof PublicReviewSchema>;
+
+// A catalog product. Client-created products are 'pending' until a staffer approves them.
+export const PRODUCT_STATUSES = ['pending', 'approved'] as const;
+export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
+
+// One document (URL) carried by a product; each follows the product onto a client's Materials when
+// the product is tagged (migration 0037 — several per product; 0028 allowed only one).
+export const ProductDocumentSchema = z.object({
+  name: z.string().nullable().optional(),
+  url: z.string(),
+});
+export type ProductDocument = z.infer<typeof ProductDocumentSchema>;
+
+export const ProductSchema = z.object({
+  id: z.guid(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  status: z.enum(PRODUCT_STATUSES),
+  // Documents that follow this product onto a client's Materials when it's tagged (0037). Rows that
+  // don't request the column parse to [] via .catch.
+  documents: z.array(ProductDocumentSchema).catch([]).optional().default([]),
+  // Legacy single-document columns (0028), superseded by `documents`; kept so old queries still parse.
+  document_url: z.string().nullable().optional(),
+  document_name: z.string().nullable().optional(),
+  created_by: z.guid().nullable().optional(),
+  created_at: z.string().optional(),
+});
+export type Product = z.infer<typeof ProductSchema>;
+
+// The three record types that carry products; staff skills use their own admin-only path.
+export type ProductEntity = 'account' | 'opportunity' | 'project';
 
 export const ACTIVITY_CATEGORIES = [
   'pipeline',
@@ -621,6 +765,8 @@ export const ResourceSchema = z.object({
   phase: z.enum(['onboarding', 'discovery', 'proposal', 'delivery', 'any']),
   position: z.number(),
   published: z.boolean(),
+  // Set when this material was copied from a Sales-Process-Settings template (migration 0028).
+  template_id: z.guid().nullable().optional(),
   article: z
     .object({ id: z.guid(), title: z.string(), slug: z.string(), excerpt: z.string() })
     .nullable()
@@ -664,17 +810,56 @@ export const IntakeItemSchema = z.object({
 });
 export type IntakeItem = z.infer<typeof IntakeItemSchema>;
 
+// --- Sales Process Settings templates (migration 0028) --------------------------------------
+
+// A reusable onboarding-material template — copied into every new account's Materials on creation.
+export const MaterialTemplateSchema = z.object({
+  id: z.guid(),
+  title: z.string(),
+  description: z.string(),
+  kind: z.enum(RESOURCE_KINDS),
+  url: z.string().nullable(),
+  file_path: z.string().nullable(),
+  article_id: z.guid().nullable(),
+  phase: z.enum(['onboarding', 'discovery', 'proposal', 'delivery', 'any']),
+  position: z.number(),
+});
+export type MaterialTemplate = z.infer<typeof MaterialTemplateSchema>;
+
+// A standard gathering-checklist item, copied into an opportunity's intake on demand.
+export const IntakeTemplateSchema = z.object({
+  id: z.guid(),
+  name: z.string(),
+  description: z.string(),
+  owner_side: z.enum(['client', 'klepka']),
+  position: z.number(),
+});
+export type IntakeTemplate = z.infer<typeof IntakeTemplateSchema>;
+
 export const TimeEntrySchema = z.object({
   id: z.guid(),
   project_id: z.guid(),
   milestone_id: z.guid().nullable(),
-  user_id: z.guid().nullable(),
+  // Optional because the client snapshot deliberately omits the internal employee — it selects only
+  // the reporter (aliased to `user`). The admin snapshot always includes it.
+  user_id: z.guid().nullable().optional(),
+  // Client-facing "reporter" — who the client sees credited with the work, which may differ from
+  // the internal employee (`user_id`) who actually did it (migration 0041). Defaults to the employee.
+  reporter_id: z.guid().nullable().optional().default(null),
   entry_date: z.string(),
+  // `hours` is the billed figure the client budget draws down; `actual_hours` is what was worked
+  // (migration 0038). `approved` is a manager sign-off (admin-only). Both are internal.
   hours: numeric,
+  actual_hours: numericNullable.optional().default(null),
+  approved: z.boolean().optional().default(false),
   description: z.string(),
   billable: z.boolean(),
   visible_to_client: z.boolean(),
+  // The internal employee who did the work (admin snapshot). On the client snapshot this same key
+  // is aliased to the reporter, so the client never sees the real employee.
   user: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+  // The client-facing reporter, embedded on the admin snapshot alongside `user`.
+  reporter: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
 });
 export type TimeEntry = z.infer<typeof TimeEntrySchema>;
 

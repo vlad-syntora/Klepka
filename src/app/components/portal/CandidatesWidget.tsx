@@ -1,18 +1,59 @@
 import React from 'react';
 import { toast } from 'sonner';
 import { Check, ChevronLeft, ChevronRight, FileText, X } from 'lucide-react';
-import { decideCandidate } from '@/app/lib/portal-api';
+import { decideCandidate, listUserProducts } from '@/app/lib/portal-api';
 import { usePortalData } from '@/app/hooks/use-portal-data';
 import { resolveFileView } from '@/app/lib/file-view';
 import { formatMoney, initialsOf, prettyName } from '@/app/lib/portal-format';
-import { CANDIDATE_STATUS_LABELS, type Candidate } from '@/app/lib/portal-types';
+import {
+  CANDIDATE_STATUS_LABELS,
+  type Candidate,
+  type Product,
+  type PublicReview,
+  type StaffRating,
+} from '@/app/lib/portal-types';
 import { FileViewer, type FileViewerFile } from '@/app/components/portal/FileViewer';
 import { PortalButton, PortalCard, StatusTag, toneFor } from '@/app/components/portal/PortalUi';
+import { RatingSummary, useStaffFeedback } from '@/app/components/portal/StaffRating';
 
-const CandidateCard: React.FC<{ candidate: Candidate; onView: (file: FileViewerFile) => void }> = ({
-  candidate,
-  onView,
-}) => {
+/**
+ * Fetches each candidate's skills (the products they own) for a set of user ids in one go, so the
+ * client can see what every proposed person actually does before confirming them. Mirrors
+ * useStaffFeedback: supplementary data, never blocks the card if the lookup fails.
+ */
+function useStaffSkills(userIds: string[]): Map<string, Product[]> {
+  const key = React.useMemo(() => Array.from(new Set(userIds)).sort().join(','), [userIds]);
+  const [skills, setSkills] = React.useState<Map<string, Product[]>>(new Map());
+
+  React.useEffect(() => {
+    const ids = key ? key.split(',') : [];
+    if (ids.length === 0) {
+      setSkills(new Map());
+      return;
+    }
+    let cancelled = false;
+    listUserProducts(ids)
+      .then((map) => {
+        if (!cancelled) setSkills(map);
+      })
+      .catch(() => {
+        if (!cancelled) setSkills(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+
+  return skills;
+}
+
+const CandidateCard: React.FC<{
+  candidate: Candidate;
+  onView: (file: FileViewerFile) => void;
+  rating?: StaffRating;
+  reviews?: PublicReview[];
+  skills?: Product[];
+}> = ({ candidate, onView, rating, reviews, skills }) => {
   const { reload } = usePortalData();
   const [busy, setBusy] = React.useState<null | 'confirmed' | 'declined'>(null);
 
@@ -46,6 +87,7 @@ const CandidateCard: React.FC<{ candidate: Candidate; onView: (file: FileViewerF
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{prettyName(name)}</div>
           {title && <div className="truncate text-xs text-grey">{title}</div>}
+          <RatingSummary name={name} rating={rating} reviews={reviews} />
         </div>
       </div>
 
@@ -78,6 +120,25 @@ const CandidateCard: React.FC<{ candidate: Candidate; onView: (file: FileViewerF
         )}
       </dl>
 
+      {skills && skills.length > 0 && (
+        <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-border-color pt-3">
+          <div className="mb-2 text-xs uppercase tracking-wide text-grey">Skills</div>
+          {/* When a candidate has many skills the chips scroll here instead of stretching the card,
+              so every card in the carousel keeps the same fixed height. */}
+          <div className="flex min-h-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto pr-1">
+            {skills.map((skill) => (
+              <span
+                key={skill.id}
+                title={skill.description ?? undefined}
+                className="rounded-full bg-portal-tint px-2.5 py-1 text-xs font-medium text-violet"
+              >
+                {skill.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {pending && (
         <div className="mt-auto flex items-center gap-2 pt-4">
           <PortalButton className="flex-1" onClick={() => decide('confirmed')} disabled={busy !== null}>
@@ -101,6 +162,9 @@ const CandidateCard: React.FC<{ candidate: Candidate; onView: (file: FileViewerF
 export const CandidatesWidget: React.FC<{ candidates: Candidate[] }> = ({ candidates }) => {
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const [viewerFile, setViewerFile] = React.useState<FileViewerFile | null>(null);
+  const userIds = candidates.map((candidate) => candidate.user?.id).filter((id): id is string => Boolean(id));
+  const { ratings, reviews } = useStaffFeedback(userIds);
+  const skills = useStaffSkills(userIds);
 
   if (candidates.length === 0) return null;
 
@@ -146,10 +210,17 @@ export const CandidatesWidget: React.FC<{ candidates: Candidate[] }> = ({ candid
     >
       <div
         ref={scrollerRef}
-        className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex h-full snap-x snap-mandatory gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {ordered.map((candidate) => (
-          <CandidateCard key={candidate.id} candidate={candidate} onView={setViewerFile} />
+          <CandidateCard
+            key={candidate.id}
+            candidate={candidate}
+            onView={setViewerFile}
+            rating={candidate.user ? ratings.get(candidate.user.id) : undefined}
+            reviews={candidate.user ? reviews.get(candidate.user.id) : undefined}
+            skills={candidate.user ? skills.get(candidate.user.id) : undefined}
+          />
         ))}
       </div>
 

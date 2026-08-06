@@ -1,7 +1,13 @@
 import React from 'react';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAsync } from '@/app/hooks/use-async';
-import { adminListFeedback, adminRespondToFeedback } from '@/app/lib/portal-admin-api';
+import {
+  adminDeleteFeedback,
+  adminListFeedback,
+  adminRespondToFeedback,
+  adminSetFeedbackPublicApproval,
+} from '@/app/lib/portal-admin-api';
 import { formatDate, prettyName } from '@/app/lib/portal-format';
 import type { Feedback, PortalAccount } from '@/app/lib/portal-types';
 import {
@@ -21,12 +27,15 @@ import {
 export const FeedbackList: React.FC<{
   entries: Feedback[];
   showAccount?: boolean;
+  /** Read-only view (Implementer role): the response, public-approval and delete actions are hidden. */
+  readOnly?: boolean;
   onResponded: () => Promise<void>;
-}> = ({ entries, showAccount, onResponded }) => {
+}> = ({ entries, showAccount, readOnly = false, onResponded }) => {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [response, setResponse] = React.useState('');
   const [status, setStatus] = React.useState<Feedback['status']>('acknowledged');
   const [busy, setBusy] = React.useState(false);
+  const [working, setWorking] = React.useState<string | null>(null);
 
   const submit = async (id: string) => {
     setBusy(true);
@@ -40,6 +49,32 @@ export const FeedbackList: React.FC<{
       toast.error('Could not save', { description: cause instanceof Error ? cause.message : undefined });
     } finally {
       setBusy(false);
+    }
+  };
+
+  const setPublic = async (entry: Feedback, approved: boolean) => {
+    setWorking(entry.id);
+    try {
+      await adminSetFeedbackPublicApproval(entry.id, approved);
+      toast.success(approved ? 'Published — other clients can now see it.' : 'Hidden from other clients.');
+      await onResponded();
+    } catch (cause) {
+      toast.error('Could not update', { description: cause instanceof Error ? cause.message : undefined });
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const remove = async (entry: Feedback) => {
+    if (!window.confirm('Delete this feedback permanently? Its rating drops out of the staff average.')) return;
+    setWorking(entry.id);
+    try {
+      await adminDeleteFeedback(entry.id);
+      toast.success('Feedback deleted.');
+      await onResponded();
+    } catch (cause) {
+      toast.error('Could not delete', { description: cause instanceof Error ? cause.message : undefined });
+      setWorking(null);
     }
   };
 
@@ -61,6 +96,12 @@ export const FeedbackList: React.FC<{
             </div>
             <div className="flex items-center gap-2">
               {entry.is_urgent && <StatusTag tone="red">Urgent</StatusTag>}
+              {entry.is_public &&
+                (entry.public_approved_at ? (
+                  <StatusTag tone="violet">Public</StatusTag>
+                ) : (
+                  <StatusTag tone="amber">Public · pending</StatusTag>
+                ))}
               <StatusTag tone={toneFor(entry.status)}>{humanize(entry.status)}</StatusTag>
             </div>
           </div>
@@ -74,7 +115,7 @@ export const FeedbackList: React.FC<{
             </div>
           )}
 
-          {openId === entry.id ? (
+          {readOnly ? null : openId === entry.id ? (
             <div className="mt-3 space-y-2 rounded-lg border border-border-color bg-off-white p-3">
               <Field label="Response (visible to the client)">
                 <textarea
@@ -104,17 +145,36 @@ export const FeedbackList: React.FC<{
               </div>
             </div>
           ) : (
-            <PortalButton
-              variant="ghost"
-              className="mt-2"
-              onClick={() => {
-                setOpenId(entry.id);
-                setResponse(entry.response ?? '');
-                setStatus(entry.status === 'new' ? 'acknowledged' : entry.status);
-              }}
-            >
-              {entry.response ? 'Edit response' : 'Respond'}
-            </PortalButton>
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              <PortalButton
+                variant="ghost"
+                onClick={() => {
+                  setOpenId(entry.id);
+                  setResponse(entry.response ?? '');
+                  setStatus(entry.status === 'new' ? 'acknowledged' : entry.status);
+                }}
+              >
+                {entry.response ? 'Edit response' : 'Respond'}
+              </PortalButton>
+              {entry.is_public &&
+                (entry.public_approved_at ? (
+                  <PortalButton variant="ghost" disabled={working === entry.id} onClick={() => setPublic(entry, false)}>
+                    Hide from clients
+                  </PortalButton>
+                ) : (
+                  <PortalButton variant="ghost" disabled={working === entry.id} onClick={() => setPublic(entry, true)}>
+                    Approve for public
+                  </PortalButton>
+                ))}
+              <PortalButton
+                variant="ghost"
+                disabled={working === entry.id}
+                onClick={() => remove(entry)}
+                aria-label="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </PortalButton>
+            </div>
           )}
         </li>
       ))}
@@ -122,7 +182,10 @@ export const FeedbackList: React.FC<{
   );
 };
 
-export const WorkspaceFeedback: React.FC<{ account: PortalAccount }> = ({ account }) => {
+export const WorkspaceFeedback: React.FC<{ account: PortalAccount; canRespond?: boolean }> = ({
+  account,
+  canRespond = true,
+}) => {
   const feedback = useAsync(() => adminListFeedback(account.id), [account.id]);
 
   if (feedback.loading) return <PortalSpinner />;
@@ -134,7 +197,7 @@ export const WorkspaceFeedback: React.FC<{ account: PortalAccount }> = ({ accoun
 
   return (
     <PortalCard title="Feedback on this account" description={`${entries.length} entries · average ${average}/5`}>
-      <FeedbackList entries={entries} onResponded={feedback.reload} />
+      <FeedbackList entries={entries} readOnly={!canRespond} onResponded={feedback.reload} />
     </PortalCard>
   );
 };

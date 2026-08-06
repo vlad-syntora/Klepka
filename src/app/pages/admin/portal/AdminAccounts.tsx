@@ -9,11 +9,13 @@ import {
   adminListInternalUsers,
   driveProvision,
 } from '@/app/lib/portal-admin-api';
+import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { formatRelative, prettyName } from '@/app/lib/portal-format';
 import {
   ACCOUNT_SOURCES,
   HEALTH_LABELS,
   LIFECYCLE_LABELS,
+  isImplementer,
   type PortalAccount,
   type PortalUser,
 } from '@/app/lib/portal-types';
@@ -24,18 +26,22 @@ import {
   Field,
   PortalButton,
   PortalCard,
+  PortalModal,
   PortalSpinner,
   PortalTable,
   Row,
+  SortHeader,
   StatusTag,
   inputClass,
   toneFor,
+  useTableSort,
 } from '@/app/components/portal/PortalUi';
 
 type Filter = 'all' | 'needs_attention' | 'pre_sale' | 'delivery';
 
 export const AdminAccounts: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = usePortalUser();
   const [accounts, setAccounts] = React.useState<PortalAccount[]>([]);
   const [owners, setOwners] = React.useState<PortalUser[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -50,6 +56,8 @@ export const AdminAccounts: React.FC = () => {
   const [source, setSource] = React.useState('');
   const [sourceSubtype, setSourceSubtype] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  // The delivery-only Implementer role can browse accounts but not create them.
+  const canCreate = user ? !isImplementer(user.role) : false;
 
   const load = React.useCallback(async () => {
     try {
@@ -67,6 +75,11 @@ export const AdminAccounts: React.FC = () => {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  // New accounts default to the signed-in staffer as owner (they can still reassign before saving).
+  React.useEffect(() => {
+    if (user?.id) setOwnerId((current) => current || user.id);
+  }, [user?.id]);
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -114,11 +127,19 @@ export const AdminAccounts: React.FC = () => {
     return true;
   });
 
+  const { sorted, sort, toggle } = useTableSort(visible, {
+    account: (a) => a.name.toLowerCase(),
+    stage: (a) => LIFECYCLE_LABELS[a.lifecycle],
+    health: (a) => HEALTH_LABELS[a.health],
+    owner: (a) => (a.owner ? prettyName(a.owner.full_name).toLowerCase() : null),
+    updated: (a) => a.updated_at,
+  });
+
   if (loading) return <PortalSpinner label="Loading accounts…" />;
   if (error) return <ErrorNote>{error}</ErrorNote>;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard
         title="Accounts"
         description={`${accounts.length} total · ${accounts.filter((a) => a.health !== 'on_track').length} need attention`}
@@ -140,14 +161,21 @@ export const AdminAccounts: React.FC = () => {
               <option value="pre_sale">Pre-sale</option>
               <option value="delivery">Delivery &amp; live</option>
             </select>
-            <PortalButton className="whitespace-nowrap" onClick={() => setShowCreate((open) => !open)}>
-              <Plus className="h-4 w-4 shrink-0" /> New account
-            </PortalButton>
+            {canCreate && (
+              <PortalButton className="whitespace-nowrap" onClick={() => setShowCreate(true)}>
+                <Plus className="h-4 w-4 shrink-0" /> New account
+              </PortalButton>
+            )}
           </>
         }
       >
-        {showCreate && (
-          <form onSubmit={create} className="mb-4 grid gap-3 rounded-lg border border-border-color bg-off-white p-4 sm:grid-cols-4">
+        <PortalModal
+          open={showCreate}
+          onClose={() => setShowCreate(false)}
+          title="New account"
+          description="Create a lead and provision its Drive folders."
+        >
+          <form onSubmit={create} className="grid gap-3 sm:grid-cols-2">
             <Field label="Account name">
               <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} required />
             </Field>
@@ -181,7 +209,7 @@ export const AdminAccounts: React.FC = () => {
                 onChange={(event) => setSourceSubtype(event.target.value)}
               />
             </Field>
-            <Field label="Logo URL" className="sm:col-span-2" hint="Shown as the account icon.">
+            <Field label="Logo URL" hint="Shown as the account icon.">
               <input
                 type="url"
                 className={inputClass}
@@ -190,7 +218,7 @@ export const AdminAccounts: React.FC = () => {
                 placeholder="https://…/logo.png"
               />
             </Field>
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-2 sm:col-span-2">
               <PortalButton type="submit" disabled={busy}>
                 {busy ? 'Creating…' : 'Create'}
               </PortalButton>
@@ -199,13 +227,21 @@ export const AdminAccounts: React.FC = () => {
               </PortalButton>
             </div>
           </form>
-        )}
+        </PortalModal>
 
         {visible.length === 0 ? (
           <EmptyState title="No accounts match" />
         ) : (
-          <PortalTable head={['Account', 'Stage', 'Health', 'Owner', 'Last update']}>
-            {visible.map((account) => (
+          <PortalTable
+            head={[
+              <SortHeader key="account" label="Account" sortKey="account" sort={sort} onSort={toggle} />,
+              <SortHeader key="stage" label="Stage" sortKey="stage" sort={sort} onSort={toggle} />,
+              <SortHeader key="health" label="Health" sortKey="health" sort={sort} onSort={toggle} />,
+              <SortHeader key="owner" label="Owner" sortKey="owner" sort={sort} onSort={toggle} />,
+              <SortHeader key="updated" label="Last update" sortKey="updated" sort={sort} onSort={toggle} />,
+            ]}
+          >
+            {sorted.map((account) => (
               <Row key={account.id} onClick={() => navigate(`/admin/portal/accounts/${account.id}`)}>
                 <Cell>
                   <div className="flex items-center gap-2.5">

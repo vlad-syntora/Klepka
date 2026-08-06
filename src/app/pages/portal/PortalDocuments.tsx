@@ -96,7 +96,7 @@ export const PortalDocuments: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard
         title="Documents"
         description="Contracts, SOWs, proposals and anything you share with us."

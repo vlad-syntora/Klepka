@@ -131,7 +131,7 @@ export const WorkspacePayments: React.FC<{ account: PortalAccount }> = ({ accoun
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard title="Project" description="Payments are billed against a project.">
         <select
           className={`${inputClass} sm:w-96`}
@@ -146,7 +146,7 @@ export const WorkspacePayments: React.FC<{ account: PortalAccount }> = ({ accoun
         </select>
       </PortalCard>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-3">
         <StatTile label="Contracted" value={formatMoney(contracted, currency)} />
         <StatTile label="Paid" value={formatMoney(paid, currency)} tone="green" />
         <StatTile label="Outstanding" value={formatMoney(outstanding, currency)} tone={outstanding > 0 ? 'amber' : undefined} />

@@ -1,6 +1,56 @@
 import React from 'react';
-import { ChevronDown, Star } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronsUpDown, ChevronUp, Star, X } from 'lucide-react';
 import { cn } from '@/app/components/ui/utils';
+
+/**
+ * A compact calendar-icon date filter: just an icon that opens the native date picker on click — a
+ * space-saving stand-in for a full `<input type="date">` in tight headers. When a date is picked the
+ * icon stays highlighted (tinted + violet border) rather than printing the date, so the control keeps
+ * a fixed width. The chosen date is surfaced via the button's title/tooltip.
+ */
+export const IconDateButton: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}> = ({ value, onChange, label }) => {
+  const ref = React.useRef<HTMLInputElement>(null);
+  const open = () => {
+    const input = ref.current;
+    if (!input) return;
+    try {
+      input.showPicker();
+    } catch {
+      input.focus();
+    }
+  };
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={open}
+        title={value ? `${label}: ${value}` : label}
+        aria-label={value ? `${label}: ${value}` : label}
+        className={cn(
+          'flex h-8 w-8 items-center justify-center rounded-md border text-xs transition-colors',
+          value
+            ? 'border-violet bg-portal-tint text-violet'
+            : 'border-border-color text-grey hover:border-violet',
+        )}
+      >
+        <Calendar className="h-4 w-4" />
+      </button>
+      <input
+        ref={ref}
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-hidden
+        tabIndex={-1}
+        className="pointer-events-none absolute bottom-0 left-0 h-0 w-0 opacity-0"
+      />
+    </span>
+  );
+};
 
 /* ------------------------------------------------------------------ tags */
 
@@ -128,7 +178,12 @@ function collapseToken(value: React.ReactNode): string {
 
 export const PortalCard: React.FC<{
   title?: React.ReactNode;
-  action?: React.ReactNode;
+  /**
+   * Header actions. Pass a render function to react to the card's collapsed state — e.g. keep an
+   * "Add" button visible while collapsed (with `keepActionWhenCollapsed`) but only show a filter
+   * once the card is open.
+   */
+  action?: React.ReactNode | ((state: { open: boolean }) => React.ReactNode);
   description?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
@@ -215,9 +270,12 @@ export const PortalCard: React.FC<{
             </div>
           )}
           {/* Actions belong to the open section — hide them while collapsed, unless the card asks
-              to keep them (e.g. an unread badge that must stay visible when Recent activity is folded). */}
+              to keep them (e.g. an unread badge that must stay visible when Recent activity is folded).
+              A function action can further tailor what it shows to the open state. */}
           {action && (showBody || keepActionWhenCollapsed) && (
-            <div className="flex shrink-0 items-center gap-2">{action}</div>
+            <div className="flex shrink-0 items-center gap-2">
+              {typeof action === 'function' ? action({ open: showBody }) : action}
+            </div>
           )}
         </header>
       )}
@@ -226,28 +284,42 @@ export const PortalCard: React.FC<{
   );
 };
 
-export const StatTile: React.FC<{ label: string; value: React.ReactNode; tone?: Tone; hint?: string }> = ({
-  label,
-  value,
-  tone,
-  hint,
-}) => (
-  <div className="rounded-xl border border-border-color bg-card px-5 py-4 shadow-sm">
-    <div className="text-xs uppercase tracking-wide text-grey">{label}</div>
-    <div
-      className={cn(
-        'mt-1 text-2xl font-semibold',
-        tone === 'green' && 'text-portal-green',
-        tone === 'red' && 'text-portal-red',
-        tone === 'amber' && 'text-portal-amber',
-        !tone && 'text-foreground',
-      )}
-    >
-      {value}
+export const StatTile: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  tone?: Tone;
+  hint?: string;
+  /** Lay the label and value on one row (a shorter tile) instead of stacking them. */
+  compact?: boolean;
+}> = ({ label, value, tone, hint, compact }) => {
+  const valueColor = cn(
+    tone === 'green' && 'text-portal-green',
+    tone === 'red' && 'text-portal-red',
+    tone === 'amber' && 'text-portal-amber',
+    tone === 'violet' && 'text-violet',
+    (!tone || tone === 'grey') && 'text-foreground',
+  );
+
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border-color bg-card px-4 py-2.5 shadow-sm">
+        <span className="text-xs uppercase tracking-wide text-grey">{label}</span>
+        <span className="flex items-center gap-2 text-right">
+          <span className={cn('text-sm font-semibold', valueColor)}>{value}</span>
+          {hint && <span className="text-[11px] text-grey">{hint}</span>}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border-color bg-card px-5 py-4 shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-grey">{label}</div>
+      <div className={cn('mt-1 text-2xl font-semibold', valueColor)}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-grey">{hint}</div>}
     </div>
-    {hint && <div className="mt-1 text-xs text-grey">{hint}</div>}
-  </div>
-);
+  );
+};
 
 export const EmptyState: React.FC<{ title: string; description?: string; action?: React.ReactNode }> = ({
   title,
@@ -263,12 +335,20 @@ export const EmptyState: React.FC<{ title: string; description?: string; action?
 
 /* ---------------------------------------------------------------- tables */
 
-export const PortalTable: React.FC<{ head: React.ReactNode[]; children: React.ReactNode; className?: string }> = ({
-  head,
-  children,
-  className,
-}) => (
-  <div className={cn('-mx-5 overflow-x-auto', className)}>
+export const PortalTable: React.FC<{
+  head: React.ReactNode[];
+  children: React.ReactNode;
+  className?: string;
+  /** Tighter row/header padding so more rows fit in a fixed-height, scrolling card. */
+  dense?: boolean;
+}> = ({ head, children, className, dense }) => (
+  <div
+    className={cn(
+      '-mx-5 overflow-x-auto',
+      dense && '[&_td]:py-1.5 [&_th]:py-2',
+      className,
+    )}
+  >
     <table className="w-full min-w-[560px] border-collapse text-sm">
       <thead>
         <tr>
@@ -287,13 +367,23 @@ export const PortalTable: React.FC<{ head: React.ReactNode[]; children: React.Re
   </div>
 );
 
-export const Row: React.FC<{ children: React.ReactNode; onClick?: () => void; className?: string }> = ({
-  children,
-  onClick,
-  className,
-}) => (
+export const Row: React.FC<{
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+  draggable?: boolean;
+  onDragStart?: React.DragEventHandler<HTMLTableRowElement>;
+  onDragOver?: React.DragEventHandler<HTMLTableRowElement>;
+  onDrop?: React.DragEventHandler<HTMLTableRowElement>;
+  onDragEnd?: React.DragEventHandler<HTMLTableRowElement>;
+}> = ({ children, onClick, className, draggable, onDragStart, onDragOver, onDrop, onDragEnd }) => (
   <tr
     onClick={onClick}
+    draggable={draggable}
+    onDragStart={onDragStart}
+    onDragOver={onDragOver}
+    onDrop={onDrop}
+    onDragEnd={onDragEnd}
     className={cn(
       'border-b border-border-color last:border-b-0',
       onClick && 'cursor-pointer transition-colors hover:bg-portal-tint/60',
@@ -313,6 +403,77 @@ export const Cell: React.FC<{ children?: React.ReactNode; className?: string; co
     {children}
   </td>
 );
+
+/* --------------------------------------------------------- sortable list */
+
+export type SortDir = 'asc' | 'desc';
+export interface SortState {
+  key: string;
+  dir: SortDir;
+}
+
+/** null/undefined always sort last; numbers compare numerically, everything else naturally. */
+function compareSortable(a: string | number | null | undefined, b: string | number | null | undefined): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+/**
+ * Client-side column sorting for a list view. Pass the rows and an accessor per sortable column
+ * key; clicking a column toggles asc → desc → asc. Returns the sorted rows plus the state and a
+ * `toggle` to wire into <SortHeader>. Lists here are small, so the sort recomputes whenever the
+ * inline `accessors` object changes identity — callers needn't memoise it.
+ */
+export function useTableSort<T>(
+  rows: T[],
+  accessors: Record<string, (row: T) => string | number | null | undefined>,
+  initial: SortState | null = null,
+): { sorted: T[]; sort: SortState | null; toggle: (key: string) => void } {
+  const [sort, setSort] = React.useState<SortState | null>(initial);
+
+  const toggle = React.useCallback((key: string) => {
+    setSort((prev) => (prev && prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  }, []);
+
+  const sorted = React.useMemo(() => {
+    if (!sort) return rows;
+    const accessor = accessors[sort.key];
+    if (!accessor) return rows;
+    const factor = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => factor * compareSortable(accessor(a), accessor(b)));
+  }, [rows, sort, accessors]);
+
+  return { sorted, sort, toggle };
+}
+
+/** A clickable column header for a sortable table. Drop into a PortalTable `head` array. */
+export const SortHeader: React.FC<{
+  label: React.ReactNode;
+  sortKey: string;
+  sort: SortState | null;
+  onSort: (key: string) => void;
+  className?: string;
+}> = ({ label, sortKey, sort, onSort, className }) => {
+  const active = sort?.key === sortKey;
+  const Icon = active ? (sort!.dir === 'asc' ? ChevronUp : ChevronDown) : ChevronsUpDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      aria-label={`Sort by ${typeof label === 'string' ? label : sortKey}`}
+      className={cn(
+        'group -mx-1 inline-flex items-center gap-1 rounded px-1 text-left uppercase tracking-wide text-violet transition-colors hover:text-violet/70',
+        className,
+      )}
+    >
+      {label}
+      <Icon className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-violet' : 'text-grey/50 group-hover:text-grey')} />
+    </button>
+  );
+};
 
 /* --------------------------------------------------------- stage tracker */
 
@@ -446,3 +607,72 @@ export const ErrorNote: React.FC<{ children: React.ReactNode }> = ({ children })
 export const InfoNote: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="rounded-lg bg-portal-tint px-4 py-3 text-[13px] leading-relaxed text-violet">{children}</div>
 );
+
+/* ---------------------------------------------------------------- modal */
+
+/**
+ * A centered, backdrop-dismissable modal. Renders nothing when closed; locks body scroll and
+ * closes on Escape or a genuine backdrop click while open. Header shows `title`/`description` and a
+ * close button; children are the body.
+ */
+export const PortalModal: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+}> = ({ open, onClose, title, description, children, className }) => {
+  // Only a press that both starts and ends on the backdrop should dismiss — dragging a scrollbar or
+  // selecting text that ends over the backdrop must not close the modal.
+  const pressOnBackdrop = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(event) => {
+        pressOnBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget && pressOnBackdrop.current) onClose();
+        pressOnBackdrop.current = false;
+      }}
+    >
+      <div
+        className={cn('my-auto w-full max-w-xl overflow-hidden rounded-xl bg-card shadow-xl', className)}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {(title || description) && (
+          <header className="flex items-center justify-between gap-3 border-b border-border-color px-5 py-4">
+            <div className="min-w-0">
+              {title && <h2 className="text-[15px] font-semibold text-violet">{title}</h2>}
+              {description && <p className="mt-0.5 text-xs text-grey">{description}</p>}
+            </div>
+            <PortalButton variant="ghost" onClick={onClose} aria-label="Close">
+              <X className="h-4 w-4" />
+            </PortalButton>
+          </header>
+        )}
+        <div className="max-h-[75vh] overflow-y-auto px-5 py-4">{children}</div>
+      </div>
+    </div>
+  );
+};

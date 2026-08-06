@@ -1,11 +1,11 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Bell,
+  CalendarPlus,
   ClipboardList,
   Eye,
-  Gauge,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -21,9 +21,11 @@ import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { getSupabase } from '@/app/lib/supabase';
 import { prettyName } from '@/app/lib/portal-format';
 import { cn } from '@/app/components/ui/utils';
-import { CollapsibleCards, ErrorNote, PortalSpinner } from './PortalUi';
+import { BookCallButton } from '@/app/components/portal/BookCallButton';
+import { CollapsibleCards, ErrorNote, PortalButton, PortalSpinner } from './PortalUi';
 import { MODULE_LABELS, ROLE_LABELS } from '@/app/lib/portal-types';
 import {
+  PHASE_BLURB,
   PHASE_LABELS,
   derivePhase,
   visibleSections,
@@ -72,13 +74,18 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
       (item) => item.owner_side === 'client' && !['submitted', 'in_review', 'approved'].includes(item.status),
     ).length ?? 0;
 
+  // Nothing left to gather once every intake step is approved — hide the page entirely then.
+  const intakePending = snapshot?.intake.filter((item) => item.status !== 'approved').length ?? 0;
+
   const allEntries: NavEntry[] = [
     { to: path(''), label: 'Dashboard', icon: LayoutDashboard, section: 'start' },
-    { to: path('project'), label: MODULE_LABELS.project, icon: Gauge, section: 'project' },
+    // Pipeline & Offers and the Project Tracker now live together on one page (two tabs), reached
+    // via this single entry. It keeps the old opportunity page's identity — the "Pipeline & Offers"
+    // label and icon clients already know — with the pending-offer badge riding along.
+    { to: path('project'), label: MODULE_LABELS.pipeline, icon: Handshake, section: 'project', badge: openOffers },
     { to: path('payments'), label: MODULE_LABELS.payments, icon: Wallet, section: 'payments' },
-    { to: path('pipeline'), label: MODULE_LABELS.pipeline, icon: Handshake, section: 'pipeline', badge: openOffers },
     { to: path('intake'), label: 'Information gathering', icon: ClipboardList, section: 'intake', badge: intakeOpen },
-    { to: path('start'), label: 'Getting started', icon: Sparkles, section: 'start' },
+    { to: path('start'), label: 'Presentations', icon: Sparkles, section: 'start' },
     { to: path('notifications'), label: 'Notifications', icon: Bell, section: 'notifications', badge: unread, hidden: true },
     { to: path('settings'), label: 'Account Settings', icon: Settings, section: 'settings' },
   ];
@@ -87,7 +94,19 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
   // rather than via usePortalPhase() because this component is what provides the data context.
   const phase = snapshot ? derivePhase(snapshot.account, snapshot.opportunities) : null;
   const allowed = phase ? visibleSections(phase, user.role, user.module_access) : [];
-  const navEntries = allEntries.filter((entry) => allowed.includes(entry.section));
+  const navEntries = allEntries.filter((entry) => {
+    // The Project entry doubles as the Pipeline & Offers home, so show it whenever either applies.
+    if (entry.section === 'project') return allowed.includes('project') || allowed.includes('pipeline');
+    // Once every information-gathering step is approved there's nothing to show — drop the entry.
+    if (entry.section === 'intake') return allowed.includes('intake') && intakePending > 0;
+    return allowed.includes(entry.section);
+  });
+
+  // The welcome banner is the dashboard's page header — rendered here (layout chrome) so it sits
+  // above the collapsible content and isn't itself collapsible.
+  const isDashboard = location.pathname === basePath;
+  const openIntakeCount =
+    snapshot?.intake.filter((item) => item.owner_side === 'client' && item.status !== 'approved').length ?? 0;
 
   const handleSignOut = async () => {
     await getSupabase().auth.signOut();
@@ -190,7 +209,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
               </button>
             </div>
           )}
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border-color bg-card px-4 lg:px-8">
+          <header className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-border-color bg-card px-4 py-3 lg:px-8">
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setMenuOpen((open) => !open)}
@@ -205,6 +224,28 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
                 )?.label ?? 'Portal'}
               </h1>
             </div>
+
+            {isDashboard && snapshot && phase && (
+              <div className="order-last flex w-full flex-col gap-2 rounded-xl bg-gradient-to-br from-violet to-[#9C63C9] px-4 py-2.5 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between lg:order-none lg:w-auto lg:flex-1">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold">Welcome, {snapshot.account.name}</h2>
+                  <p className="mt-0.5 max-w-2xl text-xs text-white/90">{PHASE_BLURB[phase]}</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                  <BookCallButton variant="primary" className="bg-white text-violet hover:bg-accent-yellow">
+                    <CalendarPlus className="h-4 w-4" /> Book a call
+                  </BookCallButton>
+                  {allowed.includes('intake') && openIntakeCount > 0 && (
+                    <Link to={path('intake')}>
+                      <PortalButton className="border border-white/60 bg-transparent text-white hover:bg-white/15">
+                        {openIntakeCount} item{openIntakeCount > 1 ? 's' : ''} need your input
+                      </PortalButton>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-3">
               {phase && (
                 <span className="hidden rounded-full bg-portal-tint px-2.5 py-1 text-[11px] font-semibold text-violet md:inline">
@@ -226,7 +267,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ basePath = '/portal'
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 px-4 py-6 lg:px-8">
+          <main className="min-w-0 flex-1 px-4 pb-6 pt-1 lg:px-8">
             {data.loading ? (
               <PortalSpinner label="Loading your workspace…" />
             ) : data.error ? (

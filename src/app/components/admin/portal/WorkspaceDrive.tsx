@@ -171,7 +171,7 @@ export const WorkspaceDrive: React.FC<{ account: PortalAccount; onChange: () => 
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-2">
         {/* Scope switcher: the account root, or any one opportunity's folder tree. */}
         <div className="flex flex-wrap gap-1.5">
           <button

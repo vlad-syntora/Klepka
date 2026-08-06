@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { UserPlus } from 'lucide-react';
+import { Trash2, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminCreateUser,
@@ -132,7 +132,7 @@ export const WorkspaceUsers: React.FC<{ account: PortalAccount; canManage?: bool
   if (users.error) return <ErrorNote>{users.error}</ErrorNote>;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <PortalCard
         title="Customer portal users"
         description="Internal-only tab — the client never sees this list."
@@ -181,7 +181,7 @@ export const WorkspaceUsers: React.FC<{ account: PortalAccount; canManage?: bool
                   </Field>
                 </>
               ) : (
-                <Field label="Person" className="sm:col-span-2" hint="An existing client contact from another account.">
+                <Field label="Person" className="sm:col-span-2">
                   <select
                     className={inputClass}
                     value={existingUserId}
@@ -240,8 +240,8 @@ export const WorkspaceUsers: React.FC<{ account: PortalAccount; canManage?: bool
                 <Cell className="whitespace-nowrap text-grey">{formatRelative(user.last_login_at)}</Cell>
                 {canManage && (
                   <Cell className="whitespace-nowrap text-right">
-                    <PortalButton variant="ghost" onClick={() => remove(user)}>
-                      Delete
+                    <PortalButton variant="ghost" onClick={() => remove(user)} aria-label="Delete">
+                      <Trash2 className="h-4 w-4" />
                     </PortalButton>
                   </Cell>
                 )}

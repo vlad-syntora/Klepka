@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronRight, Download, Paperclip, Plus, Send, Trash2, Upload, UserPlus } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Download, Paperclip, Pencil, Plus, Send, Trash2, Upload, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminCreateOfferVersion,
@@ -8,9 +8,11 @@ import {
   adminDeleteOpportunity,
   adminListCandidates,
   adminListDocuments,
+  adminListInternalUsers,
   adminListOffers,
   adminListOpportunities,
   adminSendOffer,
+  adminSetOfferStatus,
   adminUploadDocument,
   adminUpsertOpportunity,
   driveProvisionOpportunity,
@@ -18,6 +20,7 @@ import {
   type OfferItemInput,
 } from '@/app/lib/portal-admin-api';
 import { WorkspaceCandidates } from '@/app/components/admin/portal/WorkspaceCandidates';
+import { EntityProductsCard } from '@/app/components/portal/EntityProductsCard';
 import { WorkspaceIntake } from '@/app/components/admin/portal/WorkspaceIntake';
 import { getDocumentUrl } from '@/app/lib/portal-api';
 import { formatDate, formatMoney, formatOfferTotal, offerTotals, prettyName } from '@/app/lib/portal-format';
@@ -27,11 +30,14 @@ import {
   OFFER_BILLING_LABELS,
   OFFER_STATUS_LABELS,
   OPPORTUNITY_STAGES,
+  PROJECT_TYPES,
+  PROJECT_TYPE_LABELS,
   STAGE_LABELS,
   type DocType,
   type OfferBillingType,
   type Opportunity,
   type PortalAccount,
+  type ProjectType,
 } from '@/app/lib/portal-types';
 import {
   Cell,
@@ -40,6 +46,7 @@ import {
   Field,
   PortalButton,
   PortalCard,
+  PortalModal,
   PortalSpinner,
   PortalTable,
   Row,
@@ -48,9 +55,108 @@ import {
   inputClass,
   toneFor,
 } from '@/app/components/portal/PortalUi';
-import { cn } from '@/app/components/ui/utils';
 
 const STAGES = OPPORTUNITY_STAGES.map((key) => ({ key, label: STAGE_LABELS[key] }));
+
+/** Deal settings for the selected opportunity: project type + hours budget (migrations 0034/0035). */
+const OpportunityHoursCard: React.FC<{
+  account: PortalAccount;
+  opportunity: Opportunity;
+  // Reports the persisted values so the parent can patch its cache in place — deliberately no
+  // reload, so saving never flashes the whole pipeline back to a spinner.
+  onSaved: (values: {
+    bank_hours: number | null;
+    notify_hours: number | null;
+    project_type: ProjectType | null;
+  }) => void;
+}> = ({ account, opportunity, onSaved }) => {
+  const [bank, setBank] = React.useState('');
+  const [notify, setNotify] = React.useState('');
+  const [projectType, setProjectType] = React.useState<ProjectType | ''>('');
+  const [busy, setBusy] = React.useState(false);
+
+  React.useEffect(() => {
+    setBank(opportunity.bank_hours != null ? String(opportunity.bank_hours) : '');
+    setNotify(opportunity.notify_hours != null ? String(opportunity.notify_hours) : '');
+    setProjectType(opportunity.project_type ?? '');
+  }, [opportunity.id, opportunity.bank_hours, opportunity.notify_hours, opportunity.project_type]);
+
+  const save = async () => {
+    const bankValue = bank.trim() === '' ? null : Number(bank);
+    const notifyValue = notify.trim() === '' ? null : Number(notify);
+    const typeValue = projectType === '' ? null : projectType;
+    setBusy(true);
+    try {
+      await adminUpsertOpportunity({
+        id: opportunity.id,
+        account_id: account.id,
+        name: opportunity.name,
+        stage: opportunity.stage,
+        amount: opportunity.amount,
+        close_date: opportunity.close_date,
+        bank_hours: bankValue,
+        notify_hours: notifyValue,
+        project_type: typeValue,
+      });
+      toast.success('Deal settings saved — they carry onto new offers and the project.');
+      onSaved({ bank_hours: bankValue, notify_hours: notifyValue, project_type: typeValue });
+    } catch (cause) {
+      toast.error('Could not save the deal settings', {
+        description: cause instanceof Error ? cause.message : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <PortalCard
+      title="Deal settings"
+      description="Project type and an hours budget for this deal. They carry onto new offers and its project; a blank hours field stays hidden from the client."
+    >
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+        <Field label="Project type">
+          <select
+            className={inputClass}
+            value={projectType}
+            onChange={(event) => setProjectType(event.target.value as ProjectType | '')}
+          >
+            <option value="">Not set</option>
+            {PROJECT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {PROJECT_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Bank of hours">
+          <input
+            type="number"
+            min={0}
+            step="0.25"
+            className={inputClass}
+            value={bank}
+            onChange={(event) => setBank(event.target.value)}
+          />
+        </Field>
+        <Field label="Notify customer at (h)">
+          <input
+            type="number"
+            min={0}
+            step="0.25"
+            className={inputClass}
+            value={notify}
+            onChange={(event) => setNotify(event.target.value)}
+          />
+        </Field>
+        <PortalButton onClick={save} disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </PortalButton>
+      </div>
+    </PortalCard>
+  );
+};
+
 const EMPTY_ITEM: OfferItemInput = {
   name: '',
   detail: '',
@@ -67,9 +173,16 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const opportunities = useAsync(() => adminListOpportunities(account.id), [account.id]);
   const offers = useAsync(() => adminListOffers(account.id), [account.id]);
   const documents = useAsync(() => adminListDocuments(account.id), [account.id]);
+  // Internal staff, used to suggest employee names on offer line items.
+  const staff = useAsync(() => adminListInternalUsers(), []);
 
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [expandedOfferId, setExpandedOfferId] = React.useState<string | null>(null);
+
+  // Add / rename opportunity modal
+  const [oppModal, setOppModal] = React.useState<null | { mode: 'create' | 'rename' }>(null);
+  const [oppName, setOppName] = React.useState('');
+  const [oppBusy, setOppBusy] = React.useState(false);
 
   // Offer builder state
   const [showBuilder, setShowBuilder] = React.useState(false);
@@ -77,7 +190,12 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const [summary, setSummary] = React.useState('');
   const [expiresOn, setExpiresOn] = React.useState('');
   const [changeNote, setChangeNote] = React.useState('');
+  // Hours budget for this offer version, prefilled from the opportunity when the builder opens.
+  const [offerBank, setOfferBank] = React.useState('');
+  const [offerNotify, setOfferNotify] = React.useState('');
   const [items, setItems] = React.useState<OfferItemInput[]>([{ ...EMPTY_ITEM }]);
+  // A document attached while building the offer, uploaded once the offer is created.
+  const [offerDoc, setOfferDoc] = React.useState<File | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   // Document uploader state (scoped to the selected opportunity)
@@ -146,33 +264,64 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
     }
   };
 
-  const addOpportunity = async () => {
-    const name = window.prompt('Name this opportunity', `${account.name} — Salesforce engagement`)?.trim();
-    if (!name) return;
+  const openCreateOpp = () => {
+    setOppName(`${account.name} — Salesforce engagement`);
+    setOppModal({ mode: 'create' });
+  };
+
+  const openRenameOpp = () => {
+    if (!selected) return;
+    setOppName(selected.name);
+    setOppModal({ mode: 'rename' });
+  };
+
+  const submitOpp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = oppName.trim();
+    if (!name) {
+      toast.error('Give the opportunity a name.');
+      return;
+    }
+    setOppBusy(true);
     try {
-      const id = await adminUpsertOpportunity({
-        account_id: account.id,
-        name,
-        stage: 'discovery',
-        amount: null,
-        close_date: null,
-      });
-      // Build its Drive folder tree (Discovery / Proposal / Contract / Invoice / Delivery /
-      // Candidates). Best-effort: a missing Drive config must not fail creating the opportunity.
-      try {
-        await driveProvisionOpportunity(account.id, id);
-      } catch (cause) {
-        if (!(cause instanceof DriveNotConfiguredError)) {
-          console.warn('Opportunity Drive provisioning failed:', cause);
+      if (oppModal?.mode === 'rename' && selected) {
+        await adminUpsertOpportunity({
+          id: selected.id,
+          account_id: account.id,
+          name,
+          stage: selected.stage,
+          amount: selected.amount,
+          close_date: selected.close_date,
+        });
+        toast.success('Opportunity renamed.');
+      } else {
+        const id = await adminUpsertOpportunity({
+          account_id: account.id,
+          name,
+          stage: 'discovery',
+          amount: null,
+          close_date: null,
+        });
+        // Build its Drive folder tree (Discovery / Proposal / Contract / Invoice / Delivery /
+        // Candidates). Best-effort: a missing Drive config must not fail creating the opportunity.
+        try {
+          await driveProvisionOpportunity(account.id, id);
+        } catch (cause) {
+          if (!(cause instanceof DriveNotConfiguredError)) {
+            console.warn('Opportunity Drive provisioning failed:', cause);
+          }
         }
+        setSelectedId(id);
       }
-      setSelectedId(id);
+      setOppModal(null);
       await opportunities.reload();
       await onChange();
     } catch (cause) {
-      toast.error('Could not create the opportunity', {
+      toast.error('Could not save the opportunity', {
         description: cause instanceof Error ? cause.message : undefined,
       });
+    } finally {
+      setOppBusy(false);
     }
   };
 
@@ -202,13 +351,18 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const toggleBuilder = () => {
     setShowBuilder((open) => {
       const next = !open;
-      // Opening a fresh builder pre-fills the lines from confirmed candidates.
-      if (next && confirmedCandidates.length > 0) {
-        setItems((current) =>
-          current.some((item) => item.name.trim().length > 0)
-            ? current
-            : confirmedCandidates.map(candidateLine),
-        );
+      if (next) {
+        // Opening a fresh builder pre-fills the lines from confirmed candidates…
+        if (confirmedCandidates.length > 0) {
+          setItems((current) =>
+            current.some((item) => item.name.trim().length > 0)
+              ? current
+              : confirmedCandidates.map(candidateLine),
+          );
+        }
+        // …and the hours budget from the opportunity (still editable per version).
+        setOfferBank(selected?.bank_hours != null ? String(selected.bank_hours) : '');
+        setOfferNotify(selected?.notify_hours != null ? String(selected.notify_hours) : '');
       }
       return next;
     });
@@ -233,13 +387,15 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
     }
     setBusy(true);
     try {
-      await adminCreateOfferVersion({
+      const offerId = await adminCreateOfferVersion({
         account_id: account.id,
         opportunity_id: selected.id,
         title: title.trim(),
         summary: summary.trim(),
         expires_on: expiresOn || null,
         change_note: changeNote.trim() || null,
+        bank_hours: offerBank.trim() === '' ? null : Number(offerBank),
+        notify_hours: offerNotify.trim() === '' ? null : Number(offerNotify),
         items: cleanItems.map((item) => {
           const isFixed = item.billing_type === 'fixed_price';
           return {
@@ -258,12 +414,37 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
         }),
         send,
       });
+
+      // Attach the document picked in the builder, linked to this offer and its opportunity.
+      // Best-effort: the offer already saved, so a failed upload shouldn't lose it.
+      if (offerDoc) {
+        try {
+          await adminUploadDocument({
+            account_id: account.id,
+            name: offerDoc.name,
+            doc_type: 'proposal',
+            status: 'sent',
+            file: offerDoc,
+            opportunity_id: selected.id,
+            related_offer_id: offerId,
+          });
+          await documents.reload();
+        } catch (cause) {
+          toast.warning('Offer saved, but the document could not be attached.', {
+            description: cause instanceof Error ? cause.message : undefined,
+          });
+        }
+      }
+
       toast.success(send ? 'Offer sent to the client.' : 'Draft saved.');
       setShowBuilder(false);
       setTitle('');
       setSummary('');
       setChangeNote('');
+      setOfferBank('');
+      setOfferNotify('');
       setItems([{ ...EMPTY_ITEM }]);
+      setOfferDoc(null);
       await offers.reload();
     } catch (cause) {
       toast.error('Could not save the offer', { description: cause instanceof Error ? cause.message : undefined });
@@ -279,6 +460,18 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
       await offers.reload();
     } catch (cause) {
       toast.error('Could not send', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
+  // Staff-side accept — sign an offer off on the client's behalf (e.g. after a verbal yes).
+  const approve = async (offerId: string, label: string) => {
+    if (!window.confirm(`Mark "${label}" as accepted on the client's behalf?`)) return;
+    try {
+      await adminSetOfferStatus(offerId, account.id, 'accepted', label);
+      toast.success('Offer marked as accepted.');
+      await offers.reload();
+    } catch (cause) {
+      toast.error('Could not approve', { description: cause instanceof Error ? cause.message : undefined });
     }
   };
 
@@ -365,46 +558,58 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   if (offers.error) return <ErrorNote>{offers.error}</ErrorNote>;
 
   return (
-    <div className="space-y-5">
-      <PortalCard
-        title="Opportunities"
+    <div className="space-y-2">
+      <PortalModal
+        open={oppModal !== null}
+        onClose={() => setOppModal(null)}
+        title={oppModal?.mode === 'rename' ? 'Rename opportunity' : 'Add opportunity'}
         description="Each opportunity carries its own offers and documents; winning one spins up a project."
-        action={
-          <PortalButton onClick={addOpportunity}>
-            <Plus className="h-4 w-4" /> Add opportunity
-          </PortalButton>
-        }
       >
-        {opps.length === 0 ? (
-          <EmptyState title="No opportunities yet" description="Add one to start tracking a deal in the portal." />
-        ) : opps.length === 1 ? (
-          <p className="text-sm text-grey">
-            One opportunity — <span className="font-medium text-foreground">{opps[0].name}</span>. Add another to run
-            several deals in parallel.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {opps.map((opp) => (
-              <button
-                key={opp.id}
-                onClick={() => setSelectedId(opp.id)}
-                className={cn(
-                  'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                  opp.id === selected?.id
-                    ? 'border-violet bg-portal-tint text-violet'
-                    : 'border-border-color hover:border-violet/50',
-                )}
-              >
-                <div className="font-medium">{opp.name}</div>
-                <div className="mt-0.5 flex items-center gap-2 text-xs text-grey">
-                  <StatusTag tone={toneFor(opp.stage)}>{STAGE_LABELS[opp.stage]}</StatusTag>
-                  {opp.amount != null && <span>{formatMoney(opp.amount)}</span>}
-                </div>
-              </button>
-            ))}
+        <form onSubmit={submitOpp} className="space-y-3">
+          <Field label="Opportunity name">
+            <input
+              autoFocus
+              className={inputClass}
+              value={oppName}
+              onChange={(event) => setOppName(event.target.value)}
+            />
+          </Field>
+          <div className="flex gap-2">
+            <PortalButton type="submit" disabled={oppBusy}>
+              {oppBusy ? 'Saving…' : oppModal?.mode === 'rename' ? 'Save name' : 'Add opportunity'}
+            </PortalButton>
+            <PortalButton type="button" variant="ghost" onClick={() => setOppModal(null)}>
+              Cancel
+            </PortalButton>
           </div>
-        )}
-      </PortalCard>
+        </form>
+      </PortalModal>
+
+      {/* Header-only selector bar, one row: Section name · picklist (centered) · New button —
+          no body, not collapsible. */}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border-color bg-card px-5 py-3 shadow-sm">
+        <h2 className="shrink-0 text-[15px] font-semibold text-violet">Opportunities</h2>
+        <div className="flex flex-1 justify-center">
+          {opps.length > 1 && (
+            <select
+              className={`${inputClass} w-auto max-w-full py-1.5 text-xs`}
+              value={selected?.id ?? ''}
+              onChange={(event) => setSelectedId(event.target.value)}
+              aria-label="Choose opportunity"
+            >
+              {opps.map((opp) => (
+                <option key={opp.id} value={opp.id}>
+                  {opp.name} · {STAGE_LABELS[opp.stage]}
+                  {opp.amount != null ? ` · ${formatMoney(opp.amount)}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <PortalButton className="shrink-0" onClick={openCreateOpp}>
+          <Plus className="h-4 w-4" /> Add opportunity
+        </PortalButton>
+      </div>
 
       {selected && (
         <>
@@ -424,6 +629,9 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                     </option>
                   ))}
                 </select>
+                <PortalButton variant="ghost" onClick={openRenameOpp} aria-label="Rename opportunity">
+                  <Pencil className="h-4 w-4" />
+                </PortalButton>
                 <PortalButton variant="ghost" onClick={removeOpportunity} aria-label="Delete opportunity">
                   <Trash2 className="h-4 w-4" />
                 </PortalButton>
@@ -434,6 +642,24 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
               <StageTracker stages={STAGES} current={selected.stage} />
             </div>
           </PortalCard>
+
+          <OpportunityHoursCard
+            account={account}
+            opportunity={selected}
+            onSaved={(values) =>
+              opportunities.mutate((previous) =>
+                previous
+                  ? previous.map((opp) => (opp.id === selected.id ? { ...opp, ...values } : opp))
+                  : previous,
+              )
+            }
+          />
+
+          <EntityProductsCard
+            entity="opportunity"
+            id={selected.id}
+            description="Products in scope for this opportunity. Clients can edit these too."
+          />
 
           <WorkspaceIntake account={account} opportunity={selected} onOpportunityChange={opportunities.reload} />
 
@@ -448,8 +674,14 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
               </PortalButton>
             }
           >
-            {showBuilder && (
-              <div className="mb-5 space-y-3 rounded-lg border border-border-color bg-off-white p-4">
+            <PortalModal
+              open={showBuilder}
+              onClose={() => setShowBuilder(false)}
+              title="New offer version"
+              description="Revisions create a new version for this opportunity; the previous one is superseded."
+              className="max-w-3xl"
+            >
+              <div className="space-y-3">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Offer title">
                     <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -479,8 +711,37 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                   />
                 </Field>
 
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Bank of hours" hint="Carried onto the project when this deal is won.">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.25"
+                      className={inputClass}
+                      value={offerBank}
+                      onChange={(event) => setOfferBank(event.target.value)}
+                    />
+                  </Field>
+                  <Field label="Notify customer at (h)">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.25"
+                      className={inputClass}
+                      value={offerNotify}
+                      onChange={(event) => setOfferNotify(event.target.value)}
+                    />
+                  </Field>
+                </div>
+
                 <div className="space-y-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-grey">Line items</span>
+                  {/* Employee-name suggestions for the line-item Name field. */}
+                  <datalist id="offer-employee-names">
+                    {(staff.data ?? []).map((person) => (
+                      <option key={person.id} value={prettyName(person.full_name)} />
+                    ))}
+                  </datalist>
                   {items.map((item, index) => {
                     const isFixed = item.billing_type === 'fixed_price';
                     const monthlyHoursNum = Number(item.monthly_hours) || 0;
@@ -494,6 +755,7 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                           <input
                             className={inputClass}
                             placeholder="Name"
+                            list="offer-employee-names"
                             value={item.name}
                             onChange={(event) => patchItem(index, { name: event.target.value })}
                           />
@@ -626,6 +888,14 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                   )}
                 </div>
 
+                <Field label="Attach document" hint="Optional — attached to this offer once it's saved.">
+                  <input
+                    type="file"
+                    className={`${inputClass} py-1.5`}
+                    onChange={(event) => setOfferDoc(event.target.files?.[0] ?? null)}
+                  />
+                </Field>
+
                 <div className="flex flex-wrap items-center gap-3 border-t border-border-color pt-3">
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm font-semibold">
                     {builderTotals.hasFixed && <span>Fixed: {formatMoney(builderTotals.fixed)}/mo</span>}
@@ -642,7 +912,7 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                   </div>
                 </div>
               </div>
-            )}
+            </PortalModal>
 
             {oppOffers.length === 0 ? (
               <EmptyState title="No offers yet" />
@@ -686,6 +956,14 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                             {offer.status === 'draft' && (
                               <PortalButton onClick={() => send(offer.id, `${offer.title} (v${offer.version})`)}>
                                 <Send className="h-4 w-4" /> Send
+                              </PortalButton>
+                            )}
+                            {(offer.status === 'sent' || offer.status === 'changes_requested') && (
+                              <PortalButton
+                                variant="secondary"
+                                onClick={() => approve(offer.id, `${offer.title} (v${offer.version})`)}
+                              >
+                                <Check className="h-4 w-4" /> Approve
                               </PortalButton>
                             )}
                           </div>

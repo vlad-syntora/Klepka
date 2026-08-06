@@ -33,6 +33,7 @@ export const FeedbackDialog: React.FC<{
   const [rating, setRating] = React.useState(5);
   const [comment, setComment] = React.useState('');
   const [urgent, setUrgent] = React.useState(false);
+  const [isPublic, setIsPublic] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
@@ -73,10 +74,13 @@ export const FeedbackDialog: React.FC<{
         comment: comment.trim(),
         aboutUserId: about || null,
         isUrgent: urgent,
+        // Public only makes sense about a specific person; the server enforces this too.
+        isPublic: isPublic && Boolean(about),
       });
       toast.success(urgent ? 'Sent — your account owner and their manager are notified now.' : 'Thanks for the feedback.');
       setComment('');
       setUrgent(false);
+      setIsPublic(false);
       setRating(5);
       setAbout('');
       await reload();
@@ -122,7 +126,14 @@ export const FeedbackDialog: React.FC<{
                 label="About"
                 hint="Only people staffed on your account appear here."
               >
-                <select className={inputClass} value={about} onChange={(event) => setAbout(event.target.value)}>
+                <select
+                  className={inputClass}
+                  value={about}
+                  onChange={(event) => {
+                    setAbout(event.target.value);
+                    if (!event.target.value) setIsPublic(false); // public applies to a person only
+                  }}
+                >
                   <option value="">General feedback about Klepka</option>
                   {targets.map((target) => (
                     <option key={target.user_id} value={target.user_id}>
@@ -159,6 +170,21 @@ export const FeedbackDialog: React.FC<{
               Flag as urgent — notify the account owner and their manager immediately
             </label>
 
+            {about && (
+              <label className="flex items-start gap-2 text-sm text-grey">
+                <input
+                  type="checkbox"
+                  checked={isPublic}
+                  onChange={(event) => setIsPublic(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[color:var(--violet)]"
+                />
+                <span>
+                  Share this publicly — after our team approves it, other Klepka clients can see it (shown anonymously,
+                  without your name or company).
+                </span>
+              </label>
+            )}
+
             <PortalButton type="submit" disabled={busy}>
               {busy ? 'Submitting…' : 'Submit feedback'}
             </PortalButton>
@@ -182,6 +208,12 @@ export const FeedbackDialog: React.FC<{
                       </div>
                       <div className="flex items-center gap-2">
                         {entry.is_urgent && <StatusTag tone="red">Urgent</StatusTag>}
+                        {entry.is_public &&
+                          (entry.public_approved_at ? (
+                            <StatusTag tone="violet">Public</StatusTag>
+                          ) : (
+                            <StatusTag tone="amber">Public · pending</StatusTag>
+                          ))}
                         <StatusTag tone={toneFor(entry.status)}>{humanize(entry.status)}</StatusTag>
                       </div>
                     </div>

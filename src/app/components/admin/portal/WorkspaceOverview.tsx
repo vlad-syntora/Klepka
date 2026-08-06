@@ -12,6 +12,8 @@ import {
   driveRenameFolder,
 } from '@/app/lib/portal-admin-api';
 import { WorkspaceTeam } from '@/app/components/admin/portal/WorkspaceTeam';
+import { WorkspaceResources } from '@/app/components/admin/portal/WorkspaceResources';
+import { EntityProductsCard } from '@/app/components/portal/EntityProductsCard';
 import { formatDateTime, prettyName } from '@/app/lib/portal-format';
 import {
   ACCOUNT_SOURCES,
@@ -134,14 +136,14 @@ export const WorkspaceOverview: React.FC<{
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
-      <div className="space-y-5 lg:col-span-2">
+    <div className="grid gap-2 lg:grid-cols-3">
+      <div className="space-y-2 lg:col-span-2">
         {!canEdit && (
           <InfoNote>Your role can view this account but not change its settings.</InfoNote>
         )}
         <PortalCard title="Snapshot" description="Stage changes are reflected in the client's portal immediately.">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Account name" className="sm:col-span-3" hint="Must be unique — renaming is blocked if another account already uses the name.">
+          <div className="grid gap-3 sm:grid-cols-6">
+            <Field label="Account name" className="sm:col-span-2" hint="Must be unique — renaming is blocked if another account already uses the name.">
               <input
                 className={inputClass}
                 value={name}
@@ -150,7 +152,7 @@ export const WorkspaceOverview: React.FC<{
                 onBlur={saveName}
               />
             </Field>
-            <Field label="Account icon (URL)" className="sm:col-span-3" hint="Shown as the account avatar in the client portal.">
+            <Field label="Account icon (URL)" className="sm:col-span-2" hint="Shown as the account avatar in the client portal.">
               <div className="relative">
                 <input
                   type="url"
@@ -174,7 +176,22 @@ export const WorkspaceOverview: React.FC<{
                 )}
               </div>
             </Field>
-            <Field label="Lifecycle stage">
+            <Field label="Account owner" className="sm:col-span-2">
+              <select
+                className={inputClass}
+                value={account.owner_id ?? ''}
+                disabled={busy || !canEdit || owners.loading}
+                onChange={(event) => patch({ owner_id: event.target.value || null }, 'Owner reassigned.')}
+              >
+                <option value="">Unassigned</option>
+                {(owners.data ?? []).map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {prettyName(owner.full_name)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Lifecycle stage" className="sm:col-span-3">
               <select
                 className={inputClass}
                 value={account.lifecycle}
@@ -190,7 +207,7 @@ export const WorkspaceOverview: React.FC<{
                 ))}
               </select>
             </Field>
-            <Field label="Health">
+            <Field label="Health" className="sm:col-span-3">
               <select
                 className={inputClass}
                 value={account.health}
@@ -204,22 +221,7 @@ export const WorkspaceOverview: React.FC<{
                 ))}
               </select>
             </Field>
-            <Field label="Account owner">
-              <select
-                className={inputClass}
-                value={account.owner_id ?? ''}
-                disabled={busy || !canEdit || owners.loading}
-                onChange={(event) => patch({ owner_id: event.target.value || null }, 'Owner reassigned.')}
-              >
-                <option value="">Unassigned</option>
-                {(owners.data ?? []).map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {prettyName(owner.full_name)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Source">
+            <Field label="Source" className="sm:col-span-3">
               <select
                 className={inputClass}
                 value={account.source ?? ''}
@@ -234,7 +236,7 @@ export const WorkspaceOverview: React.FC<{
                 ))}
               </select>
             </Field>
-            <Field label="Source subtype" className="sm:col-span-2" hint="e.g. referrer, event or partner name.">
+            <Field label="Source subtype" className="sm:col-span-3" hint="e.g. referrer, event or partner name.">
               <input
                 className={inputClass}
                 value={sourceSubtype}
@@ -245,6 +247,33 @@ export const WorkspaceOverview: React.FC<{
             </Field>
           </div>
         </PortalCard>
+
+        <WorkspaceResources account={account} canEdit={canEdit} />
+
+        <WorkspaceTeam account={account} canEdit={canEdit} />
+
+        {canEdit && (
+          <PortalCard title="Danger zone" description="Deleting an account cannot be undone.">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-grey">
+                Removes this account and every user, offer, document, invoice and project attached to it. Drive files are
+                left in place.
+              </p>
+              <PortalButton variant="danger" onClick={deleteAccount} disabled={deleting}>
+                <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete account'}
+              </PortalButton>
+            </div>
+          </PortalCard>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <EntityProductsCard
+          entity="account"
+          id={account.id}
+          canEdit={canEdit}
+          description="Products associated with this account. Clients can edit these too."
+        />
 
         <PortalCard
           title="Internal notes"
@@ -268,46 +297,30 @@ export const WorkspaceOverview: React.FC<{
           />
         </PortalCard>
 
-        <WorkspaceTeam account={account} />
-
-        {canEdit && (
-          <PortalCard title="Danger zone" description="Deleting an account cannot be undone.">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-grey">
-                Removes this account and every user, offer, document, invoice and project attached to it. Drive files are
-                left in place.
-              </p>
-              <PortalButton variant="danger" onClick={deleteAccount} disabled={deleting}>
-                <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting…' : 'Delete account'}
-              </PortalButton>
-            </div>
-          </PortalCard>
-        )}
+        <PortalCard title="Activity log">
+          {activity.loading ? (
+            <PortalSpinner />
+          ) : activity.error ? (
+            <ErrorNote>{activity.error}</ErrorNote>
+          ) : (activity.data ?? []).length === 0 ? (
+            <EmptyState title="No activity yet" />
+          ) : (
+            <ul className="space-y-3">
+              {(activity.data ?? []).map((entry) => (
+                <li key={entry.id} className="text-sm">
+                  <div className="flex items-center gap-2">
+                    <StatusTag tone="violet">{humanize(entry.category)}</StatusTag>
+                    {!entry.client_visible && <StatusTag tone="grey">Internal</StatusTag>}
+                  </div>
+                  <div className="mt-1 font-medium">{entry.title}</div>
+                  {entry.detail && <div className="text-grey">{entry.detail}</div>}
+                  <div className="text-xs text-grey">{formatDateTime(entry.created_at)}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PortalCard>
       </div>
-
-      <PortalCard title="Activity log" alwaysOpen>
-        {activity.loading ? (
-          <PortalSpinner />
-        ) : activity.error ? (
-          <ErrorNote>{activity.error}</ErrorNote>
-        ) : (activity.data ?? []).length === 0 ? (
-          <EmptyState title="No activity yet" />
-        ) : (
-          <ul className="space-y-3">
-            {(activity.data ?? []).map((entry) => (
-              <li key={entry.id} className="text-sm">
-                <div className="flex items-center gap-2">
-                  <StatusTag tone="violet">{humanize(entry.category)}</StatusTag>
-                  {!entry.client_visible && <StatusTag tone="grey">Internal</StatusTag>}
-                </div>
-                <div className="mt-1 font-medium">{entry.title}</div>
-                {entry.detail && <div className="text-grey">{entry.detail}</div>}
-                <div className="text-xs text-grey">{formatDateTime(entry.created_at)}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </PortalCard>
     </div>
   );
 };

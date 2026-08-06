@@ -2,10 +2,18 @@ import React from 'react';
 import { CalendarPlus, ChevronDown, Mail, MessageSquareHeart } from 'lucide-react';
 import { initialsOf, prettyName } from '@/app/lib/portal-format';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
-import type { AccountTeamMember, ProjectBundle } from '@/app/lib/portal-types';
+import type {
+  AccountTeamMember,
+  Candidate,
+  Opportunity,
+  ProjectBundle,
+  PublicReview,
+  StaffRating,
+} from '@/app/lib/portal-types';
 import { PortalButton, PortalCard } from '@/app/components/portal/PortalUi';
 import { CalendlyButton } from '@/app/components/portal/CalendlyButton';
 import { FeedbackDialog } from '@/app/components/portal/FeedbackDialog';
+import { RatingSummary, useStaffFeedback } from '@/app/components/portal/StaffRating';
 
 interface Person {
   id: string;
@@ -14,6 +22,8 @@ interface Person {
   email: string | null;
   photoUrl: string | null;
   calendlyUrl: string | null;
+  // Offer-derived roster rows have no linked user account, so feedback/ratings don't apply to them.
+  canFeedback: boolean;
 }
 
 type Prefill = { name?: string; email?: string } | undefined;
@@ -86,16 +96,19 @@ const IconButton: React.FC<{ children: React.ReactNode; label: string }> = ({ ch
   </span>
 );
 
-const PersonRow: React.FC<{ person: Person; prefill: Prefill; onLeaveFeedback: (personId: string) => void }> = ({
-  person,
-  prefill,
-  onLeaveFeedback,
-}) => (
+const PersonRow: React.FC<{
+  person: Person;
+  prefill: Prefill;
+  onLeaveFeedback: (personId: string) => void;
+  rating?: StaffRating;
+  reviews?: PublicReview[];
+}> = ({ person, prefill, onLeaveFeedback, rating, reviews }) => (
   <li className="flex items-center gap-3 py-3">
     <Avatar person={person} />
     <div className="min-w-0 flex-1">
       <div className="truncate text-sm font-medium">{prettyName(person.name)}</div>
       {person.title && <div className="truncate text-xs text-grey">{person.title}</div>}
+      {person.canFeedback && <RatingSummary name={person.name} rating={rating} reviews={reviews} />}
     </div>
     <div className="flex shrink-0 items-center gap-1.5">
       {/* Book a call on this person's own Calendly — shown only when they have a link. */}
@@ -117,16 +130,18 @@ const PersonRow: React.FC<{ person: Person; prefill: Prefill; onLeaveFeedback: (
           </IconButton>
         </a>
       )}
-      {/* Leave feedback specifically about this person. */}
-      <button
-        type="button"
-        onClick={() => onLeaveFeedback(person.id)}
-        aria-label={`Leave feedback about ${prettyName(person.name)}`}
-        title={`Leave feedback about ${prettyName(person.name)}`}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-border-color text-grey transition-colors hover:bg-portal-tint hover:text-violet"
-      >
-        <MessageSquareHeart className="h-4 w-4" />
-      </button>
+      {/* Leave feedback specifically about this person — only for people with a real user account. */}
+      {person.canFeedback && (
+        <button
+          type="button"
+          onClick={() => onLeaveFeedback(person.id)}
+          aria-label={`Leave feedback about ${prettyName(person.name)}`}
+          title={`Leave feedback about ${prettyName(person.name)}`}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-border-color text-grey transition-colors hover:bg-portal-tint hover:text-violet"
+        >
+          <MessageSquareHeart className="h-4 w-4" />
+        </button>
+      )}
     </div>
   </li>
 );
@@ -140,7 +155,10 @@ export const KlepkaTeamWidget: React.FC<{
   klepkaTeam: AccountTeamMember[];
   projects: ProjectBundle[];
   owner?: OwnerEmbed;
-}> = ({ klepkaTeam, projects, owner }) => {
+  /** Approved (confirmed) candidates, grouped into a team per opportunity they were staffed on. */
+  candidates?: Candidate[];
+  opportunities?: Opportunity[];
+}> = ({ klepkaTeam, projects, owner, candidates = [], opportunities = [] }) => {
   // Prefill Calendly with the signed-in client's details so they don't retype them.
   const { user } = usePortalUser();
   const prefill: Prefill = user ? { name: prettyName(user.full_name), email: user.email } : undefined;
@@ -173,6 +191,7 @@ export const KlepkaTeamWidget: React.FC<{
           email: owner.email ?? null,
           photoUrl: owner.photo_url ?? null,
           calendlyUrl: owner.calendly_url ?? null,
+          canFeedback: true,
         },
       ],
     });
@@ -191,32 +210,69 @@ export const KlepkaTeamWidget: React.FC<{
         email: member.user!.email,
         photoUrl: member.user!.photo_url ?? null,
         calendlyUrl: member.user!.calendly_url ?? null,
+        canFeedback: true,
       })),
   ).filter(notOwner);
   if (preSale.length > 0) sections.push({ key: 'pre-sale', title: 'Pre-sale team', people: preSale });
 
   for (const bundle of projects) {
+    // Include offer-derived roster rows (no linked user, just a display_name) so the project team
+    // shows up here too — not only members backed by a real user account.
     const people = dedup(
       bundle.team
-        .filter((member) => member.user)
-        .map((member) => ({
-          id: member.user!.id,
-          name: member.user!.full_name,
-          title: member.user!.title ?? member.project_role,
-          email: member.user!.email,
-          photoUrl: member.user!.photo_url ?? null,
-          calendlyUrl: member.user!.calendly_url ?? null,
-        })),
+        .filter((member) => member.user || member.display_name)
+        .map((member) =>
+          member.user
+            ? {
+                id: member.user.id,
+                name: member.user.full_name,
+                title: member.user.title ?? member.project_role,
+                email: member.user.email,
+                photoUrl: member.user.photo_url ?? null,
+                calendlyUrl: member.user.calendly_url ?? null,
+                canFeedback: true,
+              }
+            : {
+                id: member.id,
+                name: member.display_name as string,
+                title: member.project_role,
+                email: null,
+                photoUrl: null,
+                calendlyUrl: null,
+                canFeedback: false,
+              },
+        ),
     ).filter(notOwner);
     if (people.length > 0) sections.push({ key: bundle.project.id, title: bundle.project.name, people });
   }
+
+  // Approved candidates become the opportunity's staffed team — one group per opportunity that
+  // has at least one confirmed candidate.
+  for (const opp of opportunities) {
+    const people = dedup(
+      candidates
+        .filter((candidate) => candidate.opportunity_id === opp.id && candidate.status === 'confirmed' && candidate.user)
+        .map((candidate) => ({
+          id: candidate.user!.id,
+          name: candidate.user!.full_name,
+          title: candidate.title ?? candidate.user!.title,
+          email: candidate.user!.email,
+          photoUrl: candidate.user!.photo_url ?? null,
+          calendlyUrl: candidate.user!.calendly_url ?? null,
+          canFeedback: true,
+        })),
+    ).filter(notOwner);
+    if (people.length > 0) sections.push({ key: `opp-${opp.id}`, title: opp.name, people });
+  }
+
+  // One shared lookup of ratings + public reviews for everyone shown in the card.
+  const { ratings, reviews } = useStaffFeedback(sections.flatMap((section) => section.people.map((person) => person.id)));
 
   if (sections.length === 0) return null;
 
   return (
     <PortalCard
-      title="Your Klepka team"
-      description="The people working with you — reach any of them directly."
+      title="Your Klepka Team"
       action={
         <PortalButton variant="secondary" onClick={() => openFeedback('')}>
           <MessageSquareHeart className="h-4 w-4" /> Leave feedback
@@ -252,6 +308,8 @@ export const KlepkaTeamWidget: React.FC<{
                       person={person}
                       prefill={prefill}
                       onLeaveFeedback={openFeedback}
+                      rating={ratings.get(person.id)}
+                      reviews={reviews.get(person.id)}
                     />
                   ))}
                 </ul>

@@ -28,6 +28,11 @@ import { AdminAccountWorkspace } from './pages/admin/portal/AdminAccountWorkspac
 import { ClientPreview } from './pages/admin/portal/ClientPreview';
 import { AdminPortalTeam } from './pages/admin/portal/AdminPortalTeam';
 import { AdminPortalFeedback } from './pages/admin/portal/AdminPortalFeedback';
+import { AdminPortalProducts } from './pages/admin/portal/AdminPortalProducts';
+import { AdminPortalDashboard } from './pages/admin/portal/AdminPortalDashboard';
+import { AdminSalesProcessSettings } from './pages/admin/portal/AdminSalesProcessSettings';
+import { AdminPublicHolidays } from './pages/admin/portal/AdminPublicHolidays';
+import { AdminHomeRedirect, RequireNotImplementer } from './components/admin/portal/ImplementerGate';
 import { PortalUserProvider } from './components/portal/PortalUserProvider';
 import { InternalGuard, PortalGuard } from './components/portal/PortalGuard';
 import { PortalLayout } from './components/portal/PortalLayout';
@@ -35,9 +40,8 @@ import { PortalLogin } from './pages/portal/PortalLogin';
 import { PortalDashboard } from './pages/portal/PortalDashboard';
 import { PortalStart } from './pages/portal/PortalStart';
 import { PortalIntake } from './pages/portal/PortalIntake';
-import { PortalPipeline } from './pages/portal/PortalPipeline';
 import { PortalPayments } from './pages/portal/PortalPayments';
-import { PortalProject } from './pages/portal/PortalProject';
+import { PortalProjectHub } from './pages/portal/PortalProjectHub';
 import { PortalNotifications } from './pages/portal/PortalNotifications';
 import { PortalSettings } from './pages/portal/PortalSettings';
 
@@ -79,9 +83,10 @@ function AppLayout() {
             <Route index element={<PortalDashboard />} />
             <Route path="start" element={<PortalStart />} />
             <Route path="intake" element={<PortalIntake />} />
-            <Route path="pipeline" element={<PortalPipeline />} />
+            {/* Pipeline & Offers is now a tab inside the Project Tracker — keep the old URL working. */}
+            <Route path="pipeline" element={<Navigate to="../project" replace />} />
             <Route path="payments" element={<PortalPayments />} />
-            <Route path="project" element={<PortalProject />} />
+            <Route path="project" element={<PortalProjectHub />} />
             <Route path="notifications" element={<PortalNotifications />} />
             <Route path="settings" element={<PortalSettings />} />
             <Route path="*" element={<Navigate to="/portal" replace />} />
@@ -118,17 +123,22 @@ function AppLayout() {
               </AdminGuard>
             }
           >
-            <Route index element={<Navigate to="/admin/articles" replace />} />
-            <Route path="articles" element={<AdminArticles />} />
-            <Route path="articles/new" element={<AdminArticleEditor />} />
-            <Route path="articles/:id" element={<AdminArticleEditor />} />
-            <Route path="authors" element={<AdminAuthors />} />
-            <Route path="comments" element={<AdminComments />} />
+            <Route index element={<AdminHomeRedirect />} />
+            {/* Content is off-limits to the delivery-only Implementer role. */}
+            <Route path="articles" element={<RequireNotImplementer><AdminArticles /></RequireNotImplementer>} />
+            <Route path="articles/new" element={<RequireNotImplementer><AdminArticleEditor /></RequireNotImplementer>} />
+            <Route path="articles/:id" element={<RequireNotImplementer><AdminArticleEditor /></RequireNotImplementer>} />
+            <Route path="authors" element={<RequireNotImplementer><AdminAuthors /></RequireNotImplementer>} />
+            <Route path="comments" element={<RequireNotImplementer><AdminComments /></RequireNotImplementer>} />
             <Route path="portal" element={<Outlet />}>
-              <Route index element={<Navigate to="/admin/portal/accounts" replace />} />
+              <Route index element={<Navigate to="/admin/portal/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminPortalDashboard />} />
               <Route path="accounts" element={<AdminAccounts />} />
               <Route path="accounts/:id" element={<AdminAccountWorkspace />} />
               <Route path="team" element={<AdminPortalTeam />} />
+              <Route path="products" element={<RequireNotImplementer><AdminPortalProducts /></RequireNotImplementer>} />
+              <Route path="settings" element={<AdminSalesProcessSettings />} />
+              <Route path="holidays" element={<RequireNotImplementer><AdminPublicHolidays /></RequireNotImplementer>} />
               <Route path="feedback" element={<AdminPortalFeedback />} />
             </Route>
           </Route>

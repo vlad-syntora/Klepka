@@ -1,6 +1,6 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Check, ExternalLink, Pencil, UserPlus, X } from 'lucide-react';
+import { Check, ExternalLink, Pencil, Sparkles, UserPlus, X } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
 import {
   adminCreateCandidate,
@@ -9,6 +9,7 @@ import {
   adminListInternalUsers,
   adminUpdateCandidate,
 } from '@/app/lib/portal-admin-api';
+import { listEntityProducts, listUserProducts } from '@/app/lib/portal-api';
 import { formatMoney, prettyName } from '@/app/lib/portal-format';
 import {
   CANDIDATE_STATUSES,
@@ -208,6 +209,8 @@ export const WorkspaceCandidates: React.FC<{ account: PortalAccount; opportunity
 }) => {
   const candidates = useAsync(() => adminListCandidates(opportunity.id), [opportunity.id]);
   const staff = useAsync(() => adminListInternalUsers(), []);
+  // Products requested on this opportunity — used to suggest the best-matching staff.
+  const requested = useAsync(() => listEntityProducts('opportunity', opportunity.id), [opportunity.id]);
 
   const [userId, setUserId] = React.useState('');
   const [title, setTitle] = React.useState('');
@@ -218,6 +221,42 @@ export const WorkspaceCandidates: React.FC<{ account: PortalAccount; opportunity
   const rows = candidates.data ?? [];
   const alreadyCandidate = new Set(rows.map((row) => row.user_id));
   const available = (staff.data ?? []).filter((person) => !alreadyCandidate.has(person.id));
+
+  // Each staffer's skills (owned products), fetched once for everyone in the directory.
+  const [skills, setSkills] = React.useState<Map<string, { id: string; name: string }[]>>(new Map());
+  const staffKey = (staff.data ?? []).map((person) => person.id).sort().join(',');
+  React.useEffect(() => {
+    const ids = staffKey ? staffKey.split(',') : [];
+    if (ids.length === 0) {
+      setSkills(new Map());
+      return;
+    }
+    let cancelled = false;
+    listUserProducts(ids)
+      .then((map) => {
+        if (!cancelled) setSkills(map);
+      })
+      .catch(() => {
+        if (!cancelled) setSkills(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [staffKey]);
+
+  // Rank available staff by how many of the opportunity's requested products they own, best first.
+  const requestedIds = new Set((requested.data ?? []).map((product) => product.id));
+  const suggestions =
+    requestedIds.size === 0
+      ? []
+      : available
+          .map((person) => {
+            const matched = (skills.get(person.id) ?? []).filter((product) => requestedIds.has(product.id));
+            return { person, matched };
+          })
+          .filter((entry) => entry.matched.length > 0)
+          .sort((a, b) => b.matched.length - a.matched.length)
+          .slice(0, 6);
 
   const add = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -261,6 +300,50 @@ export const WorkspaceCandidates: React.FC<{ account: PortalAccount; opportunity
         </PortalButton>
       }
     >
+      {suggestions.length > 0 && (
+        <div className="mb-4 rounded-lg border border-violet/30 bg-portal-tint/40 p-4">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet">
+            <Sparkles className="h-3.5 w-3.5" /> Suggested by matching skills
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map(({ person, matched }) => {
+              const selected = userId === person.id;
+              return (
+                <button
+                  key={person.id}
+                  type="button"
+                  onClick={() => setUserId(person.id)}
+                  className={`flex flex-col items-start gap-1 rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition-colors ${
+                    selected
+                      ? 'border-violet bg-violet text-white'
+                      : 'border-border-color bg-card text-violet hover:bg-portal-tint'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {prettyName(person.full_name)}
+                    <span className={selected ? 'text-white/80' : 'text-grey'}>
+                      · {matched.length} match{matched.length > 1 ? 'es' : ''}
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap gap-1">
+                    {matched.map((product) => (
+                      <span
+                        key={product.id}
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          selected ? 'bg-white/20 text-white' : 'bg-portal-tint text-violet'
+                        }`}
+                      >
+                        {product.name}
+                      </span>
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={add} className="mb-4 grid gap-3 rounded-lg border border-border-color bg-off-white p-4 sm:grid-cols-[1.5fr_1.5fr_1.5fr_1fr_auto]">
         <Field label="Person">
           <select className={inputClass} value={userId} onChange={(event) => setUserId(event.target.value)}>

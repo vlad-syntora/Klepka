@@ -54,7 +54,7 @@ export const PortalPayments: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <div className="grid gap-4 sm:grid-cols-3">
         <StatTile label="Total contracted" value={formatMoney(contracted, currency)} />
         <StatTile label="Paid to date" value={formatMoney(paid, currency)} tone="green" />

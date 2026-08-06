@@ -1,13 +1,45 @@
 import React from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Building2, FileText, LogOut, MessageSquare, MessageSquareHeart, Users, UsersRound } from 'lucide-react';
+import {
+  Building2,
+  CalendarDays,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  MessageSquare,
+  MessageSquareHeart,
+  Package,
+  SlidersHorizontal,
+  Users,
+  UsersRound,
+} from 'lucide-react';
 import { SEOHead } from '../SEOHead';
 import { getSupabase } from '@/app/lib/supabase';
+import { usePortalUser } from '@/app/hooks/use-portal-user';
+import { canManageSalesSettings, isImplementer, type PortalRole } from '@/app/lib/portal-types';
 import logoPurple from '../../../assets/85bd7ec43f69e1c0fc0ed1f1121c7466d87fd6c5.png';
 
-const navGroups = [
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ElementType;
+  /** When set, the item is shown only if this returns true for the signed-in user's role. */
+  gate?: 'sales-settings';
+  /** Hidden from the delivery-only Implementer role (Content, Products). */
+  hideFromImplementer?: boolean;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+  /** The whole group is hidden from the Implementer role (Content). */
+  hideFromImplementer?: boolean;
+}
+
+const navGroups: NavGroup[] = [
   {
     title: 'Content',
+    hideFromImplementer: true,
     items: [
       { name: 'Articles', path: '/admin/articles', icon: FileText },
       { name: 'Authors', path: '/admin/authors', icon: Users },
@@ -17,15 +49,23 @@ const navGroups = [
   {
     title: 'Client portal',
     items: [
+      { name: 'Dashboard', path: '/admin/portal/dashboard', icon: LayoutDashboard },
+      { name: 'Public Holidays', path: '/admin/portal/holidays', icon: CalendarDays, hideFromImplementer: true },
       { name: 'Accounts', path: '/admin/portal/accounts', icon: Building2 },
-      { name: 'Users & Team', path: '/admin/portal/team', icon: UsersRound },
+      { name: 'Products', path: '/admin/portal/products', icon: Package, hideFromImplementer: true },
+      { name: 'Sales Process Settings', path: '/admin/portal/settings', icon: SlidersHorizontal, gate: 'sales-settings' },
       { name: 'Feedback', path: '/admin/portal/feedback', icon: MessageSquareHeart },
+      { name: 'Users & Team', path: '/admin/portal/team', icon: UsersRound },
     ],
   },
 ];
 
 export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = usePortalUser();
+  const role: PortalRole | null = user?.role ?? null;
+  const canManageSettings = role ? canManageSalesSettings(role) : false;
+  const implementer = role ? isImplementer(role) : false;
 
   const handleSignOut = async () => {
     await getSupabase().auth.signOut();
@@ -42,10 +82,15 @@ export const AdminLayout: React.FC = () => {
         </Link>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {navGroups.map((group) => (
+          {navGroups
+            .filter((group) => !(group.hideFromImplementer && implementer))
+            .map((group) => (
             <div key={group.title} className="space-y-1">
               <div className="px-3 pb-1 text-[11px] uppercase tracking-widest text-white/50">{group.title}</div>
-              {group.items.map((item) => (
+              {group.items
+                .filter((item) => item.gate !== 'sales-settings' || canManageSettings)
+                .filter((item) => !(item.hideFromImplementer && implementer))
+                .map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}

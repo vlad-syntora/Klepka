@@ -7,22 +7,33 @@ import {
   FeedbackSchema,
   IntakeItemSchema,
   IntakeTemplateSchema,
-  InvoiceSchema,
   MaterialTemplateSchema,
-  MeetingSchema,
   MilestoneSchema,
   OfferSchema,
   OpportunitySchema,
+  OverheadExpenseSchema,
+  FinanceSettingsSchema,
   PortalAccountSchema,
+  PortalTeamSchema,
   PortalUserSchema,
   ProductSchema,
   ProjectSchema,
   ProjectTeamMemberSchema,
   PublicHolidaySchema,
+  TimeOffSchema,
+  TimeOffResponseSchema,
+  MyTeamTimeOffSchema,
+  TimeOffReviewSchema,
+  TimeOffReplacementSchema,
   ResourceSchema,
+  SalarySchema,
+  BillingInvoiceSchema,
+  FinanceTransactionSchema,
   TimeEntrySchema,
   AccountTeamMemberSchema,
   type AccountTeamMember,
+  type BillingInvoice,
+  type BillingInvoiceStatus,
   type Product,
   type ProductDocument,
   type Activity,
@@ -30,11 +41,9 @@ import {
   type Feedback,
   type Health,
   type IntakeItem,
-  type Invoice,
   type Lifecycle,
   type IntakeTemplate,
   type MaterialTemplate,
-  type Meeting,
   type Milestone,
   type Offer,
   type OfferBillingType,
@@ -43,19 +52,35 @@ import {
   type PortalDocument,
   type PortalResource,
   type PortalRole,
+  type PortalTeam,
+  type OverheadExpense,
+  type OverheadCadence,
+  type OverheadScope,
+  type FinanceSettings,
+  type FinanceTransaction,
+  type FinanceTransactionKind,
   type PortalUser,
   type Project,
   type ProjectTeamMember,
   type ProjectType,
   type PublicHoliday,
+  type Salary,
+  type SalaryStatus,
   type TimeEntry,
+  type TimeOff,
+  type TimeOffKind,
+  type TimeOffResponse,
+  type TimeOffStatus,
+  type MyTeamTimeOff,
+  type TimeOffReview,
+  type TimeOffReplacement,
 } from '@/app/lib/portal-types';
 
 const ACCOUNT_COLUMNS =
   'id, name, logo_url, source, source_subtype, industry, lifecycle, health, owner_id, internal_notes, created_at, updated_at, drive_folder_id, drive_web_link, drive_folders, owner:portal_users!portal_accounts_owner_fkey(id, full_name, title, email, calendly_url, photo_url)';
 
 const USER_COLUMNS =
-  'id, auth_user_id, email, full_name, role, account_id, module_access, title, status, last_login_at, calendly_url, photo_url, created_at';
+  'id, auth_user_id, email, full_name, role, account_id, module_access, title, status, last_login_at, calendly_url, photo_url, pay_rate, pay_currency, team_id, counts_for_overhead, created_at';
 
 export async function adminListAccounts(): Promise<PortalAccount[]> {
   const { data, error } = await getSupabase()
@@ -158,11 +183,16 @@ export async function adminListUsers(): Promise<PortalUser[]> {
   return z.array(PortalUserSchema).parse(data ?? []);
 }
 
+// Internal staff for assignment pickers (owners, project/account teams, offer employees, worklog
+// reporters, …). Every caller is a "pick a person to assign" dropdown, so only ACTIVE staff are
+// returned — invited/inactive accounts can't yet be staffed. Management screens that must see every
+// user (WorkspaceUsers, AdminPortalTeam) use adminListUsers/adminListAccountUsers instead.
 export async function adminListInternalUsers(): Promise<PortalUser[]> {
   const { data, error } = await getSupabase()
     .from('portal_users')
     .select(USER_COLUMNS)
     .is('account_id', null)
+    .eq('status', 'active')
     .order('full_name');
   if (error) throw new Error(error.message);
   return z.array(PortalUserSchema).parse(data ?? []);
@@ -187,6 +217,13 @@ export async function adminCreateUser(input: {
   title: string | null;
   calendly_url?: string | null;
   photo_url?: string | null;
+  // Finance (0044): default hourly cost rate + currency for internal staff.
+  pay_rate?: number | null;
+  pay_currency?: string;
+  // Teams (0047): the internal employee's team, or null when unassigned.
+  team_id?: string | null;
+  // Overhead (0055): whether this person counts toward the company overhead headcount.
+  counts_for_overhead?: boolean;
 }): Promise<PortalUser> {
   const { data, error } = await getSupabase()
     .from('portal_users')
@@ -208,6 +245,13 @@ export async function adminUpdateUser(
     status: 'inactive' | 'invited' | 'active';
     calendly_url: string | null;
     photo_url: string | null;
+    // Finance (0044): an internal employee's default hourly cost rate + currency.
+    pay_rate: number | null;
+    pay_currency: string;
+    // Teams (0047): the internal employee's team, or null to unassign.
+    team_id: string | null;
+    // Overhead (0055): whether this person counts toward the company overhead headcount.
+    counts_for_overhead: boolean;
     // Re-homing a client onto another account ("add existing client"). A client row is bound to
     // one account by schema, so attaching an existing person is a move, not a copy.
     account_id: string;
@@ -308,7 +352,7 @@ export async function adminSetIntakePublished(opportunityId: string, published: 
 }
 
 const OFFER_COLUMNS =
-  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, bank_hours, notify_hours, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours)';
+  'id, account_id, opportunity_id, version, title, summary, status, total, currency, expires_on, pdf_url, change_note, client_note, sent_at, responded_at, created_at, bank_hours, notify_hours, items:portal_offer_items(id, offer_id, position, name, detail, amount, billing_type, overtime_rate, monthly_hours, employee_id, pay_rate)';
 
 export async function adminListOffers(accountId: string): Promise<Offer[]> {
   const { data, error } = await getSupabase()
@@ -329,6 +373,10 @@ export interface OfferItemInput {
   overtime_rate: number | null;
   // Fixed-price only: hours per month covered by the fixed sum (drives the derived hourly rate).
   monthly_hours: number | null;
+  // Finance (0044): the internal employee this line staffs and its pay/cost rate (defaults from the
+  // employee, editable per offer). Both seed the project team member on project creation.
+  employee_id: string | null;
+  pay_rate: number | null;
 }
 
 /**
@@ -406,6 +454,9 @@ export async function adminCreateOfferVersion(input: {
           overtime_rate: item.overtime_rate,
           // Hours only apply to fixed-price lines; clear them otherwise.
           monthly_hours: isFixed && item.monthly_hours && item.monthly_hours > 0 ? item.monthly_hours : null,
+          // Internal cost rate + the employee it staffs (finance, 0044).
+          employee_id: item.employee_id,
+          pay_rate: item.pay_rate,
         };
       }),
     );
@@ -457,35 +508,6 @@ export async function adminSetOfferStatus(
   );
 }
 
-/* --------------------------------------------------------------- meetings */
-
-const MEETING_COLUMNS =
-  'id, account_id, title, meeting_type, starts_at, duration_minutes, status, host_user_id, attendees, location_url, notes, host:portal_users!portal_meetings_host_user_id_fkey(id, full_name)';
-
-export async function adminListMeetings(accountId: string): Promise<Meeting[]> {
-  const { data, error } = await getSupabase()
-    .from('portal_meetings')
-    .select(MEETING_COLUMNS)
-    .eq('account_id', accountId)
-    .order('starts_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return z.array(MeetingSchema).parse(data ?? []);
-}
-
-export async function adminUpdateMeeting(
-  id: string,
-  patch: Partial<{
-    status: Meeting['status'];
-    starts_at: string;
-    location_url: string | null;
-    notes: string | null;
-    host_user_id: string | null;
-  }>,
-): Promise<void> {
-  const { error } = await getSupabase().from('portal_meetings').update(patch).eq('id', id);
-  if (error) throw new Error(error.message);
-}
-
 /* -------------------------------------------------------------- documents */
 
 const DOCUMENT_COLUMNS =
@@ -513,7 +535,7 @@ export async function adminUploadDocument(input: {
   intake_item_id?: string | null;
   // Override the Drive destination (e.g. attach an intake file to "01 Discovery" regardless of type).
   folder_key?: string;
-}): Promise<void> {
+}): Promise<string | null> {
   const supabase = getSupabase();
   let filePath: string | null = null;
 
@@ -578,6 +600,7 @@ export async function adminUploadDocument(input: {
   }
 
   await logActivity(input.account_id, 'documents', `Document added: ${input.name}`, '', '/portal/documents');
+  return inserted?.id ?? null;
 }
 
 export async function adminUpdateDocument(
@@ -598,50 +621,6 @@ export async function adminUpdateDocument(
 
 export async function adminDeleteDocument(id: string): Promise<void> {
   const { error } = await getSupabase().from('portal_documents').delete().eq('id', id);
-  if (error) throw new Error(error.message);
-}
-
-/* --------------------------------------------------------------- invoices */
-
-export async function adminListInvoices(accountId: string): Promise<Invoice[]> {
-  const { data, error } = await getSupabase()
-    .from('portal_invoices')
-    .select(
-      'id, account_id, project_id, milestone_id, number, description, amount, currency, due_date, due_label, status, issued_at, paid_at, invoice_url, position',
-    )
-    .eq('account_id', accountId)
-    .order('position');
-  if (error) throw new Error(error.message);
-  return z.array(InvoiceSchema).parse(data ?? []);
-}
-
-export async function adminUpsertInvoice(input: {
-  id?: string;
-  account_id: string;
-  project_id: string | null;
-  milestone_id: string | null;
-  number: string | null;
-  description: string;
-  amount: number;
-  due_date: string | null;
-  due_label: string | null;
-  status: Invoice['status'];
-  position: number;
-}): Promise<void> {
-  const supabase = getSupabase();
-  const { id, ...values } = input;
-  const patch: Record<string, unknown> = { ...values };
-  if (values.status === 'paid') patch.paid_at = new Date().toISOString();
-  if (values.status !== 'not_issued' && !id) patch.issued_at = new Date().toISOString();
-
-  const { error } = id
-    ? await supabase.from('portal_invoices').update(patch).eq('id', id)
-    : await supabase.from('portal_invoices').insert(patch);
-  if (error) throw new Error(error.message);
-}
-
-export async function adminDeleteInvoice(id: string): Promise<void> {
-  const { error } = await getSupabase().from('portal_invoices').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -683,6 +662,10 @@ export async function adminCreateProjectFromOpportunity(input: {
     rate?: number | null;
     overtime_rate?: number | null;
     monthly_hours?: number | null;
+    // Finance (0044): the internal employee the offer line staffs (links the roster row to a real
+    // user so its worklogs feed salary) and the pay/cost rate carried from the line.
+    employee_id?: string | null;
+    pay_rate?: number | null;
   }[];
   // Products copied from the linked opportunity onto the new project.
   product_ids: string[];
@@ -753,7 +736,9 @@ export async function adminCreateProjectFromOpportunity(input: {
     const { error: teamError } = await supabase.from('portal_project_team').insert(
       teamRows.map((member) => ({
         project_id: project.id,
-        user_id: null,
+        // Link to the real employee when the offer line named one, so the roster row's worklogs feed
+        // salary; otherwise it stays a text-only row.
+        user_id: member.employee_id ?? null,
         display_name: member.display_name.trim(),
         project_role: member.project_role.trim() || 'Team member',
         is_public: true,
@@ -762,6 +747,7 @@ export async function adminCreateProjectFromOpportunity(input: {
         rate: member.rate ?? null,
         overtime_rate: member.overtime_rate ?? null,
         monthly_hours: member.monthly_hours ?? null,
+        pay_rate: member.pay_rate ?? null,
       })),
     );
     if (teamError) throw new Error(teamError.message);
@@ -806,6 +792,16 @@ export async function adminUpdateProject(
   }>,
 ): Promise<void> {
   const { error } = await getSupabase().from('portal_projects').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Delete a project. Its milestones, team, worklogs and billing invoices cascade at the DB level;
+ * documents keep their file but lose the project link (related_project_id set null). Admin/manager
+ * only (the `portal write projects` RLS policy enforces it server-side).
+ */
+export async function adminDeleteProject(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_projects').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -857,7 +853,7 @@ export async function adminListProjectTeam(projectId: string): Promise<ProjectTe
   const { data, error } = await getSupabase()
     .from('portal_project_team')
     .select(
-      'id, project_id, user_id, display_name, project_role, assigned_at, active, is_public, billing_type, rate, overtime_rate, monthly_hours, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
+      'id, project_id, user_id, display_name, project_role, assigned_at, active, is_public, billing_type, rate, overtime_rate, monthly_hours, pay_rate, user:portal_users!portal_project_team_user_id_fkey(id, full_name, title, email, photo_url)',
     )
     .eq('project_id', projectId)
     .order('assigned_at');
@@ -870,6 +866,8 @@ export async function adminAddProjectTeamMember(input: {
   user_id: string;
   project_role: string;
   is_public?: boolean;
+  // Finance (0044): seed the roster row's cost rate from the staff member's default pay_rate.
+  pay_rate?: number | null;
 }): Promise<void> {
   const { error } = await getSupabase()
     .from('portal_project_team')
@@ -896,6 +894,8 @@ export async function adminUpdateProjectTeamMember(
     rate: number | null;
     overtime_rate: number | null;
     monthly_hours: number | null;
+    // Finance (0044): the internal pay/cost rate for this member — what salary reads.
+    pay_rate: number | null;
   }>,
 ): Promise<void> {
   const { error } = await getSupabase().from('portal_project_team').update(patch).eq('id', id);
@@ -1343,7 +1343,7 @@ export async function adminListTimeEntries(projectId: string): Promise<TimeEntry
   const { data, error } = await getSupabase()
     .from('portal_time_entries')
     .select(
-      'id, project_id, milestone_id, user_id, reporter_id, entry_date, hours, actual_hours, approved, description, billable, visible_to_client, user:portal_users!portal_time_entries_user_id_fkey(id, full_name), reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
+      'id, project_id, milestone_id, user_id, reporter_id, entry_date, hours, actual_hours, approved, pay_rate, description, billable, user:portal_users!portal_time_entries_user_id_fkey(id, full_name), reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
     )
     .eq('project_id', projectId)
     .order('entry_date', { ascending: false });
@@ -1356,10 +1356,8 @@ export async function adminCreateTimeEntry(input: {
   milestone_id: string | null;
   user_id: string | null;
   entry_date: string;
-  hours: number;
+  hours: number | null;
   description: string;
-  billable: boolean;
-  visible_to_client: boolean;
 }): Promise<void> {
   const { error } = await getSupabase().from('portal_time_entries').insert(input);
   if (error) throw new Error(error.message);
@@ -1372,10 +1370,8 @@ export async function adminUpdateTimeEntry(
     milestone_id: string | null;
     reporter_id: string | null;
     description: string;
-    hours: number;
+    hours: number | null;
     actual_hours: number | null;
-    billable: boolean;
-    visible_to_client: boolean;
     approved: boolean;
   }>,
 ): Promise<void> {
@@ -1385,6 +1381,232 @@ export async function adminUpdateTimeEntry(
 
 export async function adminDeleteTimeEntry(id: string): Promise<void> {
   const { error } = await getSupabase().from('portal_time_entries').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Approve several worklogs in one call — the bulk "Approve" action on the project Hours panel.
+ * Gated in the UI to the account owner; RLS still enforces admin write server-side (approval also
+ * gates client visibility, see 0045).
+ */
+export async function adminApproveTimeEntries(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await getSupabase()
+    .from('portal_time_entries')
+    .update({ approved: true })
+    .in('id', ids);
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------------------------------------ salaries (finance) */
+
+/** Normalise any date to the first day of its month, matching the portal_salaries.period key. */
+export function salaryPeriod(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/** All employee salaries for a month (first-of-month date). Admin-only (RLS). */
+export async function adminListSalaries(period: string): Promise<Salary[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_salaries')
+    .select(
+      'id, user_id, period, currency, total_hours, total_amount, status, computed_at, created_at, user:portal_users!portal_salaries_user_id_fkey(id, full_name, title)',
+    )
+    .eq('period', period)
+    .order('total_amount', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(SalarySchema).parse(data ?? []);
+}
+
+/** Every salary across all months (admin, RLS). Powers the filterable "all months" list view. */
+export async function adminListAllSalaries(): Promise<Salary[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_salaries')
+    .select(
+      'id, user_id, period, currency, total_hours, total_amount, status, computed_at, created_at, user:portal_users!portal_salaries_user_id_fkey(id, full_name, title)',
+    )
+    .order('period', { ascending: false })
+    .order('total_amount', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(SalarySchema).parse(data ?? []);
+}
+
+/**
+ * The signed-in employee's own salaries across every month, newest first. Non-admin staff can read
+ * only their own rows (self-read policy, migration 0046); admins get their own rows too. Powers the
+ * "My Salary" page.
+ */
+export async function listMySalaries(userId: string): Promise<Salary[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_salaries')
+    .select(
+      'id, user_id, period, currency, total_hours, total_amount, status, computed_at, created_at, user:portal_users!portal_salaries_user_id_fkey(id, full_name, title)',
+    )
+    .eq('user_id', userId)
+    .order('period', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(SalarySchema).parse(data ?? []);
+}
+
+/**
+ * The individual worklogs that make up one employee's monthly salary — the same rows the recompute
+ * trigger sums (0044): every time entry where the person is the Employee (`user_id`) whose
+ * `entry_date` falls in the period's month, valued at each log's frozen `pay_rate`. Admin-only (RLS).
+ */
+export async function adminListSalaryEntries(userId: string, period: string): Promise<TimeEntry[]> {
+  const start = salaryPeriod(period); // first day of the salary's month (YYYY-MM-01)
+  const startDate = new Date(`${start}T00:00:00`);
+  const nextMonth = salaryPeriod(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1));
+  const { data, error } = await getSupabase()
+    .from('portal_time_entries')
+    .select(
+      'id, project_id, milestone_id, user_id, reporter_id, entry_date, hours, actual_hours, approved, pay_rate, description, billable, user:portal_users!portal_time_entries_user_id_fkey(id, full_name), reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name), project:portal_projects!portal_time_entries_project_id_fkey(id, name)',
+    )
+    .eq('user_id', userId)
+    .gte('entry_date', start)
+    .lt('entry_date', nextMonth)
+    .order('entry_date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(TimeEntrySchema).parse(data ?? []);
+}
+
+/** Pre-create a zero salary row for every active internal employee for the month, then recompute. */
+export async function adminOpenSalaryMonth(period: string): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_open_salary_month', { p_period: period });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminSetSalaryStatus(id: string, status: SalaryStatus): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_set_salary_status', { p_id: id, p_status: status });
+  if (error) throw new Error(error.message);
+}
+
+/** Payload for recording a realised payment (0056): the exact amount paid + its FX into the base. */
+export interface PaymentInput {
+  amount: number;
+  currency: string;
+  fx_rate: number;
+  occurred_on: string;
+  note?: string | null;
+}
+
+/** Mark a salary paid AND record the expense in the ledger, atomically (0056). Admin-only (RLS). */
+export async function adminPaySalary(id: string, payment: PaymentInput): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_pay_salary', {
+    p_id: id,
+    p_amount: payment.amount,
+    p_currency: payment.currency,
+    p_fx_rate: payment.fx_rate,
+    p_occurred_on: payment.occurred_on,
+    p_note: payment.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------------------------------------ billing invoices (finance) */
+
+const BILLING_INVOICE_COLUMNS =
+  'id, account_id, project_id, period, currency, total_hours, total_amount, status, computed_at, created_at, document_id, ' +
+  'project:portal_projects!portal_billing_invoices_project_id_fkey(id, name), ' +
+  'account:portal_accounts!portal_billing_invoices_account_id_fkey(id, name), ' +
+  'document:portal_documents!portal_billing_invoices_document_id_fkey(id, name, file_url, drive_web_link, drive_file_id), ' +
+  'lines:portal_billing_invoice_lines(id, invoice_id, reporter_id, hours, rate, amount, ' +
+  'reporter:portal_users!portal_billing_invoice_lines_reporter_id_fkey(id, full_name))';
+
+/** All billing invoices for a month (first-of-month date). Admin-only (RLS). */
+export async function adminListBillingInvoices(period: string): Promise<BillingInvoice[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_billing_invoices')
+    .select(BILLING_INVOICE_COLUMNS)
+    .eq('period', period)
+    .order('total_amount', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(BillingInvoiceSchema).parse(data ?? []);
+}
+
+/** Every billing invoice across all months (admin, RLS). Powers the "all months" list view. */
+export async function adminListAllBillingInvoices(): Promise<BillingInvoice[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_billing_invoices')
+    .select(BILLING_INVOICE_COLUMNS)
+    .order('period', { ascending: false })
+    .order('total_amount', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(BillingInvoiceSchema).parse(data ?? []);
+}
+
+/**
+ * The individual worklogs that make up one project's monthly invoice — the same rows the recompute
+ * sums (0048): approved billable time entries for the project whose `entry_date` falls in the
+ * period's month. Client-facing, so only the reporter is embedded (never the internal employee).
+ */
+export async function adminListBillingInvoiceEntries(projectId: string, period: string): Promise<TimeEntry[]> {
+  const start = salaryPeriod(period); // first day of the invoice's month (YYYY-MM-01)
+  const startDate = new Date(`${start}T00:00:00`);
+  const nextMonth = salaryPeriod(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1));
+  const { data, error } = await getSupabase()
+    .from('portal_time_entries')
+    .select(
+      'id, project_id, milestone_id, reporter_id, entry_date, hours, actual_hours, approved, description, billable, reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
+    )
+    .eq('project_id', projectId)
+    .eq('approved', true)
+    .not('hours', 'is', null)
+    .gt('hours', 0)
+    .gte('entry_date', start)
+    .lt('entry_date', nextMonth)
+    .order('entry_date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(TimeEntrySchema).parse(data ?? []);
+}
+
+export async function adminSetBillingInvoiceStatus(id: string, status: BillingInvoiceStatus): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_set_billing_invoice_status', { p_id: id, p_status: status });
+  if (error) throw new Error(error.message);
+}
+
+/** Mark an invoice paid AND record the income in the ledger, atomically (0056). Admin-only (RLS). */
+export async function adminPayBillingInvoice(id: string, payment: PaymentInput): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_pay_billing_invoice', {
+    p_id: id,
+    p_amount: payment.amount,
+    p_currency: payment.currency,
+    p_fx_rate: payment.fx_rate,
+    p_occurred_on: payment.occurred_on,
+    p_note: payment.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Attach an issued invoice file to a billing invoice: uploads it as an 'invoice' document (so it lands
+ * in the account's 04_invoices Drive folder and is viewable from the portal like any other file), then
+ * links it on the invoice. Status 'sent' so the client can see it. Admin-only (RLS on both tables).
+ */
+export async function adminAttachBillingInvoiceDocument(
+  invoice: Pick<BillingInvoice, 'id' | 'account_id' | 'project_id'>,
+  file: File,
+  name: string,
+): Promise<void> {
+  const documentId = await adminUploadDocument({
+    account_id: invoice.account_id,
+    name,
+    doc_type: 'invoice',
+    status: 'sent',
+    file,
+    related_project_id: invoice.project_id,
+  });
+  const { error } = await getSupabase()
+    .from('portal_billing_invoices')
+    .update({ document_id: documentId })
+    .eq('id', invoice.id);
+  if (error) throw new Error(error.message);
+}
+
+/** Delete a billing invoice (and its summary lines, via cascade). Admin-only (RLS). */
+export async function adminDeleteBillingInvoice(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_billing_invoices').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -1556,5 +1778,282 @@ export async function adminUpsertPublicHoliday(input: {
 
 export async function adminDeletePublicHoliday(id: string): Promise<void> {
   const { error } = await getSupabase().from('portal_public_holidays').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Time off (migration 0058) — vacation / sick leave. RLS returns own leave for staff, all for admins,
+// so a single list call serves both. Non-admin writes are pinned to status 'pending' by a DB trigger;
+// the internal approve/reject goes through the portal_set_time_off_status RPC (admin-only).
+// ---------------------------------------------------------------------------
+
+const TIME_OFF_COLUMNS =
+  'id, user_id, kind, start_date, end_date, note, status, reviewed_by, reviewed_at, created_at, updated_at, ' +
+  'user:portal_users!portal_time_off_user_id_fkey(id, full_name)';
+
+export async function adminListTimeOff(): Promise<TimeOff[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_time_off')
+    .select(TIME_OFF_COLUMNS)
+    .order('start_date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(TimeOffSchema).parse(data ?? []);
+}
+
+export async function adminCreateTimeOff(input: {
+  user_id: string;
+  kind: TimeOffKind;
+  start_date: string;
+  end_date: string;
+  note?: string;
+}): Promise<void> {
+  const { error } = await getSupabase().from('portal_time_off').insert({
+    user_id: input.user_id,
+    kind: input.kind,
+    start_date: input.start_date,
+    end_date: input.end_date,
+    note: input.note ?? '',
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUpdateTimeOff(
+  id: string,
+  patch: { kind?: TimeOffKind; start_date?: string; end_date?: string; note?: string },
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_time_off').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteTimeOff(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_time_off').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Admin-only internal sign-off (pending / approved / rejected). Only approved leave reaches clients. */
+export async function adminSetTimeOffStatus(id: string, status: TimeOffStatus): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_set_time_off_status', { p_id: id, p_status: status });
+  if (error) throw new Error(error.message);
+}
+
+/** Client responses (approve / replacement requested) for the given leave ids, for the admin badges. */
+export async function adminListTimeOffResponses(timeOffIds: string[]): Promise<TimeOffResponse[]> {
+  if (timeOffIds.length === 0) return [];
+  const { data, error } = await getSupabase()
+    .from('portal_time_off_responses')
+    .select('id, time_off_id, account_id, approved, replacement_requested, approved_at, replacement_requested_at')
+    .in('time_off_id', timeOffIds);
+  if (error) throw new Error(error.message);
+  return z.array(TimeOffResponseSchema).parse(data ?? []);
+}
+
+/**
+ * Internal upcoming-leave feed for the staff dashboard widget (migration 0059): my own pending/approved
+ * leave plus my teammates' approved leave, all upcoming. `is_me` splits the two; teammate notes are
+ * withheld server-side.
+ */
+export async function adminListMyTeamTimeOff(): Promise<MyTeamTimeOff[]> {
+  const { data, error } = await getSupabase().rpc('portal_my_team_upcoming_time_off');
+  if (error) throw new Error(error.message);
+  return z.array(MyTeamTimeOffSchema).parse(data ?? []);
+}
+
+/**
+ * Pending leave the signed-in staffer may approve (migration 0060): admins get everyone's, a team lead
+ * gets their team members'. Approve/reject goes through adminSetTimeOffStatus (also lead-aware now).
+ */
+export async function adminListTimeOffReviewQueue(): Promise<TimeOffReview[]> {
+  const { data, error } = await getSupabase().rpc('portal_time_off_review_queue');
+  if (error) throw new Error(error.message);
+  return z.array(TimeOffReviewSchema).parse(data ?? []);
+}
+
+/**
+ * Approved leave a client asked to have covered, pinned to the exact project + client that requested it
+ * (migration 0060). Scoped to admin (all) / team lead (their team).
+ */
+export async function adminListTimeOffReplacementRequests(): Promise<TimeOffReplacement[]> {
+  const { data, error } = await getSupabase().rpc('portal_time_off_replacement_requests');
+  if (error) throw new Error(error.message);
+  return z.array(TimeOffReplacementSchema).parse(data ?? []);
+}
+
+// ---------------------------------------------------------------------------
+// Teams (migration 0047) — internal staff grouped into teams with a lead + PM. Admins write; RLS
+// blocks everyone else. Membership is portal_users.team_id, set via adminUpdateUser(id, { team_id }).
+// ---------------------------------------------------------------------------
+
+const TEAM_COLUMNS =
+  'id, name, lead_id, pm_id, created_at, updated_at, ' +
+  'lead:portal_users!portal_teams_lead_id_fkey(id, full_name), ' +
+  'pm:portal_users!portal_teams_pm_id_fkey(id, full_name)';
+
+export async function adminListTeams(): Promise<PortalTeam[]> {
+  const { data, error } = await getSupabase().from('portal_teams').select(TEAM_COLUMNS).order('name');
+  if (error) throw new Error(error.message);
+  return z.array(PortalTeamSchema).parse(data ?? []);
+}
+
+export async function adminCreateTeam(input: {
+  name: string;
+  lead_id?: string | null;
+  pm_id?: string | null;
+}): Promise<PortalTeam> {
+  const { data, error } = await getSupabase()
+    .from('portal_teams')
+    .insert({ name: input.name, lead_id: input.lead_id ?? null, pm_id: input.pm_id ?? null })
+    .select(TEAM_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  return PortalTeamSchema.parse(data);
+}
+
+export async function adminUpdateTeam(
+  id: string,
+  patch: Partial<{ name: string; lead_id: string | null; pm_id: string | null }>,
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_teams').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteTeam(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_teams').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Overhead (migration 0055) — the company's fixed running costs + the finance settings the per-hour
+// markup is derived against. Admin-only (RLS enforces it); never exposed to clients. The markup math
+// itself is done client-side on the Overhead page from these rows + the counted headcount.
+// ---------------------------------------------------------------------------
+
+const OVERHEAD_COLUMNS =
+  'id, name, category, note, amount, currency, fx_rate, cadence, amortize_months, scope, active, created_at, updated_at';
+
+export async function adminListOverheadExpenses(): Promise<OverheadExpense[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_overhead_expenses')
+    .select(OVERHEAD_COLUMNS)
+    .order('name');
+  if (error) throw new Error(error.message);
+  return z.array(OverheadExpenseSchema).parse(data ?? []);
+}
+
+export async function adminCreateOverheadExpense(input: {
+  name: string;
+  category?: string | null;
+  note?: string | null;
+  amount: number;
+  currency: string;
+  fx_rate: number;
+  cadence: OverheadCadence;
+  amortize_months?: number | null;
+  scope: OverheadScope;
+  active?: boolean;
+}): Promise<OverheadExpense> {
+  const { data, error } = await getSupabase()
+    .from('portal_overhead_expenses')
+    .insert({
+      name: input.name,
+      category: input.category ?? null,
+      note: input.note ?? null,
+      amount: input.amount,
+      currency: input.currency,
+      fx_rate: input.fx_rate,
+      cadence: input.cadence,
+      amortize_months: input.cadence === 'one_off' ? input.amortize_months ?? null : null,
+      scope: input.scope,
+      active: input.active ?? true,
+    })
+    .select(OVERHEAD_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  return OverheadExpenseSchema.parse(data);
+}
+
+export async function adminUpdateOverheadExpense(
+  id: string,
+  patch: Partial<{
+    name: string;
+    category: string | null;
+    note: string | null;
+    amount: number;
+    currency: string;
+    fx_rate: number;
+    cadence: OverheadCadence;
+    amortize_months: number | null;
+    scope: OverheadScope;
+    active: boolean;
+  }>,
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_overhead_expenses').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteOverheadExpense(id: string): Promise<void> {
+  const { error } = await getSupabase().from('portal_overhead_expenses').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** The singleton finance settings (base currency + the monthly-hours band). */
+export async function adminGetFinanceSettings(): Promise<FinanceSettings> {
+  const { data, error } = await getSupabase()
+    .from('portal_finance_settings')
+    .select('base_currency, overhead_hours_low, overhead_hours_high')
+    .eq('id', true)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  // Fall back to the seeded defaults if the row is somehow absent, so the page always renders.
+  return FinanceSettingsSchema.parse(
+    data ?? { base_currency: 'USD', overhead_hours_low: 80, overhead_hours_high: 160 },
+  );
+}
+
+export async function adminUpdateFinanceSettings(
+  patch: Partial<{ base_currency: string; overhead_hours_low: number; overhead_hours_high: number }>,
+): Promise<void> {
+  const { error } = await getSupabase().from('portal_finance_settings').update(patch).eq('id', true);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------------
+// Finance transactions (migration 0056) — the realised-money ledger (paid salaries = expenses, settled
+// invoices = income), recorded via portal_pay_salary / portal_pay_billing_invoice. Admin-only (RLS).
+// ---------------------------------------------------------------------------
+
+const FINANCE_TRANSACTION_COLUMNS =
+  'id, kind, source_type, source_id, amount, currency, fx_rate, base_amount, base_currency, occurred_on, note, created_at, updated_at';
+
+/** Every recorded transaction, newest payment first. Powers the P&L / Overview tab. */
+export async function adminListFinanceTransactions(): Promise<FinanceTransaction[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_finance_transactions')
+    .select(FINANCE_TRANSACTION_COLUMNS)
+    .order('occurred_on', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(FinanceTransactionSchema).parse(data ?? []);
+}
+
+/** A standalone ledger entry (0057): a payment plus its direction, with no salary/invoice behind it. */
+export interface ManualTransactionInput extends PaymentInput {
+  kind: FinanceTransactionKind;
+}
+
+/** Record an ad-hoc expense/income not tied to a salary or invoice (0057). Admin-only (RLS). */
+export async function adminRecordManualTransaction(input: ManualTransactionInput): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_record_manual_transaction', {
+    p_kind: input.kind,
+    p_amount: input.amount,
+    p_currency: input.currency,
+    p_fx_rate: input.fx_rate,
+    p_occurred_on: input.occurred_on,
+    p_note: input.note ?? null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Delete a manual ledger entry (0057). Admin-only; the RPC refuses salary/invoice rows server-side. */
+export async function adminDeleteFinanceTransaction(id: string): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_delete_finance_transaction', { p_id: id });
   if (error) throw new Error(error.message);
 }

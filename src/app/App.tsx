@@ -29,9 +29,12 @@ import { ClientPreview } from './pages/admin/portal/ClientPreview';
 import { AdminPortalTeam } from './pages/admin/portal/AdminPortalTeam';
 import { AdminPortalFeedback } from './pages/admin/portal/AdminPortalFeedback';
 import { AdminPortalProducts } from './pages/admin/portal/AdminPortalProducts';
+import { AdminPortalFinance, AdminPortalFinanceIndexRedirect } from './pages/admin/portal/AdminPortalFinance';
+import { AdminMySalary } from './pages/admin/portal/AdminMySalary';
 import { AdminPortalDashboard } from './pages/admin/portal/AdminPortalDashboard';
 import { AdminSalesProcessSettings } from './pages/admin/portal/AdminSalesProcessSettings';
 import { AdminPublicHolidays } from './pages/admin/portal/AdminPublicHolidays';
+import { AdminTimeOff } from './pages/admin/portal/AdminTimeOff';
 import { AdminHomeRedirect, RequireNotImplementer } from './components/admin/portal/ImplementerGate';
 import { PortalUserProvider } from './components/portal/PortalUserProvider';
 import { InternalGuard, PortalGuard } from './components/portal/PortalGuard';
@@ -136,10 +139,22 @@ function AppLayout() {
               <Route path="accounts" element={<AdminAccounts />} />
               <Route path="accounts/:id" element={<AdminAccountWorkspace />} />
               <Route path="team" element={<AdminPortalTeam />} />
+              {/* Teams folded into the Users & Teams page as a tab — keep the old link working. */}
+              <Route path="teams" element={<Navigate to="/admin/portal/team?tab=teams" replace />} />
               <Route path="products" element={<RequireNotImplementer><AdminPortalProducts /></RequireNotImplementer>} />
               <Route path="settings" element={<AdminSalesProcessSettings />} />
               <Route path="holidays" element={<RequireNotImplementer><AdminPublicHolidays /></RequireNotImplementer>} />
               <Route path="feedback" element={<AdminPortalFeedback />} />
+              {/* Financial accounting hub (0056): P&L / Overhead / Salaries / Invoices tabs. */}
+              <Route path="finance" element={<AdminPortalFinanceIndexRedirect />} />
+              <Route path="finance/:tab" element={<AdminPortalFinance />} />
+              {/* Old standalone routes now live as Finance tabs — redirect to keep links working. */}
+              <Route path="salaries" element={<Navigate to="/admin/portal/finance/salaries" replace />} />
+              <Route path="invoices" element={<Navigate to="/admin/portal/finance/invoices" replace />} />
+              <Route path="overhead" element={<Navigate to="/admin/portal/finance/overhead" replace />} />
+              <Route path="my-salary" element={<AdminMySalary />} />
+              {/* Time off — all staff self-serve their own; admins approve and manage all (0058). */}
+              <Route path="time-off" element={<AdminTimeOff />} />
             </Route>
           </Route>
         </Routes>

@@ -93,9 +93,16 @@ export const ProjectHoursReport: React.FC<{
       (!reporterId || entry.user?.id === reporterId),
   );
 
-  const totalHours = filtered.reduce((sum, entry) => sum + entry.hours, 0);
+  const totalHours = filtered.reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
   // Budget draw-down is absolute (all approved hours), independent of the current filter.
-  const usedAll = approvedEntries.reduce((sum, entry) => sum + entry.hours, 0);
+  const usedAll = approvedEntries.reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
+  // The bank of hours is a *monthly* limit, so the budget bar draws down only this calendar month's
+  // approved billing hours (independent of the range/reporter/milestone filters above). The YYYY-MM
+  // prefix is built from the local date so it matches the client's own timezone.
+  const monthPrefix = iso(new Date()).slice(0, 7);
+  const usedThisMonth = approvedEntries
+    .filter((entry) => entry.entry_date.startsWith(monthPrefix))
+    .reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
 
   const milestoneName = (id: string | null) =>
     milestones.find((milestone) => milestone.id === id)?.name ?? 'Unassigned';
@@ -211,7 +218,12 @@ export const ProjectHoursReport: React.FC<{
             </div>
             {hasBudget ? (
               <div className="mt-2">
-                <HoursBudget bank={project.bank_hours} notify={project.notify_hours} used={usedAll} />
+                <HoursBudget
+                  bank={project.bank_hours}
+                  notify={project.notify_hours}
+                  used={usedThisMonth}
+                  label="This month"
+                />
               </div>
             ) : (
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-border-color">
@@ -233,7 +245,9 @@ export const ProjectHoursReport: React.FC<{
                     {entry.user ? prettyName(entry.user.full_name) : '—'}
                   </Cell>
                   <Cell className="text-grey">{entry.milestone_id ? milestoneName(entry.milestone_id) : '—'}</Cell>
-                  <Cell className="whitespace-nowrap text-right font-medium">{entry.hours.toFixed(1)} h</Cell>
+                  <Cell className="whitespace-nowrap text-right font-medium">
+                    {entry.hours != null ? `${entry.hours.toFixed(1)} h` : '—'}
+                  </Cell>
                 </Row>
               ))}
             </PortalTable>

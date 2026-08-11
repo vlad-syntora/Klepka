@@ -164,6 +164,8 @@ const EMPTY_ITEM: OfferItemInput = {
   billing_type: 'time_materials',
   overtime_rate: null,
   monthly_hours: null,
+  employee_id: null,
+  pay_rate: null,
 };
 
 export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () => Promise<void> }> = ({
@@ -229,6 +231,9 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
   const candidateLine = (candidate: (typeof confirmedCandidates)[number]): OfferItemInput => {
     const name = prettyName(candidate.user?.full_name ?? 'Team member');
     const role = candidate.title ?? candidate.user?.title ?? null;
+    // A confirmed candidate is a real internal user, so link the line to them and seed the cost rate
+    // from their default (finance, 0044).
+    const employee = staff.data?.find((person) => person.id === candidate.user?.id) ?? null;
     return {
       name: role ? `${name} — ${role}` : name,
       detail: '',
@@ -238,6 +243,8 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
       billing_type: 'time_materials',
       overtime_rate: null,
       monthly_hours: null,
+      employee_id: employee?.id ?? candidate.user?.id ?? null,
+      pay_rate: employee?.pay_rate ?? null,
     };
   };
 
@@ -410,6 +417,9 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                 : null,
             monthly_hours:
               isFixed && item.monthly_hours && Number(item.monthly_hours) > 0 ? Number(item.monthly_hours) : null,
+            employee_id: item.employee_id ?? null,
+            pay_rate:
+              item.pay_rate != null && !Number.isNaN(Number(item.pay_rate)) ? Number(item.pay_rate) : null,
           };
         }),
         send,
@@ -736,12 +746,6 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
 
                 <div className="space-y-3">
                   <span className="text-xs font-semibold uppercase tracking-wide text-grey">Line items</span>
-                  {/* Employee-name suggestions for the line-item Name field. */}
-                  <datalist id="offer-employee-names">
-                    {(staff.data ?? []).map((person) => (
-                      <option key={person.id} value={prettyName(person.full_name)} />
-                    ))}
-                  </datalist>
                   {items.map((item, index) => {
                     const isFixed = item.billing_type === 'fixed_price';
                     const monthlyHoursNum = Number(item.monthly_hours) || 0;
@@ -752,13 +756,29 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                     return (
                       <div key={index} className="space-y-2 rounded-lg border border-border-color p-3">
                         <div className="grid gap-2 sm:grid-cols-[1fr_1.5fr_40px]">
-                          <input
+                          {/* Name is the internal employee this line staffs — the picklist sets the
+                              client-facing name, links the employee (seeds project member + salary)
+                              and prefills the cost rate, all from one control. */}
+                          <select
                             className={inputClass}
-                            placeholder="Name"
-                            list="offer-employee-names"
-                            value={item.name}
-                            onChange={(event) => patchItem(index, { name: event.target.value })}
-                          />
+                            value={item.employee_id ?? ''}
+                            onChange={(event) => {
+                              const empId = event.target.value || null;
+                              const employee = (staff.data ?? []).find((person) => person.id === empId);
+                              patchItem(index, {
+                                employee_id: empId,
+                                name: employee ? prettyName(employee.full_name) : '',
+                                pay_rate: employee?.pay_rate != null ? employee.pay_rate : item.pay_rate,
+                              });
+                            }}
+                          >
+                            <option value="">Select employee…</option>
+                            {(staff.data ?? []).map((person) => (
+                              <option key={person.id} value={person.id}>
+                                {prettyName(person.full_name)}
+                              </option>
+                            ))}
+                          </select>
                           <input
                             className={inputClass}
                             placeholder="Detail"
@@ -843,6 +863,24 @@ export const WorkspacePipeline: React.FC<{ account: PortalAccount; onChange: () 
                               onChange={(event) =>
                                 patchItem(index, {
                                   overtime_rate: event.target.value === '' ? null : Number(event.target.value),
+                                })
+                              }
+                            />
+                          </Field>
+                        </div>
+                        {/* Internal cost (finance, 0044) — the employee is chosen in the Name picklist
+                            above; this is just its hourly cost, defaulted from the employee. */}
+                        <div className="grid items-start gap-2 border-t border-border-color pt-2 sm:grid-cols-2">
+                          <Field label="Pay rate (cost)" hint="Internal hourly cost. Defaults from the selected employee; editable.">
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              className={inputClass}
+                              value={item.pay_rate ?? ''}
+                              onChange={(event) =>
+                                patchItem(index, {
+                                  pay_rate: event.target.value === '' ? null : Number(event.target.value),
                                 })
                               }
                             />

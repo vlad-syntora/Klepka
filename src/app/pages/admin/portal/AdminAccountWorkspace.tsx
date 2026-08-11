@@ -7,7 +7,6 @@ import {
   HEALTH_LABELS,
   LIFECYCLE_LABELS,
   canEditAccounts,
-  canViewPayments,
   canViewPipeline,
   type PortalAccount,
 } from '@/app/lib/portal-types';
@@ -18,7 +17,6 @@ import { WorkspaceOverview } from '@/app/components/admin/portal/WorkspaceOvervi
 import { WorkspacePipeline } from '@/app/components/admin/portal/WorkspacePipeline';
 import { WorkspaceDocuments } from '@/app/components/admin/portal/WorkspaceDocuments';
 import { WorkspaceDrive } from '@/app/components/admin/portal/WorkspaceDrive';
-import { WorkspacePayments } from '@/app/components/admin/portal/WorkspacePayments';
 import { WorkspaceProject } from '@/app/components/admin/portal/WorkspaceProject';
 import { WorkspaceFeedback } from '@/app/components/admin/portal/WorkspaceFeedback';
 import { WorkspaceUsers } from '@/app/components/admin/portal/WorkspaceUsers';
@@ -27,7 +25,6 @@ const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'pipeline', label: 'Pipeline & Offers' },
   { key: 'project', label: 'Project' },
-  { key: 'payments', label: 'Payments' },
   { key: 'documents', label: 'Contracts & Documents' },
   { key: 'users', label: 'Users & Access' },
   { key: 'feedback', label: 'Feedback' },
@@ -43,16 +40,13 @@ export const AdminAccountWorkspace: React.FC = () => {
   // The active tab lives in the URL (?tab=…) so a refresh — or a shared link — lands on the same tab.
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Role-gated tabs (RLS also blocks the data). Payments is Sales Rep / Ops-Finance / Portal
-  // Admin only; Implementers additionally lose Pipeline & Offers. Everything is shown while the
-  // user is still loading to avoid a flash-hide.
-  const showPayments = user ? canViewPayments(user.role) : true;
+  // Role-gated tabs (RLS also blocks the data). Implementers lose Pipeline & Offers. Everything is
+  // shown while the user is still loading to avoid a flash-hide.
   const showPipeline = user ? canViewPipeline(user.role) : true;
   const canEdit = user ? canEditAccounts(user.role) : true;
   // Implementers (canEdit === false) also lose the Contracts & Documents tab.
   const tabs = TABS.filter(
     (entry) =>
-      (entry.key !== 'payments' || showPayments) &&
       (entry.key !== 'pipeline' || showPipeline) &&
       (entry.key !== 'documents' || canEdit),
   );
@@ -147,7 +141,6 @@ export const AdminAccountWorkspace: React.FC = () => {
             <WorkspaceDocuments account={account} />
           </div>
         )}
-        {tab === 'payments' && showPayments && <WorkspacePayments account={account} />}
         {tab === 'project' && <WorkspaceProject account={account} canEdit={canEdit} />}
         {tab === 'feedback' && <WorkspaceFeedback account={account} canRespond={canEdit} />}
         {tab === 'users' && <WorkspaceUsers account={account} canManage={canEdit} />}

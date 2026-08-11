@@ -36,10 +36,12 @@ import {
   toneFor,
   useTableSort,
 } from '@/app/components/portal/PortalUi';
+import { ProjectAnalyticsPanel } from '@/app/components/admin/portal/ProjectAnalyticsPanel';
+import { cn } from '@/app/components/ui/utils';
 
 type Filter = 'all' | 'needs_attention' | 'pre_sale' | 'delivery';
 
-export const AdminAccounts: React.FC = () => {
+const AccountsList: React.FC = () => {
   const navigate = useNavigate();
   const { user } = usePortalUser();
   const [accounts, setAccounts] = React.useState<PortalAccount[]>([]);
@@ -271,6 +273,47 @@ export const AdminAccounts: React.FC = () => {
           </PortalTable>
         )}
       </PortalCard>
+    </div>
+  );
+};
+
+/**
+ * Accounts page shell. Portal admins get a tabbed view: the accounts list (default) plus a company-wide
+ * Project Analytics tab. Everyone else sees just the list — the analytics tab is admin-only (RLS also
+ * restricts the data it reads). The analytics panel mounts lazily (only when its tab is active) because
+ * it fans out a heavy company-wide fetch.
+ */
+export const AdminAccounts: React.FC = () => {
+  const { user } = usePortalUser();
+  const isAdmin = user?.role === 'portal_admin';
+  const [tab, setTab] = React.useState<'list' | 'projects'>('list');
+
+  if (!isAdmin) return <AccountsList />;
+
+  const tabs: { key: 'list' | 'projects'; label: string }[] = [
+    { key: 'list', label: 'Accounts' },
+    { key: 'projects', label: 'Project Analytics' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-border-color">
+        {tabs.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'border-b-2 px-3 py-2.5 text-sm transition-colors',
+              tab === key ? 'border-violet font-medium text-violet' : 'border-transparent text-grey hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'list' && <AccountsList />}
+      {tab === 'projects' && <ProjectAnalyticsPanel />}
     </div>
   );
 };

@@ -79,6 +79,27 @@ function driveClient() {
 // Shared Drives require these flags on every call, or the API silently scopes to My Drive.
 const SHARED = { supportsAllDrives: true, includeItemsFromAllDrives: true } as const;
 
+// The portal previews files in an <iframe> via Drive's /preview URL, which only renders for an
+// anonymous viewer when the file (or a folder above it) is link-shared. We grant
+// "anyone with the link → reader" so the in-portal viewer works without the client signing into
+// Google. This does NOT list the file publicly: the link/id is only ever handed out through the
+// portal, whose access is gated server-side by RLS. Best-effort — a Workspace policy may forbid
+// link sharing, so we log and continue rather than fail the caller.
+async function grantLinkReader(
+  drive: ReturnType<typeof google.drive>,
+  fileId: string,
+): Promise<void> {
+  try {
+    await drive.permissions.create({
+      fileId,
+      requestBody: { type: 'anyone', role: 'reader' },
+      supportsAllDrives: true,
+    });
+  } catch (error) {
+    console.warn('grantLinkReader failed for', fileId, error instanceof Error ? error.message : error);
+  }
+}
+
 async function createFolder(
   drive: ReturnType<typeof google.drive>,
   name: string,
@@ -324,6 +345,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supportsAllDrives: true,
       });
 
+      // Make the file previewable in the portal's in-app viewer without a Google sign-in.
+      if (uploaded.id) await grantLinkReader(drive, uploaded.id);
+
       // Backfill the pointer on the document row when this upload was a portal_document, and
       // promote Drive to the file's home: file_url now points at Drive so every "Open" button
       // works, and the temporary bucket copy is dropped (Drive is the single source of truth).
@@ -371,6 +395,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     /* ------------------------------------------------------------------ share */
     if (action === 'share') {
       if (!account.drive_folder_id) return res.status(409).json({ error: 'Folders not provisioned yet' });
+
+      // Open the account's whole folder tree to "anyone with the link → reader". Drive inherits this
+      // to every file already inside, so historic uploads become previewable in the portal viewer in
+      // one click (new uploads are covered per-file at upload time). See grantLinkReader.
+      await grantLinkReader(drive, account.drive_folder_id);
 
       // Everyone attached to the account gets read access to the whole folder. Sharing is
       // best-effort: a non-Google address simply won't resolve, and we report which did.

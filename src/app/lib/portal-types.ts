@@ -116,9 +116,99 @@ export const PortalUserSchema = z.object({
   last_login_at: z.string().nullable(),
   calendly_url: z.string().nullable().optional(),
   photo_url: z.string().nullable().optional(),
+  // Finance (0044): an internal employee's default hourly cost rate + currency. Admin-only; seeds the
+  // pay rate on offer lines and project team members.
+  pay_rate: numericNullable.optional().default(null),
+  pay_currency: z.string().optional().default('USD'),
+  // Teams (0047): the internal employee's team, or null when unassigned. Admin-managed; never sent to
+  // the client snapshot.
+  team_id: z.guid().nullable().optional().default(null),
+  // Overhead (0055): does this person count toward the company's overhead headcount (the divisor and
+  // the per-seat multiplier)? Admin-managed; only meaningful for internal staff.
+  counts_for_overhead: z.boolean().optional().default(true),
   created_at: z.string(),
 });
 export type PortalUser = z.infer<typeof PortalUserSchema>;
+
+// A team of internal staff (migration 0047) with an optional lead + project manager. Members are
+// portal_users whose team_id points here; lead/pm are references only (need not be members).
+export const PortalTeamSchema = z.object({
+  id: z.guid(),
+  name: z.string(),
+  lead_id: z.guid().nullable(),
+  pm_id: z.guid().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  lead: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+  pm: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+});
+export type PortalTeam = z.infer<typeof PortalTeamSchema>;
+
+// Company overhead (migration 0055) — a fixed running cost used to derive the per-hour markup that
+// covers the company. Multi-currency: base = amount × fx_rate. one_off costs spread over amortize_months;
+// per_seat costs are multiplied by the counted headcount.
+export const OVERHEAD_CADENCES = ['monthly', 'quarterly', 'annual', 'one_off'] as const;
+export type OverheadCadence = (typeof OVERHEAD_CADENCES)[number];
+export const OVERHEAD_CADENCE_LABELS: Record<OverheadCadence, string> = {
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  annual: 'Annual',
+  one_off: 'One-off',
+};
+// How many months each cadence spans — the divisor that normalises a cost to a monthly figure.
+// one_off is special (it uses the row's amortize_months) and is intentionally absent here.
+export const OVERHEAD_CADENCE_MONTHS: Record<Exclude<OverheadCadence, 'one_off'>, number> = {
+  monthly: 1,
+  quarterly: 3,
+  annual: 12,
+};
+
+export const OVERHEAD_SCOPES = ['company', 'per_seat'] as const;
+export type OverheadScope = (typeof OVERHEAD_SCOPES)[number];
+export const OVERHEAD_SCOPE_LABELS: Record<OverheadScope, string> = {
+  company: 'Whole company',
+  per_seat: 'Per person',
+};
+
+export const OverheadExpenseSchema = z.object({
+  id: z.guid(),
+  name: z.string(),
+  category: z.string().nullable(),
+  note: z.string().nullable(),
+  amount: numeric,
+  currency: z.string(),
+  fx_rate: numeric,
+  cadence: z.enum(OVERHEAD_CADENCES),
+  amortize_months: z.union([z.number(), z.string()]).transform((value) => Number(value)).nullable(),
+  scope: z.enum(OVERHEAD_SCOPES),
+  active: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type OverheadExpense = z.infer<typeof OverheadExpenseSchema>;
+
+// Singleton finance settings (migration 0055): base reporting currency + the monthly billable-hours
+// band the per-hour markup is derived against.
+export const FinanceSettingsSchema = z.object({
+  base_currency: z.string(),
+  overhead_hours_low: numeric,
+  overhead_hours_high: numeric,
+});
+export type FinanceSettings = z.infer<typeof FinanceSettingsSchema>;
+
+// Normalise one expense to a monthly figure in the BASE currency. per_seat costs scale with the number
+// of SEATS — i.e. everyone who consumes a license (all active staff), NOT only the ones who cover
+// overhead. one_off costs are spread over amortize_months (falling back to 1). Inactive rows are the
+// caller's concern to filter — this is a pure per-row calc.
+export function overheadMonthlyBase(expense: OverheadExpense, seatCount: number): number {
+  const base = expense.amount * expense.fx_rate;
+  const months =
+    expense.cadence === 'one_off'
+      ? Math.max(expense.amortize_months ?? 1, 1)
+      : OVERHEAD_CADENCE_MONTHS[expense.cadence];
+  const monthly = base / months;
+  return expense.scope === 'per_seat' ? monthly * seatCount : monthly;
+}
 
 // The manually settable statuses. 'inactive' = no portal access (default); 'invited' provisions an
 // auth user and emails an invite (handled server-side); 'active' = signed-in, full access.
@@ -320,6 +410,10 @@ export const OfferItemSchema = z.object({
   // Fixed-price only: hours per month covered by the fixed sum. The effective hourly rate is
   // derived (amount / monthly_hours) wherever it is displayed.
   monthly_hours: numericNullable.optional().default(null),
+  // Finance (0044): the internal employee this line staffs and its pay/cost rate. Admin-only; the pay
+  // rate defaults from the employee but is editable per offer, and both seed the project team member.
+  employee_id: z.guid().nullable().optional().default(null),
+  pay_rate: numericNullable.optional().default(null),
 });
 export type OfferItem = z.infer<typeof OfferItemSchema>;
 
@@ -346,41 +440,6 @@ export const OfferSchema = z.object({
   items: z.array(OfferItemSchema).optional().default([]),
 });
 export type Offer = z.infer<typeof OfferSchema>;
-
-export const MEETING_TYPES = [
-  'discovery',
-  'technical',
-  'proposal_walkthrough',
-  'project_checkin',
-  'escalation',
-  'other',
-] as const;
-export type MeetingType = (typeof MEETING_TYPES)[number];
-
-export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
-  discovery: 'Discovery call',
-  technical: 'Technical deep-dive',
-  proposal_walkthrough: 'Proposal walkthrough',
-  project_checkin: 'Project check-in',
-  escalation: 'Escalation',
-  other: 'Other',
-};
-
-export const MeetingSchema = z.object({
-  id: z.guid(),
-  account_id: z.guid(),
-  title: z.string(),
-  meeting_type: z.enum(MEETING_TYPES),
-  starts_at: z.string(),
-  duration_minutes: z.number(),
-  status: z.enum(['requested', 'confirmed', 'completed', 'cancelled']),
-  host_user_id: z.guid().nullable(),
-  attendees: z.array(z.string()).catch([]),
-  location_url: z.string().nullable(),
-  notes: z.string().nullable(),
-  host: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
-});
-export type Meeting = z.infer<typeof MeetingSchema>;
 
 export const DOC_TYPES = [
   'contract',
@@ -450,36 +509,6 @@ export const DocumentSchema = z.object({
   updated_at: z.string(),
 });
 export type PortalDocument = z.infer<typeof DocumentSchema>;
-
-export const INVOICE_STATUSES = ['not_issued', 'upcoming', 'due', 'paid', 'overdue'] as const;
-export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
-
-export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
-  not_issued: 'Not yet issued',
-  upcoming: 'Upcoming',
-  due: 'Due',
-  paid: 'Paid',
-  overdue: 'Overdue',
-};
-
-export const InvoiceSchema = z.object({
-  id: z.guid(),
-  account_id: z.guid(),
-  project_id: z.guid().nullable(),
-  milestone_id: z.guid().nullable(),
-  number: z.string().nullable(),
-  description: z.string(),
-  amount: numeric,
-  currency: z.string(),
-  due_date: z.string().nullable(),
-  due_label: z.string().nullable(),
-  status: z.enum(INVOICE_STATUSES),
-  issued_at: z.string().nullable(),
-  paid_at: z.string().nullable(),
-  invoice_url: z.string().nullable(),
-  position: z.number(),
-});
-export type Invoice = z.infer<typeof InvoiceSchema>;
 
 // A candidate is one of Klepka's own staff (a portal_users row) proposed to work an account, with
 // a position title, CV link and optional hourly rate. Reviewed independently of the staffed team:
@@ -568,6 +597,9 @@ export const ProjectTeamMemberSchema = z.object({
   rate: numericNullable.optional().default(null),
   overtime_rate: numericNullable.optional().default(null),
   monthly_hours: numericNullable.optional().default(null),
+  // Finance (0044): the internal pay/cost rate for this member — the source of truth salary reads.
+  // Admin-only, like the billing columns above.
+  pay_rate: numericNullable.optional().default(null),
   user: z
     .object({
       id: z.guid(),
@@ -615,6 +647,112 @@ export const PublicHolidaySchema = z.object({
   updated_at: z.string().optional(),
 });
 export type PublicHoliday = z.infer<typeof PublicHolidaySchema>;
+
+// Employee time off (migration 0058). `kind` = vacation / sick leave; `status` is Klepka's INTERNAL
+// sign-off (distinct from the client's per-account acknowledgement).
+export const TIME_OFF_KINDS = ['vacation', 'sick'] as const;
+export type TimeOffKind = (typeof TIME_OFF_KINDS)[number];
+export const TIME_OFF_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type TimeOffStatus = (typeof TIME_OFF_STATUSES)[number];
+
+export const TimeOffSchema = z.object({
+  id: z.guid(),
+  user_id: z.guid(),
+  kind: z.enum(TIME_OFF_KINDS),
+  start_date: z.string(),
+  end_date: z.string(),
+  note: z.string(),
+  status: z.enum(TIME_OFF_STATUSES),
+  reviewed_by: z.guid().nullable().optional(),
+  reviewed_at: z.string().nullable().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  // Embedded employee, for the admin list (own list omits it).
+  user: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+});
+export type TimeOff = z.infer<typeof TimeOffSchema>;
+
+// One client's response to a leave (per account) — shown as badges on the admin Time Off page.
+export const TimeOffResponseSchema = z.object({
+  id: z.guid(),
+  time_off_id: z.guid(),
+  account_id: z.guid(),
+  approved: z.boolean(),
+  replacement_requested: z.boolean(),
+  approved_at: z.string().nullable().optional(),
+  replacement_requested_at: z.string().nullable().optional(),
+});
+export type TimeOffResponse = z.infer<typeof TimeOffResponseSchema>;
+
+// A row of the client-facing team-availability feed (RPC portal_my_team_time_off). One row per
+// (leave, shared project): the client confirms and requests a replacement per project (migration 0060).
+export const TeamTimeOffSchema = z.object({
+  id: z.guid(),
+  project_id: z.guid(),
+  project_name: z.string(),
+  user_id: z.guid(),
+  full_name: z.string(),
+  kind: z.enum(TIME_OFF_KINDS),
+  start_date: z.string(),
+  end_date: z.string(),
+  note: z.string(),
+  days: z.number(),
+  approved: z.boolean(),
+  replacement_requested: z.boolean(),
+});
+export type TeamTimeOff = z.infer<typeof TeamTimeOffSchema>;
+
+// A pending leave the signed-in staffer may approve (RPC portal_time_off_review_queue, 0060) — admins
+// see everyone's, a team lead only their team's members'.
+export const TimeOffReviewSchema = z.object({
+  id: z.guid(),
+  user_id: z.guid(),
+  full_name: z.string(),
+  team_name: z.string().nullable(),
+  kind: z.enum(TIME_OFF_KINDS),
+  start_date: z.string(),
+  end_date: z.string(),
+  note: z.string(),
+  days: z.number(),
+  status: z.enum(TIME_OFF_STATUSES),
+});
+export type TimeOffReview = z.infer<typeof TimeOffReviewSchema>;
+
+// A client's replacement request for a leave, pinned to the exact project + client that asked (RPC
+// portal_time_off_replacement_requests, 0060). Scoped to admin (all) / team lead (their team).
+export const TimeOffReplacementSchema = z.object({
+  id: z.guid(),
+  user_id: z.guid(),
+  full_name: z.string(),
+  kind: z.enum(TIME_OFF_KINDS),
+  start_date: z.string(),
+  end_date: z.string(),
+  days: z.number(),
+  project_id: z.guid(),
+  project_name: z.string(),
+  account_id: z.guid(),
+  account_name: z.string(),
+  approved: z.boolean(),
+  replacement_requested_at: z.string().nullable().optional(),
+});
+export type TimeOffReplacement = z.infer<typeof TimeOffReplacementSchema>;
+
+// A row of the internal, staff-facing upcoming-leave feed (RPC portal_my_team_upcoming_time_off,
+// migration 0059): my own leave (pending/approved) plus my teammates' approved leave. `is_me`
+// distinguishes the two; a colleague's `note` is withheld server-side.
+export const MyTeamTimeOffSchema = z.object({
+  id: z.guid(),
+  user_id: z.guid(),
+  full_name: z.string(),
+  kind: z.enum(TIME_OFF_KINDS),
+  start_date: z.string(),
+  end_date: z.string(),
+  note: z.string(),
+  days: z.number(),
+  status: z.enum(TIME_OFF_STATUSES),
+  is_me: z.boolean(),
+});
+export type MyTeamTimeOff = z.infer<typeof MyTeamTimeOffSchema>;
 
 export const ProjectSchema = z.object({
   id: z.guid(),
@@ -847,21 +985,150 @@ export const TimeEntrySchema = z.object({
   // the internal employee (`user_id`) who actually did it (migration 0041). Defaults to the employee.
   reporter_id: z.guid().nullable().optional().default(null),
   entry_date: z.string(),
-  // `hours` is the billed figure the client budget draws down; `actual_hours` is what was worked
-  // (migration 0038). `approved` is a manager sign-off (admin-only). Both are internal.
-  hours: numeric,
+  // `hours` is the billed figure the client budget draws down — optional since 0045, where a blank
+  // marks non-billable work (actual hours only). `actual_hours` is what was worked (migration 0038).
+  // `approved` is a manager sign-off (admin-only), and also gates client visibility since 0045.
+  hours: numericNullable.optional().default(null),
   actual_hours: numericNullable.optional().default(null),
   approved: z.boolean().optional().default(false),
+  // Finance (0044): the pay/cost rate frozen onto this worklog at log time. Salary sums it, so a later
+  // rate change never rewrites already-logged pay. Admin-only.
+  pay_rate: numericNullable.optional().default(null),
   description: z.string(),
-  billable: z.boolean(),
-  visible_to_client: z.boolean(),
+  // Derived, non-computational analytics marker (0045): true when the log has billable hours.
+  billable: z.boolean().optional().default(false),
   // The internal employee who did the work (admin snapshot). On the client snapshot this same key
   // is aliased to the reporter, so the client never sees the real employee.
   user: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
   // The client-facing reporter, embedded on the admin snapshot alongside `user`.
   reporter: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+  // The project the log belongs to — embedded on the salary drill-down so each contributing worklog
+  // shows where the time went (finance, 0044).
+  project: z.object({ id: z.guid(), name: z.string() }).nullable().optional(),
 });
 export type TimeEntry = z.infer<typeof TimeEntrySchema>;
+
+// Finance (0044): a monthly salary per internal employee. open = accruing; approved = signed off;
+// paid = frozen (recompute skips it). Admin-only.
+export const SALARY_STATUSES = ['open', 'approved', 'paid'] as const;
+export type SalaryStatus = (typeof SALARY_STATUSES)[number];
+export const SALARY_STATUS_LABELS: Record<SalaryStatus, string> = {
+  open: 'Open',
+  approved: 'Approved',
+  paid: 'Paid',
+};
+
+// Currencies offered for employee pay. Stored as free text, so this is just the picker's shortlist.
+export const PAY_CURRENCIES = ['USD', 'EUR', 'GBP', 'UAH', 'PLN'] as const;
+
+export const SalarySchema = z.object({
+  id: z.guid(),
+  user_id: z.guid(),
+  // First day of the month the salary covers.
+  period: z.string(),
+  currency: z.string(),
+  total_hours: numeric,
+  total_amount: numeric,
+  status: z.enum(SALARY_STATUSES),
+  computed_at: z.string().nullable(),
+  created_at: z.string(),
+  // The employee, embedded for the admin list.
+  user: z
+    .object({ id: z.guid(), full_name: z.string(), title: z.string().nullable() })
+    .nullable()
+    .optional(),
+});
+export type Salary = z.infer<typeof SalarySchema>;
+
+// Billing invoices (0048): the client-side mirror of salaries. One row per (project, month),
+// summing APPROVED BILLABLE worklogs by the client-facing reporter, valued at that reporter's
+// project billing rate. Lifecycle: open = accruing; approved = internal sign-off; sent = issued to
+// the client (frozen); client_approved = the client confirmed it; paid = admin confirmed payment.
+// The client sees everything from 'sent' onward. Admin manages open→approved→sent and the final
+// 'paid'; the client toggles sent↔client_approved.
+export const BILLING_INVOICE_STATUSES = ['open', 'approved', 'sent', 'client_approved', 'paid'] as const;
+export type BillingInvoiceStatus = (typeof BILLING_INVOICE_STATUSES)[number];
+export const BILLING_INVOICE_STATUS_LABELS: Record<BillingInvoiceStatus, string> = {
+  open: 'Open',
+  approved: 'Approved',
+  sent: 'Sent',
+  client_approved: 'Approved by client',
+  paid: 'Paid',
+};
+
+// One per-reporter summary line of a billing invoice: billing hours × the frozen rate.
+export const BillingInvoiceLineSchema = z.object({
+  id: z.guid(),
+  invoice_id: z.guid(),
+  reporter_id: z.guid().nullable(),
+  hours: numeric,
+  rate: numericNullable.optional().default(null),
+  amount: numeric,
+  // The client-facing reporter, embedded for display.
+  reporter: z.object({ id: z.guid(), full_name: z.string() }).nullable().optional(),
+});
+export type BillingInvoiceLine = z.infer<typeof BillingInvoiceLineSchema>;
+
+export const BillingInvoiceSchema = z.object({
+  id: z.guid(),
+  account_id: z.guid(),
+  project_id: z.guid(),
+  // First day of the month the invoice covers.
+  period: z.string(),
+  currency: z.string(),
+  total_hours: numeric,
+  total_amount: numeric,
+  status: z.enum(BILLING_INVOICE_STATUSES),
+  computed_at: z.string().nullable(),
+  created_at: z.string(),
+  // Optional link to the issued invoice file (a portal_documents row in the 04_invoices folder).
+  document_id: z.guid().nullable().optional(),
+  // Embedded for the list views.
+  project: z.object({ id: z.guid(), name: z.string() }).nullable().optional(),
+  account: z.object({ id: z.guid(), name: z.string() }).nullable().optional(),
+  // The attached invoice file, embedded for the view/download button (may be null if none/no access).
+  document: z
+    .object({
+      id: z.guid(),
+      name: z.string(),
+      file_url: z.string().nullable(),
+      drive_web_link: z.string().nullable().optional(),
+      drive_file_id: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  // The per-reporter summary lines.
+  lines: z.array(BillingInvoiceLineSchema).optional().default([]),
+});
+export type BillingInvoice = z.infer<typeof BillingInvoiceSchema>;
+
+// Finance transactions (0056): the unified realised-money ledger. One row per PAID source — an expense
+// for a paid salary, income for a settled invoice — recorded in its own currency with a manual FX rate
+// into the base currency (base_amount = amount × fx_rate). Admin-only; drives profitability analytics.
+export const FINANCE_TRANSACTION_KINDS = ['expense', 'income'] as const;
+export type FinanceTransactionKind = (typeof FINANCE_TRANSACTION_KINDS)[number];
+// 'manual' rows are ad-hoc entries an admin adds directly (0057) — no salary/invoice behind them,
+// so source_id is null for those.
+export const FINANCE_TRANSACTION_SOURCES = ['salary', 'invoice', 'manual'] as const;
+export type FinanceTransactionSource = (typeof FINANCE_TRANSACTION_SOURCES)[number];
+
+export const FinanceTransactionSchema = z.object({
+  id: z.guid(),
+  kind: z.enum(FINANCE_TRANSACTION_KINDS),
+  source_type: z.enum(FINANCE_TRANSACTION_SOURCES),
+  source_id: z.guid().nullable(),
+  amount: numeric,
+  currency: z.string(),
+  fx_rate: numeric,
+  base_amount: numeric,
+  base_currency: z.string(),
+  // Payment date (YYYY-MM-DD).
+  occurred_on: z.string(),
+  note: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type FinanceTransaction = z.infer<typeof FinanceTransactionSchema>;
 
 /** One project with the children the portal renders for it. */
 export interface ProjectBundle {
@@ -881,9 +1148,7 @@ export interface PortalSnapshot {
   intake: IntakeItem[];
   timeEntries: TimeEntry[];
   offers: Offer[];
-  meetings: Meeting[];
   documents: PortalDocument[];
-  invoices: Invoice[];
   /** People proposed to the client for review, separate from the staffed team. */
   candidates: Candidate[];
   /** Every project on the account, each with its own milestones/team/hours. */

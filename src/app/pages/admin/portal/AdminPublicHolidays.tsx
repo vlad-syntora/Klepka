@@ -143,7 +143,7 @@ export const AdminPublicHolidays: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="flex items-center gap-2 text-xl font-semibold text-violet">
             <CalendarDays className="h-5 w-5" /> Public holidays
           </h1>

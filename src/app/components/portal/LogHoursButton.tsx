@@ -60,11 +60,11 @@ export const LogHoursButton: React.FC<{
   // A milestone can only be tagged when the log is locked to a project (so the list is unambiguous).
   const showMilestones = Boolean(project) && (milestones?.length ?? 0) > 0;
 
-  // Reset the form each time the popup opens; default the employee to the current user.
+  // Reset the form each time the popup opens; default the employee to the current user. The reporter
+  // is derived from the project team below (a public member), not set here.
   React.useEffect(() => {
     if (!open) return;
     setEmployeeId(user?.id ?? '');
-    setReporterId(user?.id ?? '');
     setReporterTouched(false);
     setProjectId(project?.id ?? '');
     setMilestoneId('');
@@ -85,37 +85,55 @@ export const LogHoursButton: React.FC<{
     };
   }, [open, isAdmin, project]);
 
-  // Locked to a project: load its team so Employee lists the project's members and Reporter lists
-  // only its public members.
+  // Load the active project's team (the locked project, or the one picked in the fallback flow) so
+  // the Reporter is limited to people actually staffed on it — the client can only ever see work
+  // credited to a project member. The server enforces this too (migration 0050).
+  const activeProjectId = project?.id ?? projectId;
   React.useEffect(() => {
-    if (!open || !isAdmin || !project) return;
+    if (!open || !isAdmin || !activeProjectId) {
+      setProjectTeam([]);
+      return;
+    }
     let cancelled = false;
-    adminListProjectTeam(project.id)
+    adminListProjectTeam(activeProjectId)
       .then((rowsData) => !cancelled && setProjectTeam(rowsData))
       .catch(() => !cancelled && setProjectTeam([]));
     return () => {
       cancelled = true;
     };
-  }, [open, isAdmin, project]);
+  }, [open, isAdmin, activeProjectId]);
 
-  // Employee options: the project's members (linked to a real user); Reporter options: only the
-  // public ones. Without a locked project, both fall back to the full internal directory.
+  // Employee options: the project's members when locked, else the full internal directory (the
+  // employee is the internal worker, not client-facing). Reporter options: only the active project's
+  // public members — never the whole directory, so a reporter is always someone on the project.
+  // Key both off user_id (the id we actually store) with a display_name fallback for the label, so a
+  // member still appears even if the embedded user row didn't come back on the join.
+  const memberLabel = (member: ProjectTeamMember) =>
+    member.user?.full_name ?? member.display_name ?? 'Team member';
   const employeeOptions = React.useMemo(
     () =>
       project
-        ? projectTeam.filter((member) => member.user).map((member) => ({ id: member.user!.id, full_name: member.user!.full_name }))
+        ? projectTeam
+            .filter((member) => member.user_id)
+            .map((member) => ({ id: member.user_id!, full_name: memberLabel(member) }))
         : staff.map((person) => ({ id: person.id, full_name: person.full_name })),
     [project, projectTeam, staff],
   );
   const reporterOptions = React.useMemo(
     () =>
-      project
-        ? projectTeam
-            .filter((member) => member.user && (member.is_public ?? true))
-            .map((member) => ({ id: member.user!.id, full_name: member.user!.full_name }))
-        : staff.map((person) => ({ id: person.id, full_name: person.full_name })),
-    [project, projectTeam, staff],
+      projectTeam
+        .filter((member) => member.user_id && (member.is_public ?? true))
+        .map((member) => ({ id: member.user_id!, full_name: memberLabel(member) })),
+    [projectTeam],
   );
+
+  // Keep the reporter in sync until the admin overrides it: default to the employee only when the
+  // employee is a public project member; otherwise leave it unset so a public reporter is chosen
+  // explicitly (the client can never see a hidden member as the reporter).
+  React.useEffect(() => {
+    if (reporterTouched) return;
+    setReporterId(reporterOptions.some((person) => person.id === employeeId) ? employeeId : '');
+  }, [employeeId, reporterOptions, reporterTouched]);
 
   // Without a locked project, offer the projects the chosen employee is staffed on.
   React.useEffect(() => {
@@ -154,9 +172,19 @@ export const LogHoursButton: React.FC<{
       toast.error('Pick a project.');
       return;
     }
-    const valid = rows.filter((row) => Number(row.billing) > 0);
+    // Admin logs are client-visible, so they need a public reporter the client can see credited.
+    if (isAdmin && !reporterId) {
+      toast.error(
+        reporterOptions.length === 0
+          ? 'This project has no public team members — mark a member public before logging billable hours.'
+          : 'Pick a reporter — the public project member the client will see.',
+      );
+      return;
+    }
+    // A log needs some hours: billing, actual, or both. Billing may be blank (non-billable work).
+    const valid = rows.filter((row) => Number(row.billing) > 0 || Number(row.actual) > 0);
     if (valid.length === 0) {
-      toast.error('Add at least one log with billing hours.');
+      toast.error('Add at least one log with hours.');
       return;
     }
     setBusy(true);
@@ -167,7 +195,7 @@ export const LogHoursButton: React.FC<{
           userId: isAdmin ? employeeId || null : null,
           entryDate,
           description: row.description.trim(),
-          billingHours: Number(row.billing),
+          billingHours: row.billing.trim() === '' ? null : Number(row.billing),
           actualHours: row.actual.trim() === '' ? null : Number(row.actual),
           approved: isAdmin ? row.approved : false,
           milestoneId: showMilestones ? milestoneId || null : null,
@@ -196,7 +224,7 @@ export const LogHoursButton: React.FC<{
         open={open}
         onClose={() => setOpen(false)}
         title="Log hours"
-        description="Record one or more worklogs. Actual hours default to the billing hours."
+        description="Record one or more worklogs. Actual hours default to the billing hours; leave billing blank for non-billable work."
         className="max-w-2xl"
       >
         <div className="space-y-4">
@@ -206,12 +234,7 @@ export const LogHoursButton: React.FC<{
                 <select
                   className={inputClass}
                   value={employeeId}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setEmployeeId(next);
-                    // The reporter follows the employee until an admin overrides it.
-                    if (!reporterTouched) setReporterId(next);
-                  }}
+                  onChange={(event) => setEmployeeId(event.target.value)}
                 >
                   {user && !employeeOptions.some((person) => person.id === user.id) && (
                     <option value={user.id}>{prettyName(user.full_name)}</option>
@@ -227,7 +250,7 @@ export const LogHoursButton: React.FC<{
               )}
             </Field>
             {isAdmin && (
-              <Field label="Reporter" hint="Who the client sees — defaults to the employee.">
+              <Field label="Reporter" hint="Who the client sees — a public project member only.">
                 <select
                   className={inputClass}
                   value={reporterId}
@@ -236,9 +259,8 @@ export const LogHoursButton: React.FC<{
                     setReporterTouched(true);
                   }}
                 >
-                  {user && !reporterOptions.some((person) => person.id === user.id) && (
-                    <option value={user.id}>{prettyName(user.full_name)}</option>
-                  )}
+                  {/* Only public project members — never a hidden member. Empty until one is chosen. */}
+                  <option value="">Select a public member…</option>
                   {reporterOptions.map((person) => (
                     <option key={person.id} value={person.id}>
                       {prettyName(person.full_name)}

@@ -1,11 +1,14 @@
 import React from 'react';
 import { toast } from 'sonner';
-import { Download, GripVertical, Pencil, Plus, Trash2, Upload, UserPlus } from 'lucide-react';
+import { Check, Download, GripVertical, Pencil, Plus, Trash2, Upload, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
+import { usePortalUser } from '@/app/hooks/use-portal-user';
 import {
   adminAddProjectTeamMember,
+  adminApproveTimeEntries,
   adminCreateProjectFromOpportunity,
   adminDeleteDocument,
+  adminDeleteProject,
   adminDeleteTimeEntry,
   adminListDocuments,
   adminListTimeEntries,
@@ -27,6 +30,7 @@ import {
 } from '@/app/lib/portal-admin-api';
 import { getDocumentUrl, listEntityProducts } from '@/app/lib/portal-api';
 import { EntityProductsCard } from '@/app/components/portal/EntityProductsCard';
+import { HoursBudget } from '@/app/components/portal/HoursBudget';
 import { LogHoursButton } from '@/app/components/portal/LogHoursButton';
 import { formatDate, formatMoney, prettyName } from '@/app/lib/portal-format';
 import {
@@ -62,9 +66,11 @@ import {
   PortalSpinner,
   PortalTable,
   Row,
+  SortHeader,
   StatusTag,
   inputClass,
   toneFor,
+  useTableSort,
 } from '@/app/components/portal/PortalUi';
 
 const PROJECT_ROLES = ['Delivery Lead', 'Solution Architect', 'Consultant', 'Developer', 'QA', 'Project Manager'];
@@ -105,7 +111,9 @@ const CreateProjectPanel: React.FC<{
   const [milestones, setMilestones] = React.useState<{ name: string; description: string; due_date: string }[]>([]);
   // Roster rows seeded from the accepted offer's line items (text-only, no linked user). Each carries
   // the seeding line's billing (migration 0036) so the team member mirrors the offer/opportunity.
-  const [team, setTeam] = React.useState<({ display_name: string; project_role: string } & TeamBilling)[]>([]);
+  const [team, setTeam] = React.useState<
+    ({ display_name: string; project_role: string; employee_id: string | null; pay_rate: number | null } & TeamBilling)[]
+  >([]);
   // Products copied from the linked opportunity.
   const [productIds, setProductIds] = React.useState<string[]>([]);
   const [busy, setBusy] = React.useState(false);
@@ -158,6 +166,9 @@ const CreateProjectPanel: React.FC<{
           rate: item.amount ?? null,
           overtime_rate: item.overtime_rate ?? null,
           monthly_hours: item.monthly_hours ?? null,
+          // Finance (0044): carry the offer line's employee link + cost rate onto the roster row.
+          employee_id: item.employee_id ?? null,
+          pay_rate: item.pay_rate ?? null,
         })),
       );
     }
@@ -339,16 +350,43 @@ const CreateProjectPanel: React.FC<{
         </p>
         {team.map((member, index) => (
           <div key={index} className="grid gap-2 sm:grid-cols-[1.5fr_1fr_40px]">
-            <input
+            <select
               className={inputClass}
-              placeholder="Name"
-              value={member.display_name}
+              value={member.employee_id ?? ''}
               onChange={(event) =>
                 setTeam((current) =>
-                  current.map((row, i) => (i === index ? { ...row, display_name: event.target.value } : row)),
+                  current.map((row, i) => {
+                    if (i !== index) return row;
+                    const picked = (staff.data ?? []).find((person) => person.id === event.target.value);
+                    return picked
+                      ? {
+                          ...row,
+                          employee_id: picked.id,
+                          display_name: prettyName(picked.full_name),
+                          // Finance (0044): seed the cost rate from the staffer's default when picked.
+                          pay_rate: picked.pay_rate ?? row.pay_rate,
+                        }
+                      : { ...row, employee_id: null };
+                  }),
                 )
               }
-            />
+            >
+              <option value="">
+                {member.display_name.trim() ? `${member.display_name} — select staff…` : 'Select staff…'}
+              </option>
+              {(staff.data ?? [])
+                .filter(
+                  (person) =>
+                    person.id === member.employee_id ||
+                    !team.some((row) => row.employee_id === person.id),
+                )
+                .map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {prettyName(person.full_name)}
+                    {person.title ? ` — ${person.title}` : ''}
+                  </option>
+                ))}
+            </select>
             <input
               className={inputClass}
               placeholder="Role on project"
@@ -373,7 +411,16 @@ const CreateProjectPanel: React.FC<{
           onClick={() =>
             setTeam((current) => [
               ...current,
-              { display_name: '', project_role: 'Team member', billing_type: null, rate: null, overtime_rate: null, monthly_hours: null },
+              {
+                display_name: '',
+                project_role: 'Team member',
+                billing_type: null,
+                rate: null,
+                overtime_rate: null,
+                monthly_hours: null,
+                employee_id: null,
+                pay_rate: null,
+              },
             ])
           }
         >
@@ -846,7 +893,7 @@ const TeamPanel: React.FC<{ project: Project; canEdit?: boolean }> = ({ project,
   const [isPublic, setIsPublic] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
 
-  const updateMember = async (id: string, patch: Partial<TeamBilling>) => {
+  const updateMember = async (id: string, patch: Partial<TeamBilling & { pay_rate: number | null }>) => {
     try {
       await adminUpdateProjectTeamMember(id, patch);
       await team.reload();
@@ -860,7 +907,15 @@ const TeamPanel: React.FC<{ project: Project; canEdit?: boolean }> = ({ project,
     if (!userId) return;
     setBusy(true);
     try {
-      await adminAddProjectTeamMember({ project_id: project.id, user_id: userId, project_role: projectRole, is_public: isPublic });
+      // Seed the cost rate from the selected staff member's default pay_rate (finance, 0044).
+      const selected = (staff.data ?? []).find((person) => person.id === userId);
+      await adminAddProjectTeamMember({
+        project_id: project.id,
+        user_id: userId,
+        project_role: projectRole,
+        is_public: isPublic,
+        pay_rate: selected?.pay_rate ?? null,
+      });
       toast.success('Added — they now appear on the client’s roster and feedback dropdown.');
       setUserId('');
       await team.reload();
@@ -901,7 +956,7 @@ const TeamPanel: React.FC<{ project: Project; canEdit?: boolean }> = ({ project,
           head={[
             'Name',
             'Role on project',
-            ...(canEdit ? ['Billing'] : []),
+            ...(canEdit ? ['Billing', 'Pay rate'] : []),
             'Since',
             'Public',
             ...(canEdit ? [''] : []),
@@ -916,6 +971,26 @@ const TeamPanel: React.FC<{ project: Project; canEdit?: boolean }> = ({ project,
               {canEdit && (
                 <Cell>
                   <TeamBillingCell member={member} onChange={(patch) => updateMember(member.id, patch)} />
+                </Cell>
+              )}
+              {canEdit && (
+                <Cell>
+                  {/* Internal cost rate (finance, 0044) — what salary reads. Only meaningful for a
+                      member linked to a real employee; text-only roster rows log no hours. */}
+                  <Field label={member.user ? 'Cost / h' : 'Cost / h (no employee)'} key={`pay-${member.id}-${member.pay_rate ?? ''}`}>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={`${inputClass} w-24 py-1 text-xs`}
+                      defaultValue={member.pay_rate ?? ''}
+                      onBlur={(event) => {
+                        const raw = event.target.value.trim();
+                        const next = raw === '' ? null : Number(raw);
+                        if (next !== (member.pay_rate ?? null)) updateMember(member.id, { pay_rate: next });
+                      }}
+                    />
+                  </Field>
                 </Cell>
               )}
               <Cell className="whitespace-nowrap text-grey">{formatDate(member.assigned_at)}</Cell>
@@ -1003,17 +1078,20 @@ const EditTimeEntryModal: React.FC<{
   // Client-facing reporter; falls back to the employee when the row predates reporters (0041).
   const [reporterId, setReporterId] = React.useState(entry.reporter_id ?? entry.user_id ?? '');
   const [description, setDescription] = React.useState(entry.description);
-  const [hours, setHours] = React.useState(String(entry.hours));
+  const [hours, setHours] = React.useState(entry.hours != null ? String(entry.hours) : '');
   const [actual, setActual] = React.useState(entry.actual_hours != null ? String(entry.actual_hours) : '');
-  const [billable, setBillable] = React.useState(entry.billable);
-  const [visible, setVisible] = React.useState(entry.visible_to_client);
   const [approved, setApproved] = React.useState(entry.approved);
   const [busy, setBusy] = React.useState(false);
 
   const save = async () => {
-    const billing = Number(hours);
-    if (!(billing > 0)) {
+    // Billing hours are optional now (blank = non-billable); validate the range only when present.
+    const billing = hours.trim() === '' ? null : Number(hours);
+    if (billing !== null && !(billing > 0)) {
       toast.error('Billing hours must be greater than 0.');
+      return;
+    }
+    if (billing === null && actual.trim() === '') {
+      toast.error('Enter actual or billing hours.');
       return;
     }
     setBusy(true);
@@ -1025,8 +1103,6 @@ const EditTimeEntryModal: React.FC<{
         description: description.trim(),
         hours: billing,
         actual_hours: actual.trim() === '' ? null : Number(actual),
-        billable,
-        visible_to_client: visible,
         approved,
       });
       toast.success('Entry updated.');
@@ -1073,7 +1149,7 @@ const EditTimeEntryModal: React.FC<{
           <input className={inputClass} value={description} onChange={(event) => setDescription(event.target.value)} />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Billing h">
+          <Field label="Billing h" hint="Blank = non-billable (actual hours only).">
             <input type="number" min={0} max={24} step="0.25" className={inputClass} value={hours} onChange={(event) => setHours(event.target.value)} />
           </Field>
           <Field label="Actual h">
@@ -1081,14 +1157,6 @@ const EditTimeEntryModal: React.FC<{
           </Field>
         </div>
         <div className="flex flex-wrap gap-4 text-sm text-grey">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" className="h-4 w-4 accent-[color:var(--violet)]" checked={billable} onChange={(event) => setBillable(event.target.checked)} />
-            Billable
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" className="h-4 w-4 accent-[color:var(--violet)]" checked={visible} onChange={(event) => setVisible(event.target.checked)} />
-            Visible to client
-          </label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -1113,7 +1181,11 @@ const EditTimeEntryModal: React.FC<{
   );
 };
 
-const TimePanel: React.FC<{ project: Project; canApprove?: boolean }> = ({ project, canApprove = true }) => {
+const TimePanel: React.FC<{ project: Project; canApprove?: boolean; isOwner?: boolean }> = ({
+  project,
+  canApprove = true,
+  isOwner = false,
+}) => {
   const entries = useAsync(() => adminListTimeEntries(project.id), [project.id]);
   const milestones = useAsync(() => adminListMilestones(project.id), [project.id]);
   // Staff list, so an entry's client-facing reporter can be reassigned in the edit popup.
@@ -1122,16 +1194,47 @@ const TimePanel: React.FC<{ project: Project; canApprove?: boolean }> = ({ proje
   const [fromDate, setFromDate] = React.useState('');
   const [toDate, setToDate] = React.useState('');
   const [editing, setEditing] = React.useState<TimeEntry | null>(null);
+  // Bulk-approve selection — the account owner only. Holds ids of unapproved entries ticked for approval.
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
 
   const milestoneOptions = (milestones.data ?? []).map((milestone) => ({ id: milestone.id, name: milestone.name }));
+  const milestoneName = (id: string | null) => (milestones.data ?? []).find((m) => m.id === id)?.name ?? '—';
 
   const rows = entries.data ?? [];
   // ISO dates compare correctly as strings, so a lexicographic range check is enough.
   const filtered = rows.filter(
     (entry) => (!fromDate || entry.entry_date >= fromDate) && (!toDate || entry.entry_date <= toDate),
   );
-  const total = filtered.reduce((sum, entry) => sum + entry.hours, 0);
-  const shown = filtered.filter((entry) => entry.visible_to_client).reduce((sum, entry) => sum + entry.hours, 0);
+  // Client-side column sorting, same idiom as the other list views (SortHeader + useTableSort).
+  const { sorted, sort, toggle } = useTableSort(filtered, {
+    date: (entry) => entry.entry_date,
+    employee: (entry) => entry.user?.full_name ?? null,
+    reporter: (entry) => (entry.reporter ?? entry.user)?.full_name ?? null,
+    milestone: (entry) => milestoneName(entry.milestone_id),
+    description: (entry) => entry.description || null,
+    hours: (entry) => entry.hours,
+  });
+  const total = filtered.reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
+  // Client-visible hours = approved ones (0045: approval gates client visibility).
+  const shown = filtered.filter((entry) => entry.approved).reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
+
+  // Monthly budget draw-down (bank of hours is a monthly limit). Unlike the client bar — which only
+  // counts approved logs — the admin view draws down against *all* of this month's billing hours
+  // (approved or not), so the team sees true consumption against the limit before sign-off. Built
+  // from every logged entry (`rows`), independent of the date-range filter above; the local YYYY-MM
+  // prefix keeps it in the viewer's timezone.
+  // The hours budget is a billing field, hidden from the Implementer role (canApprove=false) — the
+  // same gate the bank/notify inputs use on the project card.
+  const hasBudget = canApprove && (project.bank_hours != null || project.notify_hours != null);
+  const monthPrefix = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 7);
+  const usedThisMonth = rows
+    .filter((entry) => entry.entry_date.startsWith(monthPrefix))
+    .reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
+
+  // Only unapproved, currently-visible entries can be ticked for approval.
+  const selectableIds = filtered.filter((entry) => !entry.approved).map((entry) => entry.id);
+  const selectedIds = selectableIds.filter((id) => selected.has(id));
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
   const remove = async (id: string) => {
     if (!window.confirm('Delete this time entry?')) return;
@@ -1139,7 +1242,61 @@ const TimePanel: React.FC<{ project: Project; canApprove?: boolean }> = ({ proje
     await entries.reload();
   };
 
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (selectableIds.every((id) => next.has(id))) selectableIds.forEach((id) => next.delete(id));
+      else selectableIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+  const approveSelected = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      await adminApproveTimeEntries(selectedIds);
+      setSelected(new Set());
+      await entries.reload();
+      toast.success(`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} approved`);
+    } catch (cause) {
+      toast.error('Could not approve entries', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
   if (entries.loading) return <PortalSpinner />;
+
+  const sortable = (label: string, key: string) => (
+    <SortHeader label={label} sortKey={key} sort={sort} onSort={toggle} />
+  );
+  const head: React.ReactNode[] = [
+    ...(isOwner
+      ? [
+          <input
+            key="__select"
+            type="checkbox"
+            aria-label="Select all unapproved entries"
+            className="h-4 w-4 cursor-pointer accent-violet align-middle"
+            checked={allSelected}
+            disabled={selectableIds.length === 0}
+            onChange={toggleAll}
+          />,
+        ]
+      : []),
+    sortable('Date', 'date'),
+    sortable('Employee', 'employee'),
+    sortable('Reporter', 'reporter'),
+    sortable('Milestone', 'milestone'),
+    sortable('Description', 'description'),
+    sortable('Hours', 'hours'),
+    '',
+  ];
 
   return (
     <PortalCard
@@ -1176,56 +1333,100 @@ const TimePanel: React.FC<{ project: Project; canApprove?: boolean }> = ({ proje
         </div>
       }
     >
+      {/* Monthly bank-of-hours draw-down — all of this month's billing hours vs the monthly limit.
+          Shown above the log list, independent of the date-range filter, whenever a budget is set. */}
+      {hasBudget && (
+        <HoursBudget
+          className="mb-4"
+          bank={project.bank_hours}
+          notify={project.notify_hours}
+          used={usedThisMonth}
+          label="This month"
+        />
+      )}
+
       {filtered.length === 0 ? (
         <EmptyState title={rows.length === 0 ? 'No hours logged yet' : 'No entries in this date range'} />
       ) : (
-        <PortalTable dense head={['Date', 'Employee', 'Reporter', 'Milestone', 'Description', 'Hours', '']}>
-          {filtered.map((entry) => {
-            const reporter = entry.reporter ?? entry.user;
-            // Flag when the client sees a different person than the one who did the work.
-            const reassigned = entry.reporter_id != null && entry.reporter_id !== entry.user_id;
-            return (
-            <Row key={entry.id}>
-              <Cell className="whitespace-nowrap text-grey">{formatDate(entry.entry_date)}</Cell>
-              <Cell className="whitespace-nowrap">{entry.user ? prettyName(entry.user.full_name) : '—'}</Cell>
-              <Cell className="whitespace-nowrap">
-                {reporter ? prettyName(reporter.full_name) : '—'}
-                {reassigned && <StatusTag tone="violet" className="ml-2">Client-facing</StatusTag>}
-              </Cell>
-              <Cell className="text-grey">
-                {(milestones.data ?? []).find((m) => m.id === entry.milestone_id)?.name ?? '—'}
-              </Cell>
-              <Cell className="text-grey">
-                {entry.description || '—'}
-                {!entry.visible_to_client && <StatusTag tone="grey" className="ml-2">Internal</StatusTag>}
-                {!entry.billable && <StatusTag tone="amber" className="ml-2">Non-billable</StatusTag>}
-                {entry.approved && <StatusTag tone="green" className="ml-2">Approved</StatusTag>}
-              </Cell>
-              <Cell className="whitespace-nowrap font-medium">
-                {entry.hours.toFixed(2)}
-                {entry.actual_hours != null && entry.actual_hours !== entry.hours && (
-                  <span className="font-normal text-grey"> · {entry.actual_hours.toFixed(2)} act</span>
+        <>
+          {/* Bulk approve — account owner only; appears once at least one unapproved entry is ticked. */}
+          {isOwner && selectedIds.length > 0 && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-violet/30 bg-violet/5 px-3 py-2">
+              <span className="text-sm font-medium text-violet">{selectedIds.length} selected</span>
+              <div className="flex items-center gap-2">
+                <PortalButton variant="secondary" onClick={approveSelected}>
+                  <Check className="h-4 w-4" /> Approve
+                </PortalButton>
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="px-1.5 py-1 text-xs font-medium text-violet hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+          <PortalTable dense head={head}>
+            {sorted.map((entry) => {
+              const reporter = entry.reporter ?? entry.user;
+              // Flag when the client sees a different person than the one who did the work.
+              const reassigned = entry.reporter_id != null && entry.reporter_id !== entry.user_id;
+              return (
+              <Row key={entry.id}>
+                {isOwner && (
+                  <Cell className="w-8 pr-0">
+                    {!entry.approved && (
+                      <input
+                        type="checkbox"
+                        aria-label="Select entry for approval"
+                        className="h-4 w-4 cursor-pointer accent-violet align-middle"
+                        checked={selected.has(entry.id)}
+                        onChange={() => toggleOne(entry.id)}
+                      />
+                    )}
+                  </Cell>
                 )}
-              </Cell>
-              <Cell className="text-right">
-                {/* Without approve rights (Implementer), only unapproved entries can be edited/deleted. */}
-                {canApprove || !entry.approved ? (
-                  <div className="flex justify-end gap-1">
-                    <PortalButton variant="ghost" onClick={() => setEditing(entry)} aria-label="Edit entry">
-                      <Pencil className="h-4 w-4" />
-                    </PortalButton>
-                    <PortalButton variant="ghost" onClick={() => remove(entry.id)} aria-label="Delete entry">
-                      <Trash2 className="h-4 w-4" />
-                    </PortalButton>
-                  </div>
-                ) : (
-                  <StatusTag tone="grey">Locked</StatusTag>
-                )}
-              </Cell>
-            </Row>
-            );
-          })}
-        </PortalTable>
+                <Cell className="whitespace-nowrap text-grey">{formatDate(entry.entry_date)}</Cell>
+                <Cell className="whitespace-nowrap">{entry.user ? prettyName(entry.user.full_name) : '—'}</Cell>
+                <Cell className="whitespace-nowrap">
+                  {reporter ? prettyName(reporter.full_name) : '—'}
+                  {reassigned && <StatusTag tone="violet" className="ml-2">Client-facing</StatusTag>}
+                </Cell>
+                <Cell className="text-grey">{milestoneName(entry.milestone_id)}</Cell>
+                <Cell className="text-grey">
+                  {entry.description || '—'}
+                  {!entry.billable && <StatusTag tone="amber" className="ml-2">Non-billable</StatusTag>}
+                  {entry.approved
+                    ? <StatusTag tone="green" className="ml-2">Approved</StatusTag>
+                    : <StatusTag tone="grey" className="ml-2">Not visible</StatusTag>}
+                </Cell>
+                <Cell className="whitespace-nowrap font-medium">
+                  {entry.hours != null ? entry.hours.toFixed(2) : '—'}
+                  {entry.actual_hours != null && entry.actual_hours !== entry.hours && (
+                    <span className="font-normal text-grey"> · {entry.actual_hours.toFixed(2)} act</span>
+                  )}
+                </Cell>
+                <Cell className="text-right">
+                  {/* Without approve rights (Implementer), only unapproved entries can be edited/deleted. */}
+                  {canApprove || !entry.approved ? (
+                    <div className="flex justify-end gap-1">
+                      <PortalButton variant="ghost" onClick={() => setEditing(entry)} aria-label="Edit entry">
+                        <Pencil className="h-4 w-4" />
+                      </PortalButton>
+                      <PortalButton variant="ghost" onClick={() => remove(entry.id)} aria-label="Delete entry">
+                        <Trash2 className="h-4 w-4" />
+                      </PortalButton>
+                    </div>
+                  ) : (
+                    <StatusTag tone="grey">Locked</StatusTag>
+                  )}
+                </Cell>
+              </Row>
+              );
+            })}
+          </PortalTable>
+        </>
       )}
 
       {editing && (
@@ -1246,6 +1447,9 @@ export const WorkspaceProject: React.FC<{ account: PortalAccount; canEdit?: bool
   account,
   canEdit = true,
 }) => {
+  const { user } = usePortalUser();
+  // Bulk worklog approval is limited to the account's owner (UX gate; RLS still enforces admin write).
+  const isOwner = Boolean(user && account.owner_id && user.id === account.owner_id);
   const projects = useAsync(() => adminListProjects(account.id), [account.id]);
   const opportunities = useAsync(() => adminListOpportunities(account.id), [account.id]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -1265,13 +1469,32 @@ export const WorkspaceProject: React.FC<{ account: PortalAccount; canEdit?: bool
     }
   };
 
+  const removeProject = async () => {
+    if (!project) return;
+    if (
+      !window.confirm(
+        `Delete "${project.name}"? This permanently removes its milestones, team, logged hours and billing invoices. This can't be undone.`,
+      )
+    )
+      return;
+    try {
+      await adminDeleteProject(project.id);
+      toast.success('Project deleted.');
+      setSelectedId(null);
+      await projects.reload();
+    } catch (cause) {
+      toast.error('Could not delete the project', { description: cause instanceof Error ? cause.message : undefined });
+    }
+  };
+
   if (projects.loading) return <PortalSpinner />;
   if (projects.error) return <ErrorNote>{projects.error}</ErrorNote>;
-  // Creating a project is off-limits to the Implementer role — show an empty state, not the builder.
-  if (list.length === 0)
-    return canEdit ? (
-      <CreateProjectPanel account={account} onCreated={projects.reload} />
-    ) : (
+  // Creating a project is off-limits to the Implementer role — show a plain empty card, not the
+  // header bar (which carries the Add-project action). Admins/managers fall through to the normal
+  // layout below: with no projects it renders just the "Projects" header bar + "Add project"
+  // button (create happens in the modal), mirroring the "no opportunity" pipeline view.
+  if (list.length === 0 && !canEdit)
+    return (
       <PortalCard title="Project">
         <EmptyState title="No project yet" description="A project appears here once one is created for this account." />
       </PortalCard>
@@ -1340,6 +1563,11 @@ export const WorkspaceProject: React.FC<{ account: PortalAccount; canEdit?: bool
             {canEdit && !project.published && (
               <PortalButton onClick={() => patch({ published: true, status: 'active' }, 'Published to the client.')}>
                 Publish
+              </PortalButton>
+            )}
+            {canEdit && (
+              <PortalButton variant="ghost" onClick={removeProject} aria-label="Delete project" title="Delete project">
+                <Trash2 className="h-4 w-4" />
               </PortalButton>
             )}
           </>
@@ -1488,7 +1716,7 @@ export const WorkspaceProject: React.FC<{ account: PortalAccount; canEdit?: bool
       </div>
 
       {/* Row 2: Hours spans the full width (3/3) so more logs fit in one scroll. */}
-      <TimePanel project={project} canApprove={canEdit} />
+      <TimePanel project={project} canApprove={canEdit} isOwner={isOwner} />
 
       {/* Row 3: Project team spans the full width. */}
       <TeamPanel project={project} canEdit={canEdit} />

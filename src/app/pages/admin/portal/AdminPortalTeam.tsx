@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Pencil, Trash2, UserPlus } from 'lucide-react';
 import { useAsync } from '@/app/hooks/use-async';
@@ -17,6 +17,7 @@ import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { formatRelative, initialsOf, prettyName } from '@/app/lib/portal-format';
 import {
   INTERNAL_ROLES,
+  PAY_CURRENCIES,
   ROLE_LABELS,
   USER_STATUSES,
   USER_STATUS_LABELS,
@@ -30,6 +31,7 @@ import {
 import { openCalendly } from '@/app/lib/calendly';
 import { UserStatusControl } from '@/app/components/admin/portal/UserStatusControl';
 import { UserSkillsEditor } from '@/app/components/admin/portal/UserSkillsEditor';
+import { TeamsPanel } from '@/app/pages/admin/portal/AdminPortalTeams';
 import {
   Cell,
   EmptyState,
@@ -49,17 +51,25 @@ import {
 } from '@/app/components/portal/PortalUi';
 import { cn } from '@/app/components/ui/utils';
 
+type TeamTab = 'klepka' | 'customers' | 'teams';
+
 export const AdminPortalTeam: React.FC = () => {
   const { user } = usePortalUser();
   // Implementers can view the team directory but not manage it (RLS blocks the writes anyway), and
   // they don't get the Customer users tab at all.
   const canManage = user ? canEditAccounts(user.role) : true;
   const implementer = user ? isImplementer(user.role) : false;
+  const isAdmin = user?.role === 'portal_admin';
+  // Employee teams fold in as a tab — admins manage it, Implementers view it read-only (same gate as
+  // the old standalone Teams page).
+  const canSeeTeams = isAdmin || implementer;
   const users = useAsync(() => adminListUsers(), []);
   const accounts = useAsync(() => adminListAccounts(), []);
-  const [tab, setTab] = React.useState<'klepka' | 'customers'>('klepka');
-  // Implementers only ever see the Klepka team tab.
-  const activeTab = implementer ? 'klepka' : tab;
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = React.useState<TeamTab>(() => {
+    const requested = searchParams.get('tab');
+    return requested === 'customers' || requested === 'teams' ? requested : 'klepka';
+  });
   const [showAdd, setShowAdd] = React.useState(false);
   // null → the form creates a new member; a user id → it edits that member in place.
   const [editingId, setEditingId] = React.useState<string | null>(null);
@@ -68,6 +78,8 @@ export const AdminPortalTeam: React.FC = () => {
   const [title, setTitle] = React.useState('');
   const [calendly, setCalendly] = React.useState('');
   const [photo, setPhoto] = React.useState('');
+  const [payRate, setPayRate] = React.useState('');
+  const [payCurrency, setPayCurrency] = React.useState('USD');
   const [role, setRole] = React.useState<PortalRole>('sales_rep');
   // Draft skills held only while creating a member (no user row to persist against yet); applied
   // once the user is created. In edit mode the editor saves against the user id directly.
@@ -87,6 +99,8 @@ export const AdminPortalTeam: React.FC = () => {
     setTitle('');
     setCalendly('');
     setPhoto('');
+    setPayRate('');
+    setPayCurrency('USD');
     setRole('sales_rep');
     setSkillIds([]);
     setShowAdd(false);
@@ -99,6 +113,8 @@ export const AdminPortalTeam: React.FC = () => {
     setTitle(user.title ?? '');
     setCalendly(user.calendly_url ?? '');
     setPhoto(user.photo_url ?? '');
+    setPayRate(user.pay_rate != null ? String(user.pay_rate) : '');
+    setPayCurrency(user.pay_currency || 'USD');
     setRole(user.role);
     setShowAdd(true);
   };
@@ -108,6 +124,11 @@ export const AdminPortalTeam: React.FC = () => {
   const save = async (sendInvite: boolean) => {
     if (!fullName.trim() || !email.trim()) {
       toast.error('Name and email are required.');
+      return;
+    }
+    const parsedRate = payRate.trim() === '' ? null : Number(payRate);
+    if (parsedRate != null && (!Number.isFinite(parsedRate) || parsedRate < 0)) {
+      toast.error('Pay rate must be a non-negative number.');
       return;
     }
     setBusy(true);
@@ -120,6 +141,8 @@ export const AdminPortalTeam: React.FC = () => {
           title: title.trim() || null,
           calendly_url: calendly.trim() || null,
           photo_url: photo.trim() || null,
+          pay_rate: parsedRate,
+          pay_currency: payCurrency,
         });
         toast.success('Changes saved.');
       } else {
@@ -132,6 +155,8 @@ export const AdminPortalTeam: React.FC = () => {
           title: title.trim() || null,
           calendly_url: calendly.trim() || null,
           photo_url: photo.trim() || null,
+          pay_rate: parsedRate,
+          pay_currency: payCurrency,
         });
         if (skillIds.length && canEditSkills) {
           await adminSetUserProducts(created.id, skillIds);
@@ -226,14 +251,25 @@ export const AdminPortalTeam: React.FC = () => {
     </>
   );
 
+  // Tabs available to this role: everyone sees Klepka team; Customer users is hidden from Implementers;
+  // Teams is admin-manage / Implementer-view only.
+  const tabs: { key: TeamTab; label: string }[] = [
+    { key: 'klepka', label: `Klepka team (${internal.length})` },
+    ...(implementer ? [] : ([{ key: 'customers', label: `Customer users (${customers.length})` }] as const)),
+    ...(canSeeTeams ? ([{ key: 'teams', label: 'Teams' }] as const) : []),
+  ];
+  // Fall back to Klepka if the requested tab isn't available to this role (e.g. an Implementer deep-linked
+  // to ?tab=customers).
+  const activeTab: TeamTab = tabs.some((t) => t.key === tab) ? tab : 'klepka';
+
   if (users.loading) return <PortalSpinner label="Loading team…" />;
   if (users.error) return <ErrorNote>{users.error}</ErrorNote>;
 
   return (
     <div className="space-y-2">
-      {!implementer && (
+      {tabs.length > 1 && (
         <div className="flex gap-1 border-b border-border-color">
-          {(['klepka', 'customers'] as const).map((key) => (
+          {tabs.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -242,13 +278,15 @@ export const AdminPortalTeam: React.FC = () => {
                 activeTab === key ? 'border-violet font-medium text-violet' : 'border-transparent text-grey hover:text-foreground',
               )}
             >
-              {key === 'klepka' ? `Klepka team (${internal.length})` : `Customer users (${customers.length})`}
+              {label}
             </button>
           ))}
         </div>
       )}
 
-      {activeTab === 'klepka' ? (
+      {activeTab === 'teams' ? (
+        <TeamsPanel />
+      ) : activeTab === 'klepka' ? (
         <PortalCard
           title="Klepka team"
           description="Internal roles set default permissions across accounts."
@@ -312,6 +350,33 @@ export const AdminPortalTeam: React.FC = () => {
                 </Field>
                 <Field label="Job title">
                   <input className={inputClass} value={title} onChange={(event) => setTitle(event.target.value)} />
+                </Field>
+                <Field
+                  label="Default pay rate"
+                  hint="Internal hourly cost rate. Prefills offer lines and project members; used to calculate salaries."
+                >
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={inputClass}
+                      value={payRate}
+                      onChange={(event) => setPayRate(event.target.value)}
+                      placeholder="0.00"
+                    />
+                    <select
+                      className={`${inputClass} w-24`}
+                      value={payCurrency}
+                      onChange={(event) => setPayCurrency(event.target.value)}
+                    >
+                      {PAY_CURRENCIES.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </Field>
                 <Field label="Photo (URL)" className="sm:col-span-2" hint="Headshot shown to clients in “Your Klepka team”.">
                   <div className="flex items-center gap-2">
@@ -383,6 +448,8 @@ export const AdminPortalTeam: React.FC = () => {
                 <SortHeader key="name" label="Name" sortKey="name" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
                 <SortHeader key="email" label="Email" sortKey="email" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
                 <SortHeader key="role" label="Role" sortKey="role" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
+                // Pay rate is finance data — hidden from the delivery-only Implementer role.
+                ...(implementer ? [] : ['Pay rate']),
                 'Calendly',
                 'Photo',
                 <SortHeader key="status" label="Status" sortKey="status" sort={internalSorted.sort} onSort={internalSorted.toggle} />,
@@ -414,6 +481,11 @@ export const AdminPortalTeam: React.FC = () => {
                       <span className="text-grey">{ROLE_LABELS[user.role]}</span>
                     )}
                   </Cell>
+                  {!implementer && (
+                    <Cell className="whitespace-nowrap text-grey">
+                      {user.pay_rate != null ? `${user.pay_rate} ${user.pay_currency}/h` : '—'}
+                    </Cell>
+                  )}
                   <Cell>
                     {canManage ? (
                       <CalendlyCell user={user} onSaved={() => users.reload()} />

@@ -591,9 +591,9 @@ const IntakeTemplateSection: React.FC = () => {
 export const AdminSalesProcessSettings: React.FC = () => {
   return (
     <div className="space-y-2">
-      <div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-xl font-semibold text-foreground">Sales Process Settings</h1>
-        <p className="mt-1 text-sm text-grey">
+        <p className="text-sm text-grey">
           Reusable defaults that flow into accounts: onboarding materials are copied into every new client, and the
           standard checklist seeds an opportunity’s information gathering. (A product’s own document is set on the
           Products tab and attaches when that product is tagged.)

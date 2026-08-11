@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -11,9 +12,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import type { ProjectBundle } from '@/app/lib/portal-types';
-import { formatDate } from '@/app/lib/portal-format';
+import {
+  BILLING_INVOICE_STATUS_LABELS,
+  type BillingInvoice,
+  type BillingInvoiceStatus,
+  type ProjectBundle,
+} from '@/app/lib/portal-types';
+import { formatDate, formatMoney, formatMonth } from '@/app/lib/portal-format';
 import { HoursBudget } from '@/app/components/portal/HoursBudget';
+import { billingTotalsByCurrency } from '@/app/components/portal/BillingInvoiceList';
 import {
   Cell,
   CollapsibleCards,
@@ -23,6 +30,7 @@ import {
   PortalTable,
   Row,
   SortHeader,
+  StatusTag,
   inputClass,
   useTableSort,
 } from '@/app/components/portal/PortalUi';
@@ -91,12 +99,28 @@ const bucketLabel = (key: string): string => {
 
 const DONUT_COLORS = ['#6D28D9', '#8B5CF6', '#A78BFA', '#C4B5FD', '#7C3AED', '#5B21B6', '#DDD6FE'];
 
+// A colour per invoice status for the invoice donut. The client only ever sees sent / client_approved
+// / paid, but the earlier states are mapped too so the palette is complete.
+const STATUS_COLORS: Record<BillingInvoiceStatus, string> = {
+  open: '#94A3B8',
+  approved: '#F59E0B',
+  sent: '#8B5CF6',
+  client_approved: '#10B981',
+  paid: '#059669',
+};
+
 /**
- * Client-facing "Reports" section: charts of *approved* hours across the account's projects — hours
- * by date (bar) and hours per project (donut) — with calendar-range presets, two date-icon filters
- * and a project picker. One collapsible section that remembers its open/closed state.
+ * Client-facing "Reports" card: charts of *approved* hours across the account's projects — hours by
+ * date (bar) and hours per project (donut) — with calendar-range presets, two date-icon filters and a
+ * project picker. Directly below the hours, in the same card, comes an "Invoices" block reporting
+ * issued invoices (amount by month + amount by status), driven by the same project + date-range
+ * filters. `invoices` are the client's issued invoices (RLS already limits them to sent /
+ * client_approved / paid); the Invoices block hides when there are none.
  */
-export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ projects }) => {
+export const ClientHoursReport: React.FC<{ projects: ProjectBundle[]; invoices?: BillingInvoice[] }> = ({
+  projects,
+  invoices = [],
+}) => {
   const [period, setPeriod] = React.useState<Period>('all');
   const [fromDate, setFromDate] = React.useState('');
   const [toDate, setToDate] = React.useState('');
@@ -113,8 +137,11 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
           .filter((entry) => entry.approved)
           .map((entry) => ({
             entry_date: entry.entry_date,
-            hours: entry.hours,
+            hours: entry.hours ?? 0,
             description: entry.description,
+            // On the client snapshot `user` is aliased to the reporter (portal-api.ts). Rows logged
+            // before reporters existed have no name — fall back to a generic label.
+            reporter: entry.user?.full_name ?? '—',
             projectId: bundle.project.id,
             projectName: bundle.project.name,
           })),
@@ -165,7 +192,7 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
       name: bundle.project.name,
       bank: bundle.project.bank_hours,
       notify: bundle.project.notify_hours,
-      used: bundle.timeEntries.filter((entry) => entry.approved).reduce((sum, entry) => sum + entry.hours, 0),
+      used: bundle.timeEntries.filter((entry) => entry.approved).reduce((sum, entry) => sum + (entry.hours ?? 0), 0),
     }));
 
   // Headline figure + budget bars, shown at the top of the card body.
@@ -256,6 +283,7 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
     {
       description: (row) => row.description || 'Delivery work',
       project: (row) => row.projectName,
+      reporter: (row) => row.reporter,
       hours: (row) => row.hours,
       date: (row) => row.entry_date,
     },
@@ -266,6 +294,7 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
       head={[
         <SortHeader key="description" label="Description" sortKey="description" sort={list.sort} onSort={list.toggle} />,
         <SortHeader key="project" label="Project" sortKey="project" sort={list.sort} onSort={list.toggle} />,
+        <SortHeader key="reporter" label="Reporter" sortKey="reporter" sort={list.sort} onSort={list.toggle} />,
         <SortHeader key="hours" label="Actual hours" sortKey="hours" sort={list.sort} onSort={list.toggle} />,
         <SortHeader key="date" label="Date" sortKey="date" sort={list.sort} onSort={list.toggle} />,
       ]}
@@ -274,11 +303,116 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
         <Row key={entry.id}>
           <Cell className="font-medium">{entry.description || 'Delivery work'}</Cell>
           <Cell className="text-grey">{entry.projectName}</Cell>
+          <Cell className="whitespace-nowrap text-grey">{entry.reporter}</Cell>
           <Cell className="whitespace-nowrap text-right font-medium">{entry.hours.toFixed(1)} h</Cell>
           <Cell className="whitespace-nowrap text-grey">{formatDate(entry.entry_date)}</Cell>
         </Row>
       ))}
     </PortalTable>
+  );
+
+  // ---- Invoices report — issued invoices under the same project + date-range filters. Invoice
+  // periods are month-starts (YYYY-MM-01); comparing them as strings against the range bounds keeps
+  // any month that overlaps the range, matching how the hours filters read.
+  const rangeInvoices = invoices.filter(
+    (invoice) =>
+      (!projectId || invoice.project_id === projectId) &&
+      (!rangeFrom || invoice.period >= rangeFrom) &&
+      (!rangeTo || invoice.period <= rangeTo),
+  );
+  const invoiceTotals = billingTotalsByCurrency(rangeInvoices);
+  // 'sent' invoices are the ones still awaiting the client's confirmation.
+  const pendingInvoices = rangeInvoices.filter((invoice) => invoice.status === 'sent');
+  // A single project bills one currency, so per-month/status sums stay within one currency; use the
+  // first invoice's currency to label the axes (the totals line still breaks out every currency).
+  const invoiceCurrency = rangeInvoices[0]?.currency ?? 'USD';
+
+  const invoiceByMonth = new Map<string, number>();
+  for (const invoice of rangeInvoices) {
+    invoiceByMonth.set(invoice.period, (invoiceByMonth.get(invoice.period) ?? 0) + invoice.total_amount);
+  }
+  const invoiceBarData = [...invoiceByMonth.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([period, amount]) => ({ label: formatMonth(period), amount: Number(amount.toFixed(2)) }));
+
+  const invoiceByStatus = new Map<BillingInvoiceStatus, number>();
+  for (const invoice of rangeInvoices) {
+    invoiceByStatus.set(invoice.status, (invoiceByStatus.get(invoice.status) ?? 0) + invoice.total_amount);
+  }
+  const invoiceDonutData = [...invoiceByStatus.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([status, value]) => ({ status, name: BILLING_INVOICE_STATUS_LABELS[status], value: Number(value.toFixed(2)) }));
+
+  const invoiceSummary = (
+    <div className="mb-4 border-b border-border-color pb-4">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-2xl font-semibold text-violet">
+          {invoiceTotals.length > 0
+            ? invoiceTotals.map((total) => formatMoney(total.amount, total.currency)).join(' · ')
+            : formatMoney(0, invoiceCurrency)}
+        </span>
+        <span className="text-sm text-grey">
+          invoiced
+          {rangeInvoices.length > 0 ? ` · ${rangeInvoices.length} invoice${rangeInvoices.length === 1 ? '' : 's'}` : ''}
+        </span>
+      </div>
+      {pendingInvoices.length > 0 && (
+        <Link to="/portal/payments" className="mt-2 inline-block">
+          <StatusTag tone="violet">
+            {pendingInvoices.length} awaiting your approval — review
+          </StatusTag>
+        </Link>
+      )}
+    </div>
+  );
+
+  const invoiceCharts = (
+    <div className="grid gap-6 lg:grid-cols-5">
+      <div className="lg:col-span-3">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-grey">Invoiced by month</div>
+        {invoiceBarData.length === 0 ? (
+          <EmptyState title="No invoices in this range" />
+        ) : (
+          <div style={{ height: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={invoiceBarData} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 11 }} width={64} />
+                <Tooltip formatter={(value: number) => [formatMoney(value, invoiceCurrency), 'Invoiced']} />
+                <Bar dataKey="amount" fill="#6D28D9" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+      <div className="lg:col-span-2">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-grey">Amount by status</div>
+        {invoiceDonutData.length === 0 ? (
+          <EmptyState title="No invoices in this range" />
+        ) : (
+          <div style={{ height: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={invoiceDonutData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius="55%"
+                  outerRadius="85%"
+                  stroke="none"
+                >
+                  {invoiceDonutData.map((entry) => (
+                    <RechartsCell key={entry.status} fill={STATUS_COLORS[entry.status]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => [formatMoney(value, invoiceCurrency), 'Invoiced']} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   return (
@@ -342,6 +476,21 @@ export const ClientHoursReport: React.FC<{ projects: ProjectBundle[] }> = ({ pro
             )}
           </div>
         </div>
+        )}
+
+        {/* Invoices — same project + date filters, shown below the hours once the client has an
+            issued invoice. Part of the Reports card, not a separate section. */}
+        {invoices.length > 0 && (
+          <div className="mt-6 border-t border-border-color pt-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-foreground">Invoices</h3>
+              <Link to="/portal/payments" className="text-xs font-medium text-violet hover:underline">
+                View all
+              </Link>
+            </div>
+            {invoiceSummary}
+            {invoiceCharts}
+          </div>
         )}
       </PortalCard>
     </CollapsibleCards>

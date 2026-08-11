@@ -1,11 +1,20 @@
 const DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const DATE_SHORT = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' });
+const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '—' : DATE.format(date);
+}
+
+// A month + year label ("August 2026") for a period. Accepts a first-of-month date, a full ISO
+// timestamp, or a bare "YYYY-MM" — used for salary periods, which key on the first of the month.
+export function formatMonth(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value.length === 7 ? `${value}-01T00:00:00` : value);
+  return Number.isNaN(date.getTime()) ? '—' : MONTH.format(date);
 }
 
 export function formatDateTime(value: string | null | undefined): string {
@@ -20,6 +29,9 @@ export function formatMoney(amount: number | null | undefined, currency = 'USD')
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
+    // narrowSymbol so codes like UAH render as their glyph (₴) rather than the "UAH" text the
+    // default 'symbol' display falls back to in the en-US locale.
+    currencyDisplay: 'narrowSymbol',
     maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
   }).format(amount);
 }

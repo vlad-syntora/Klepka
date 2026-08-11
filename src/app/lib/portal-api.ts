@@ -3,13 +3,12 @@ import { getSupabase } from '@/app/lib/supabase';
 import {
   AccountTeamMemberSchema,
   ActivitySchema,
+  BillingInvoiceSchema,
   CandidateSchema,
   DocumentSchema,
   FeedbackSchema,
   FeedbackTargetSchema,
-  InvoiceSchema,
   IntakeItemSchema,
-  MeetingSchema,
   MilestoneSchema,
   OfferSchema,
   OpportunitySchema,
@@ -22,10 +21,13 @@ import {
   PublicReviewSchema,
   ResourceSchema,
   StaffRatingSchema,
+  TeamTimeOffSchema,
   TimeEntrySchema,
-  type MeetingType,
+  type BillingInvoice,
+  type TeamTimeOff,
   type PortalSnapshot,
   type PortalUser,
+  type TimeEntry,
   type Product,
   type ProductEntity,
   type PublicHoliday,
@@ -62,9 +64,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
     account,
     opportunities,
     offers,
-    meetings,
     documents,
-    invoices,
     projects,
     feedback,
     activity,
@@ -87,26 +87,12 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
         .eq('account_id', accountId)
         .order('version', { ascending: false }),
       supabase
-        .from('portal_meetings')
-        .select(
-          'id, account_id, title, meeting_type, starts_at, duration_minutes, status, host_user_id, attendees, location_url, notes, host:portal_users!portal_meetings_host_user_id_fkey(id, full_name)',
-        )
-        .eq('account_id', accountId)
-        .order('starts_at', { ascending: false }),
-      supabase
         .from('portal_documents')
         .select(
           'id, account_id, name, doc_type, status, version, file_url, drive_web_link, drive_file_id, signers, signed_at, opportunity_id, related_offer_id, related_project_id, intake_item_id, uploaded_by_client, updated_at',
         )
         .eq('account_id', accountId)
         .order('updated_at', { ascending: false }),
-      supabase
-        .from('portal_invoices')
-        .select(
-          'id, account_id, project_id, milestone_id, number, description, amount, currency, due_date, due_label, status, issued_at, paid_at, invoice_url, position',
-        )
-        .eq('account_id', accountId)
-        .order('position'),
       supabase
         .from('portal_projects')
         .select(
@@ -193,7 +179,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
         // `user` here is aliased to reporter_id (migration 0041). Rows logged before reporters
         // existed have a null reporter and show a generic label instead of a name.
         .select(
-          'id, project_id, milestone_id, reporter_id, entry_date, hours, approved, description, billable, visible_to_client, user:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
+          'id, project_id, milestone_id, reporter_id, entry_date, hours, approved, description, billable, user:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
         )
         .in('project_id', projectIds)
         .order('entry_date', { ascending: false }),
@@ -226,9 +212,7 @@ export async function loadPortalSnapshot(accountId: string): Promise<PortalSnaps
     intake: z.array(IntakeItemSchema).parse(intake.data ?? []),
     timeEntries,
     offers: z.array(OfferSchema).parse(offers.data ?? []),
-    meetings: z.array(MeetingSchema).parse(meetings.data ?? []),
     documents: z.array(DocumentSchema).parse(documents.data ?? []),
-    invoices: z.array(InvoiceSchema).parse(invoices.data ?? []),
     candidates: z.array(CandidateSchema).parse(candidates.data ?? []),
     projects: bundles,
     project,
@@ -257,6 +241,66 @@ export async function loadPublicHolidays(from?: string): Promise<PublicHoliday[]
 }
 
 /**
+ * The client's billing invoices (0048) with their per-reporter summary lines. RLS returns only the
+ * signed-in client's own account and only invoices that have been 'sent', so no account filter is
+ * needed here. Newest month first.
+ */
+export async function listMyBillingInvoices(): Promise<BillingInvoice[]> {
+  const { data, error } = await getSupabase()
+    .from('portal_billing_invoices')
+    .select(
+      'id, account_id, project_id, period, currency, total_hours, total_amount, status, computed_at, created_at, document_id, ' +
+        'project:portal_projects!portal_billing_invoices_project_id_fkey(id, name), ' +
+        'document:portal_documents!portal_billing_invoices_document_id_fkey(id, name, file_url, drive_web_link, drive_file_id), ' +
+        'lines:portal_billing_invoice_lines(id, invoice_id, reporter_id, hours, rate, amount, ' +
+        'reporter:portal_users!portal_billing_invoice_lines_reporter_id_fkey(id, full_name))',
+    )
+    .order('period', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(BillingInvoiceSchema).parse(data ?? []);
+}
+
+/**
+ * The client confirms (or revokes) a sent invoice — the sent ↔ client_approved toggle. The RPC
+ * enforces that only the client's own sent/client-approved invoice can move, and never to 'paid'
+ * (that stays the admin's confirmation).
+ */
+export async function clientApproveBillingInvoice(id: string, approve: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_client_approve_billing_invoice', {
+    p_id: id,
+    p_approve: approve,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * The approved worklogs behind one of the client's monthly invoices. Mirrors
+ * adminListBillingInvoiceEntries but under client RLS (which already exposes only approved logs of
+ * the client's own account). Only the client-facing reporter is shown, never the internal employee.
+ */
+export async function listMyBillingInvoiceEntries(projectId: string, period: string): Promise<TimeEntry[]> {
+  // Month bounds from local date parts (never toISOString, which would shift the month in +offset TZs).
+  const startDate = new Date(`${period.slice(0, 7)}-01T00:00:00`);
+  const monthStart = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  const start = monthStart(startDate);
+  const nextMonth = monthStart(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1));
+  const { data, error } = await getSupabase()
+    .from('portal_time_entries')
+    .select(
+      'id, project_id, milestone_id, reporter_id, entry_date, hours, actual_hours, approved, description, billable, reporter:portal_users!portal_time_entries_reporter_id_fkey(id, full_name)',
+    )
+    .eq('project_id', projectId)
+    .eq('approved', true)
+    .not('hours', 'is', null)
+    .gt('hours', 0)
+    .gte('entry_date', start)
+    .lt('entry_date', nextMonth)
+    .order('entry_date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return z.array(TimeEntrySchema).parse(data ?? []);
+}
+
+/**
  * Trims an internally-loaded snapshot down to what a client actually sees. Used by the admin
  * "View as client" preview, where the data is fetched with internal RLS (so it includes drafts,
  * unpublished and internal-only rows) — this re-applies the client-facing visibility rules so the
@@ -277,7 +321,7 @@ export function filterSnapshotForClient(snapshot: PortalSnapshot): PortalSnapsho
     .filter((bundle) => bundle.project.published)
     .map((bundle) => ({
       ...bundle,
-      timeEntries: bundle.timeEntries.filter((entry) => entry.visible_to_client),
+      timeEntries: bundle.timeEntries.filter((entry) => entry.approved),
     }));
   const first = projects[0];
 
@@ -324,28 +368,37 @@ export async function decideCandidate(
   if (error) throw new Error(error.message);
 }
 
-export async function requestMeeting(input: {
-  title: string;
-  meetingType: MeetingType;
-  startsAt: string;
-  durationMinutes: number;
-}): Promise<void> {
-  const { error } = await getSupabase().rpc('portal_request_meeting', {
-    p_title: input.title,
-    p_meeting_type: input.meetingType,
-    p_starts_at: input.startsAt,
-    p_duration_minutes: input.durationMinutes,
-  });
-  if (error) throw new Error(error.message);
-}
-
-export async function cancelMeeting(meetingId: string): Promise<void> {
-  const { error } = await getSupabase().rpc('portal_cancel_meeting', { p_meeting: meetingId });
-  if (error) throw new Error(error.message);
-}
-
 export async function approveMilestone(milestoneId: string): Promise<void> {
   const { error } = await getSupabase().rpc('portal_approve_milestone', { p_milestone: milestoneId });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Approved leave of Klepka staff who are visible members of one of the account's projects (migration
+ * 0058). The RPC scopes to the caller's account, so it never leaks staff outside the client's projects.
+ */
+export async function loadMyTeamTimeOff(): Promise<TeamTimeOff[]> {
+  const { data, error } = await getSupabase().rpc('portal_my_team_time_off');
+  if (error) throw new Error(error.message);
+  return z.array(TeamTimeOffSchema).parse(data ?? []);
+}
+
+/**
+ * Client acknowledges a leave and/or requests a replacement for a specific project (only allowed for
+ * leave > 2 days). The response is stored per (leave, project), so each project is confirmed on its own.
+ */
+export async function respondTeamTimeOff(
+  timeOffId: string,
+  projectId: string,
+  approve: boolean,
+  requestReplacement: boolean,
+): Promise<void> {
+  const { error } = await getSupabase().rpc('portal_client_respond_time_off', {
+    p_time_off: timeOffId,
+    p_project: projectId,
+    p_approve: approve,
+    p_request_replacement: requestReplacement,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -519,7 +572,7 @@ export async function logHours(input: {
   userId: string | null;
   entryDate: string | null;
   description: string;
-  billingHours: number;
+  billingHours: number | null;
   actualHours: number | null;
   approved: boolean;
   milestoneId?: string | null;

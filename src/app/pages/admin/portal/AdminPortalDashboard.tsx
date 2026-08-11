@@ -1,6 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -27,6 +25,14 @@ import {
 } from '@/app/lib/portal-admin-api';
 import { formatDate, prettyName } from '@/app/lib/portal-format';
 import {
+  bucketKey,
+  bucketLabel,
+  periodStart,
+  PERIODS,
+  todayIso,
+  type Period,
+} from '@/app/lib/portal-period';
+import {
   MILESTONE_STATUS_LABELS,
   type AccountTeamMember,
   type Milestone,
@@ -35,8 +41,14 @@ import {
   type ProjectTeamMember,
   type TimeEntry,
 } from '@/app/lib/portal-types';
+import { MySalaryWidget } from '@/app/components/portal/MySalaryWidget';
 import { LogHoursButton } from '@/app/components/portal/LogHoursButton';
+import { MyTimeOffWidget } from '@/app/components/portal/MyTimeOffWidget';
 import { PublicHolidaysWidget } from '@/app/components/portal/PublicHolidaysWidget';
+import { EmployeeAnalyticsPanel } from '@/app/components/admin/portal/EmployeeAnalyticsPanel';
+import { ProjectAnalyticsPanel } from '@/app/components/admin/portal/ProjectAnalyticsPanel';
+import { CompanyOverviewPanel } from '@/app/components/admin/portal/CompanyOverviewPanel';
+import { FinancePnlOverview } from './AdminPortalFinance';
 import {
   Cell,
   CollapsibleCards,
@@ -55,68 +67,6 @@ import {
   useTableSort,
 } from '@/app/components/portal/PortalUi';
 import { cn } from '@/app/components/ui/utils';
-
-type Period = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'all';
-const PERIODS: { key: Period; label: string }[] = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-  { key: 'quarter', label: 'Quarter' },
-  { key: 'year', label: 'Year' },
-  { key: 'all', label: 'All' },
-];
-
-const iso = (date: Date): string => {
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-};
-
-const todayIso = (): string => iso(new Date());
-
-// The first day (inclusive) of the current calendar period. `all` has no lower bound.
-const periodStart = (period: Period): string => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  switch (period) {
-    case 'day':
-      return iso(now);
-    case 'week': {
-      const day = now.getDay();
-      const diff = (day + 6) % 7;
-      return iso(new Date(year, month, now.getDate() - diff));
-    }
-    case 'month':
-      return iso(new Date(year, month, 1));
-    case 'quarter':
-      return iso(new Date(year, Math.floor(month / 3) * 3, 1));
-    case 'year':
-      return iso(new Date(year, 0, 1));
-    default:
-      return '';
-  }
-};
-
-// Bucket an entry date into the bar-chart x-axis key at the granularity that suits the period:
-// day-level for short ranges, week-start for a quarter, month for a year / all.
-const bucketKey = (dateStr: string, period: Period): string => {
-  if (period === 'year' || period === 'all') return dateStr.slice(0, 7); // YYYY-MM
-  if (period === 'quarter') {
-    const d = new Date(`${dateStr}T00:00:00`);
-    const diff = (d.getDay() + 6) % 7;
-    return iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff));
-  }
-  return dateStr; // YYYY-MM-DD
-};
-
-const bucketLabel = (key: string): string => {
-  if (key.length === 7) {
-    const [y, m] = key.split('-').map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
-  }
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
 
 // Slice colours for the donut (violet family + accents).
 const DONUT_COLORS = ['#6D28D9', '#8B5CF6', '#A78BFA', '#C4B5FD', '#7C3AED', '#5B21B6', '#DDD6FE'];
@@ -178,7 +128,7 @@ const HoursListView: React.FC<{ rows: HoursListRow[] }> = ({ rows }) => {
  * are a team member of, and hours they logged as the employee. Includes a quick Log Hours action and
  * two charts (hours by date, hours per project) with a shared calendar-range filter.
  */
-export const AdminPortalDashboard: React.FC = () => {
+const PersonalDashboard: React.FC = () => {
   const { user } = usePortalUser();
   const me = user?.id ?? '';
 
@@ -237,8 +187,8 @@ export const AdminPortalDashboard: React.FC = () => {
 
   const month = todayIso().slice(0, 7);
   const monthMine = myEntries.filter((entry) => entry.entry_date.startsWith(month));
-  const approvedHours = monthMine.filter((entry) => entry.approved).reduce((sum, entry) => sum + entry.hours, 0);
-  const pendingHours = monthMine.filter((entry) => !entry.approved).reduce((sum, entry) => sum + entry.hours, 0);
+  const approvedHours = monthMine.filter((entry) => entry.approved).reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
+  const pendingHours = monthMine.filter((entry) => !entry.approved).reduce((sum, entry) => sum + (entry.hours ?? 0), 0);
 
   const today = todayIso();
   const upcoming = bundles
@@ -268,7 +218,7 @@ export const AdminPortalDashboard: React.FC = () => {
   const byBucket = new Map<string, number>();
   for (const entry of rangeEntries) {
     const key = bucketKey(entry.entry_date, period);
-    byBucket.set(key, (byBucket.get(key) ?? 0) + entry.hours);
+    byBucket.set(key, (byBucket.get(key) ?? 0) + (entry.hours ?? 0));
   }
   const barData = [...byBucket.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
@@ -276,7 +226,7 @@ export const AdminPortalDashboard: React.FC = () => {
 
   // Donut: hours per project.
   const byProject = new Map<string, number>();
-  for (const entry of rangeEntries) byProject.set(entry.projectName, (byProject.get(entry.projectName) ?? 0) + entry.hours);
+  for (const entry of rangeEntries) byProject.set(entry.projectName, (byProject.get(entry.projectName) ?? 0) + (entry.hours ?? 0));
   const donutData = [...byProject.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([name, value]) => ({ name, value: Number(value.toFixed(2)) }));
@@ -330,7 +280,7 @@ export const AdminPortalDashboard: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h1 className="text-xl font-semibold text-violet">
           Welcome back{user ? `, ${prettyName(user.full_name).split(' ')[0]}` : ''}
         </h1>
@@ -347,6 +297,10 @@ export const AdminPortalDashboard: React.FC = () => {
           tone={pendingHours > 0 ? 'amber' : 'green'}
         />
       </div>
+
+      {/* The signed-in staffer's own pay at a glance (any status). Kept outside CollapsibleCards with
+          its own state so it starts collapsed on every visit (finance shouldn't linger open). */}
+      {me && <MySalaryWidget userId={me} />}
 
       {/* Every card below is collapsible and remembers its open/closed state (scoped to this
           dashboard). Reports keeps its Log Hours action and filters visible in the header. */}
@@ -371,7 +325,7 @@ export const AdminPortalDashboard: React.FC = () => {
                   id: entry.id,
                   description: entry.description,
                   projectName: entry.projectName,
-                  hoursValue: entry.actual_hours ?? entry.hours,
+                  hoursValue: entry.actual_hours ?? entry.hours ?? 0,
                   entry_date: entry.entry_date,
                 }))}
               />
@@ -472,21 +426,60 @@ export const AdminPortalDashboard: React.FC = () => {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <PortalCard title="Quick links" className="lg:col-span-2">
-          <Link
-            to="/admin/portal/accounts"
-            className="flex items-center gap-3 rounded-lg border border-border-color p-3 transition-colors hover:border-violet hover:bg-portal-tint sm:max-w-sm"
-          >
-            <Building2 className="h-5 w-5 text-violet" />
-            <div>
-              <div className="text-sm font-medium">Accounts</div>
-              <div className="text-xs text-grey">{myAccounts.length} in your portfolio</div>
-            </div>
-          </Link>
-        </PortalCard>
+        <div className="lg:col-span-2">
+          <MyTimeOffWidget />
+        </div>
         <PublicHolidaysWidget holidays={holidays.data ?? []} />
       </div>
       </CollapsibleCards>
+    </div>
+  );
+};
+
+/**
+ * Admin home shell. Portal admins get a tabbed view: the personal delivery dashboard (default) plus a
+ * company-wide employee KPI analytics tab. Everyone else sees just the personal dashboard — the
+ * analytics tab is admin-only (RLS also restricts the data it reads).
+ */
+export const AdminPortalDashboard: React.FC = () => {
+  const { user } = usePortalUser();
+  const isAdmin = user?.role === 'portal_admin';
+  const [tab, setTab] = React.useState<'home' | 'company' | 'analytics' | 'projects' | 'pnl'>('home');
+
+  if (!isAdmin) return <PersonalDashboard />;
+
+  const tabs: { key: 'home' | 'company' | 'analytics' | 'projects' | 'pnl'; label: string }[] = [
+    { key: 'home', label: 'Dashboard' },
+    { key: 'company', label: 'Company' },
+    { key: 'analytics', label: 'User KPI' },
+    { key: 'projects', label: 'Project Analytics' },
+    { key: 'pnl', label: 'P&L' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-border-color">
+        {tabs.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'border-b-2 px-3 py-2.5 text-sm transition-colors',
+              tab === key ? 'border-violet font-medium text-violet' : 'border-transparent text-grey hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mount the heavier panels only when their tab is active — each fans out its own company-wide
+          fetch (analytics: worklogs across all projects; P&L: the finance ledger). */}
+      {tab === 'home' && <PersonalDashboard />}
+      {tab === 'company' && <CompanyOverviewPanel />}
+      {tab === 'analytics' && <EmployeeAnalyticsPanel />}
+      {tab === 'projects' && <ProjectAnalyticsPanel />}
+      {tab === 'pnl' && <FinancePnlOverview />}
     </div>
   );
 };

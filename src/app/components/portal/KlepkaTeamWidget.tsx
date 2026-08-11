@@ -246,9 +246,16 @@ export const KlepkaTeamWidget: React.FC<{
     if (people.length > 0) sections.push({ key: bundle.project.id, title: bundle.project.name, people });
   }
 
+  // Opportunities already converted to a project show their team through the project group above, so
+  // skip them here to avoid duplicating the same people once the project exists.
+  const convertedOppIds = new Set(
+    projects.map((bundle) => bundle.project.opportunity_id).filter((id): id is string => Boolean(id)),
+  );
+
   // Approved candidates become the opportunity's staffed team — one group per opportunity that
-  // has at least one confirmed candidate.
+  // has at least one confirmed candidate and has NOT yet been converted to a project.
   for (const opp of opportunities) {
+    if (convertedOppIds.has(opp.id)) continue;
     const people = dedup(
       candidates
         .filter((candidate) => candidate.opportunity_id === opp.id && candidate.status === 'confirmed' && candidate.user)

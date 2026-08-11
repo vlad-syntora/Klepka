@@ -15,12 +15,22 @@ import {
 import { usePortalData } from '@/app/hooks/use-portal-data';
 import { usePortalUser } from '@/app/hooks/use-portal-user';
 import { usePortalPhase } from '@/app/hooks/use-portal-phase';
-import { getDashboardLayout, loadPublicHolidays, markActivityRead, setDashboardLayout } from '@/app/lib/portal-api';
-import { formatDate, formatDateTime } from '@/app/lib/portal-format';
-import { projectUsesMilestones, type PublicHoliday } from '@/app/lib/portal-types';
+import { useAsync } from '@/app/hooks/use-async';
+import {
+  getDashboardLayout,
+  listMyBillingInvoices,
+  loadMyTeamTimeOff,
+  loadPublicHolidays,
+  markActivityRead,
+  setDashboardLayout,
+} from '@/app/lib/portal-api';
+import { formatDateTime } from '@/app/lib/portal-format';
+import { projectUsesMilestones, type PublicHoliday, type TeamTimeOff } from '@/app/lib/portal-types';
 import { KlepkaTeamWidget } from '@/app/components/portal/KlepkaTeamWidget';
+import { TeamTimeOffWidget } from '@/app/components/portal/TeamTimeOffWidget';
 import { MaterialsWidget } from '@/app/components/portal/MaterialsWidget';
 import { ClientHoursReport } from '@/app/components/portal/ClientHoursReport';
+import { PendingInvoiceWidget } from '@/app/components/portal/PendingInvoiceWidget';
 import { PublicHolidaysWidget } from '@/app/components/portal/PublicHolidaysWidget';
 import { ProjectTrackerWidget } from '@/app/components/portal/ProjectTrackerWidget';
 import { PendingOfferWidget } from '@/app/components/portal/PendingOfferWidget';
@@ -30,13 +40,15 @@ import { EmptyState, InfoNote, PortalButton, PortalCard, StatusTag, inputClass }
 import { cn } from '@/app/components/ui/utils';
 
 // The dashboard widgets a customer can reorder / hide once they have an active project.
-type WidgetId = 'offer' | 'project' | 'team' | 'products' | 'holidays' | 'materials' | 'candidates' | 'actions' | 'activity';
-// Your Klepka team sits right after Project tracking; then Products, Your materials, Public holidays.
-const DEFAULT_WIDGET_ORDER: WidgetId[] = ['offer', 'project', 'team', 'products', 'materials', 'holidays', 'candidates', 'actions', 'activity'];
+type WidgetId = 'offer' | 'project' | 'team' | 'timeoff' | 'products' | 'holidays' | 'materials' | 'candidates' | 'actions' | 'activity';
+// Your Klepka team sits right after Project tracking, then the team's Time off; then Candidates for
+// review, then Products, Your materials, Public holidays.
+const DEFAULT_WIDGET_ORDER: WidgetId[] = ['offer', 'project', 'team', 'timeoff', 'candidates', 'products', 'materials', 'holidays', 'actions', 'activity'];
 const WIDGET_LABELS: Record<WidgetId, string> = {
   offer: 'Offer awaiting review',
   project: 'Project tracking',
   team: 'Your Klepka team',
+  timeoff: 'Team time off',
   products: 'Products',
   holidays: 'Public holidays',
   materials: 'Your materials',
@@ -72,11 +84,12 @@ const DEFAULT_WIDGET_SIZE: Record<WidgetId, WidgetSize> = {
   // Project tracking (2/3) sits beside Your Klepka team (1/3) — both tall so the team roster fits.
   project: { w: 2, h: 2 },
   team: { w: 1, h: 2 },
+  timeoff: { w: 1, h: 1 },
   products: { w: 1, h: 1 },
   holidays: { w: 1, h: 1 },
   materials: { w: 1, h: 1 },
   candidates: { w: 3, h: 2 },
-  actions: { w: 2, h: 1 },
+  actions: { w: 1, h: 1 },
   activity: { w: 1, h: 1 },
 };
 
@@ -130,6 +143,10 @@ export const PortalDashboard: React.FC = () => {
   const { phase, can } = usePortalPhase();
   const [markingId, setMarkingId] = React.useState<string | null>(null);
   const [processDismissed, setProcessDismissed] = React.useState(readProcessDismissed);
+  // The client's issued invoices, fetched once and shared by the pending-approval banner and the
+  // Reports widget's Invoices section. RLS returns only sent / client_approved / paid.
+  const invoicesReq = useAsync(() => listMyBillingInvoices(), []);
+  const invoices = invoicesReq.data ?? [];
   // Dashboard customization (customers with an active project): editing toggle, the saved layout,
   // and the widget currently being dragged. Persisted to the user's row via the portal API.
   const [editingLayout, setEditingLayout] = React.useState(false);
@@ -186,6 +203,20 @@ export const PortalDashboard: React.FC = () => {
       cancelled = true;
     };
   }, [holidaysVisible]);
+
+  // Team time off (migration 0058) — approved leave of Klepka staff who are visible members of one of
+  // the account's projects. The RPC is account-scoped and returns [] for anyone without such staff.
+  const [teamTimeOff, setTeamTimeOff] = React.useState<TeamTimeOff[]>([]);
+  const reloadTeamTimeOff = React.useCallback(async () => {
+    try {
+      setTeamTimeOff(await loadMyTeamTimeOff());
+    } catch {
+      setTeamTimeOff([]);
+    }
+  }, []);
+  React.useEffect(() => {
+    void reloadTeamTimeOff();
+  }, [reloadTeamTimeOff]);
 
   const saveLayout = (next: DashboardLayoutState) => {
     void setDashboardLayout(next).catch((cause) =>
@@ -259,7 +290,7 @@ export const PortalDashboard: React.FC = () => {
 
   if (!snapshot || !user) return null;
 
-  const { account, offers, invoices, milestones, activity, candidates, resources, intake, opportunities } = snapshot;
+  const { account, offers, milestones, activity, candidates, resources, intake, opportunities } = snapshot;
 
   const unreadCount = activity.filter((entry) => !entry.read_by.includes(user.id)).length;
 
@@ -312,14 +343,6 @@ export const PortalDashboard: React.FC = () => {
             tone: 'amber',
           }))
       : []),
-    ...invoices
-      .filter((invoice) => invoice.status === 'overdue' || invoice.status === 'due')
-      .map<ActionItem>((invoice) => ({
-        label: `${invoice.description || invoice.number || 'Invoice'} — due ${formatDate(invoice.due_date)}`,
-        to: '/portal/payments',
-        tag: invoice.status === 'overdue' ? 'Overdue' : 'Payment due',
-        tone: invoice.status === 'overdue' ? 'red' : 'amber',
-      })),
     ...milestones
       .filter((milestone) => milestone.status === 'complete')
       .map<ActionItem>((milestone) => ({
@@ -412,6 +435,8 @@ export const PortalDashboard: React.FC = () => {
   const materialsNode = <MaterialsWidget resources={resources} />;
 
   const holidaysNode = <PublicHolidaysWidget holidays={holidays} />;
+
+  const timeOffNode = <TeamTimeOffWidget items={teamTimeOff} onReload={reloadTeamTimeOff} />;
 
   const productsNode = (
     <EntityProductsCard
@@ -530,6 +555,7 @@ export const PortalDashboard: React.FC = () => {
     offer: { node: offerNode, available: offers.some((offer) => offer.status === 'sent') },
     project: { node: projectNode, available: snapshot.projects.length > 0 },
     team: { node: teamNode, available: true },
+    timeoff: { node: timeOffNode, available: teamTimeOff.length > 0 },
     products: { node: productsNode, available: true },
     holidays: { node: holidaysNode, available: holidaysVisible },
     materials: { node: materialsNode, available: resources.some((resource) => resource.kind !== 'article') },
@@ -546,6 +572,7 @@ export const PortalDashboard: React.FC = () => {
     return (
       <div className="space-y-2">
         {renderHeaderStrip()}
+        <PendingInvoiceWidget invoices={invoices} />
         {widgets.offer.available && offerNode}
         {/* Row 1: Project tracking (2/3) beside Your Klepka team (1/3). */}
         <div className="grid items-start gap-2 lg:grid-cols-3">
@@ -554,18 +581,20 @@ export const PortalDashboard: React.FC = () => {
           )}
           <div className={projectRowClass}>{teamNode}</div>
         </div>
-        {/* Reports: total summaries, then charts of approved hours (bar by date + donut per project),
-            full width and collapsible. */}
-        {hasApprovedHours && <ClientHoursReport projects={snapshot.projects} />}
+        {/* Reports: total summaries, then charts of approved hours (bar by date + donut per project)
+            and the invoices report, full width and collapsible. */}
+        {hasApprovedHours && <ClientHoursReport projects={snapshot.projects} invoices={invoices} />}
+        {/* Candidates awaiting review sit above the Products row so the client sees them first. */}
+        {widgets.candidates.available && <div className={FIXED_CARD_TALL}>{candidatesNode}</div>}
         {/* Row 2: Products, then Your materials, then the public-holiday calendar. */}
         <div className="grid items-start gap-2 lg:grid-cols-3">
           <div className={FIXED_CARD}>{productsNode}</div>
+          {widgets.timeoff.available && <div className={FIXED_CARD}>{timeOffNode}</div>}
           {widgets.materials.available && <div className={FIXED_CARD}>{materialsNode}</div>}
           {holidaysVisible && <div className={FIXED_CARD}>{holidaysNode}</div>}
         </div>
-        {widgets.candidates.available && <div className={FIXED_CARD_TALL}>{candidatesNode}</div>}
         <div className="grid items-start gap-2 lg:grid-cols-3">
-          <div className={cn(FIXED_CARD, 'lg:col-span-2')}>{actionsNode}</div>
+          <div className={FIXED_CARD}>{actionsNode}</div>
           <div className={FIXED_CARD}>{activityNode}</div>
         </div>
       </div>
@@ -610,8 +639,11 @@ export const PortalDashboard: React.FC = () => {
     <div className="space-y-2">
       {renderHeaderStrip(customizeControls)}
 
-      {/* Charts of approved hours (bar by date + donut per project), full width and collapsible. */}
-      {hasApprovedHours && <ClientHoursReport projects={snapshot.projects} />}
+      <PendingInvoiceWidget invoices={invoices} />
+
+      {/* Charts of approved hours (bar by date + donut per project) plus the invoices report, full
+          width and collapsible. */}
+      {hasApprovedHours && <ClientHoursReport projects={snapshot.projects} invoices={invoices} />}
 
       <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {visibleIds.map((id) => {

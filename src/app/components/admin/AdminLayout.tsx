@@ -3,7 +3,9 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   Building2,
   CalendarDays,
+  CalendarOff,
   FileText,
+  Landmark,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -12,6 +14,7 @@ import {
   SlidersHorizontal,
   Users,
   UsersRound,
+  Wallet,
 } from 'lucide-react';
 import { SEOHead } from '../SEOHead';
 import { getSupabase } from '@/app/lib/supabase';
@@ -23,8 +26,13 @@ interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
-  /** When set, the item is shown only if this returns true for the signed-in user's role. */
-  gate?: 'sales-settings';
+  /**
+   * When set, the item is shown only if this passes for the signed-in user's role:
+   *   - 'sales-settings' — internal roles that manage sales defaults
+   *   - 'finance' — full payroll (portal admin only)
+   *   - 'own-finance' — a person's own salary, shown to non-admin staff (admins use the full page)
+   */
+  gate?: 'sales-settings' | 'finance' | 'own-finance';
   /** Hidden from the delivery-only Implementer role (Content, Products). */
   hideFromImplementer?: boolean;
 }
@@ -38,24 +46,32 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
+    title: 'Client portal',
+    items: [
+      { name: 'Dashboard', path: '/admin/portal/dashboard', icon: LayoutDashboard },
+      // Everyone takes leave — visible to all staff (self-service); admins approve and manage all of it.
+      { name: 'Time Off', path: '/admin/portal/time-off', icon: CalendarOff },
+      // Every staffer can see their own pay; admins get the full Salaries page below instead.
+      { name: 'My Salary', path: '/admin/portal/my-salary', icon: Wallet, gate: 'own-finance' },
+      { name: 'Public Holidays', path: '/admin/portal/holidays', icon: CalendarDays, hideFromImplementer: true },
+      { name: 'Accounts', path: '/admin/portal/accounts', icon: Building2 },
+      { name: 'Products', path: '/admin/portal/products', icon: Package, hideFromImplementer: true },
+      { name: 'Sales Process Settings', path: '/admin/portal/settings', icon: SlidersHorizontal, gate: 'sales-settings' },
+      { name: 'Feedback', path: '/admin/portal/feedback', icon: MessageSquareHeart },
+      // Klepka team, customer users and employee teams — folded into one tabbed page.
+      { name: 'Users & Teams', path: '/admin/portal/team', icon: UsersRound },
+      // Financial accounting hub — P&L, Overhead, Salaries and Invoices tabs (0056). Admin-only for now
+      // (RLS enforces it too); a broader grant can widen this later.
+      { name: 'Finance', path: '/admin/portal/finance', icon: Landmark, gate: 'finance' },
+    ],
+  },
+  {
     title: 'Content',
     hideFromImplementer: true,
     items: [
       { name: 'Articles', path: '/admin/articles', icon: FileText },
       { name: 'Authors', path: '/admin/authors', icon: Users },
       { name: 'Comments', path: '/admin/comments', icon: MessageSquare },
-    ],
-  },
-  {
-    title: 'Client portal',
-    items: [
-      { name: 'Dashboard', path: '/admin/portal/dashboard', icon: LayoutDashboard },
-      { name: 'Public Holidays', path: '/admin/portal/holidays', icon: CalendarDays, hideFromImplementer: true },
-      { name: 'Accounts', path: '/admin/portal/accounts', icon: Building2 },
-      { name: 'Products', path: '/admin/portal/products', icon: Package, hideFromImplementer: true },
-      { name: 'Sales Process Settings', path: '/admin/portal/settings', icon: SlidersHorizontal, gate: 'sales-settings' },
-      { name: 'Feedback', path: '/admin/portal/feedback', icon: MessageSquareHeart },
-      { name: 'Users & Team', path: '/admin/portal/team', icon: UsersRound },
     ],
   },
 ];
@@ -65,6 +81,8 @@ export const AdminLayout: React.FC = () => {
   const { user } = usePortalUser();
   const role: PortalRole | null = user?.role ?? null;
   const canManageSettings = role ? canManageSalesSettings(role) : false;
+  // Finance (Salaries) is portal-admin only for now.
+  const canFinance = role === 'portal_admin';
   const implementer = role ? isImplementer(role) : false;
 
   const handleSignOut = async () => {
@@ -88,7 +106,13 @@ export const AdminLayout: React.FC = () => {
             <div key={group.title} className="space-y-1">
               <div className="px-3 pb-1 text-[11px] uppercase tracking-widest text-white/50">{group.title}</div>
               {group.items
-                .filter((item) => item.gate !== 'sales-settings' || canManageSettings)
+                .filter((item) => {
+                  if (!item.gate) return true;
+                  if (item.gate === 'sales-settings') return canManageSettings;
+                  if (item.gate === 'finance') return canFinance;
+                  // 'own-finance' — a person's own salary, for non-admin staff only.
+                  return !canFinance;
+                })
                 .filter((item) => !(item.hideFromImplementer && implementer))
                 .map((item) => (
                 <NavLink
